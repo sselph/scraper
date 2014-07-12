@@ -58,7 +58,7 @@ var imageDir = flag.String("image_dir", "images", "The directory to place downlo
 var imagePath = flag.String("image_path", "images", "The path to use for images in gamelist.xml.")
 var romPath = flag.String("rom_path", ".", "The path to use for roms in gamelist.xml.")
 var maxWidth = flag.Uint("max_width", 400, "The max width of images. Larger images will be resized.")
-var workers = flag.Int("workers", 4, "The number of worker threads used to process roms.")
+var workers = flag.Int("workers", 1, "The number of worker threads used to process roms.")
 var retries = flag.Int("retries", 2, "The number of times to retry a rom on an error.")
 
 // GetFront gets the front boxart for a Game if it exists.
@@ -291,7 +291,7 @@ func CrawlROMs(gl *GameListXML, hm map[string]string) error {
 	if err != nil {
 		return err
 	}
-	files, err := d.Readdirnames(2)
+	files, err := d.Readdirnames(-1)
 	if err != nil {
 		return err
 	}
