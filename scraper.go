@@ -60,6 +60,7 @@ var romPath = flag.String("rom_path", ".", "The path to use for roms in gamelist
 var maxWidth = flag.Uint("max_width", 400, "The max width of images. Larger images will be resized.")
 var workers = flag.Int("workers", 1, "The number of worker threads used to process roms.")
 var retries = flag.Int("retries", 2, "The number of times to retry a rom on an error.")
+var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -214,18 +215,23 @@ func (r *ROM) downloadImages() error {
 	if err != nil {
 		return err
 	}
-	iName := fmt.Sprintf("%s-image.jpg", r.bName)
-	r.iPath = path.Join(*imageDir, iName)
-	if !exists(r.iPath) {
-		err = getImage(r.imageURL+f.URL, r.iPath)
-		if err != nil {
-			return err
+	if !*thumbOnly {
+		iName := fmt.Sprintf("%s-image.jpg", r.bName)
+		r.iPath = path.Join(*imageDir, iName)
+		if !exists(r.iPath) {
+			err = getImage(r.imageURL+f.URL, r.iPath)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.Printf("INFO: Skipping %s", r.iPath)
 		}
-	} else {
-		log.Printf("INFO: Skipping %s", r.iPath)
 	}
 	tName := fmt.Sprintf("%s-thumb.jpg", r.bName)
 	r.tPath = path.Join(*imageDir, tName)
+	if *thumbOnly {
+		r.iPath = r.tPath
+	}
 	if !exists(r.tPath) {
 		err = getImage(r.imageURL+f.Thumb, r.tPath)
 		if err != nil {
@@ -243,11 +249,11 @@ func getImage(url string, p string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
 		return err
 	}
+	resp.Body.Close()
 	if uint(img.Bounds().Dx()) > *maxWidth {
 		img = resize.Resize(*maxWidth, 0, img, resize.Bilinear)
 	}

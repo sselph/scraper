@@ -54,7 +54,11 @@ func (r *NESReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-func decodeNES(f *os.File) (io.Reader, error) {
+func (r *NESReader) Close() error {
+	return r.f.Close()
+}
+
+func decodeNES(f *os.File) (io.ReadCloser, error) {
 	header := make([]byte, 16)
 	n, err := f.Read(header)
 	if err != nil {
@@ -65,7 +69,7 @@ func decodeNES(f *os.File) (io.Reader, error) {
 	}
 	prgSize := int64(header[4])
 	chrSize := int64(header[5])
-	if header[7]&12 == 6 {
+	if header[7]&12 == 8 {
 		romSize := int64(header[9])
 		chrSize = romSize&0x0F<<8 + chrSize
 		prgSize = romSize&0xF0<<4 + prgSize

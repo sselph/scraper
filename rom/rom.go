@@ -32,15 +32,15 @@ import (
 	"path"
 )
 
-var formats = make(map[string]func(*os.File) (io.Reader, error))
+var formats = make(map[string]func(*os.File) (io.ReadCloser, error))
 
 // RegisterFormat registers a format with the rom package.
-func RegisterFormat(ext string, decode func(*os.File) (io.Reader, error)) {
+func RegisterFormat(ext string, decode func(*os.File) (io.ReadCloser, error)) {
 	formats[ext] = decode
 }
 
 // Decode takes a path and returns a reader for the inner rom data.
-func Decode(p string) (io.Reader, error) {
+func Decode(p string) (io.ReadCloser, error) {
 	ext := path.Ext(p)
 	decode, ok := formats[ext]
 	if !ok {
@@ -60,6 +60,7 @@ func SHA1(p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer r.Close()
 	buf := make([]byte, 4*1024*1024)
 	h := sha1.New()
 	for {

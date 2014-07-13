@@ -34,7 +34,7 @@ func init() {
 	rom.RegisterFormat(".sfc", decodeSNES)
 }
 
-func decodeSNES(f *os.File) (io.Reader, error) {
+func decodeSNES(f *os.File) (io.ReadCloser, error) {
 	fi, err := f.Stat()
 	if err != nil {
 		return nil, err
