@@ -32,6 +32,8 @@ import (
 func init() {
 	rom.RegisterFormat(".smc", decodeSNES)
 	rom.RegisterFormat(".sfc", decodeSNES)
+	rom.RegisterFormat(".fig", decodeSNES)
+	rom.RegisterFormat(".swc", decodeSNES)
 }
 
 func decodeSNES(f *os.File) (io.ReadCloser, error) {
