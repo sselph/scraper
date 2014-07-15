@@ -35,8 +35,8 @@ import (
 
 const (
 	GDBURL = "http://thegamesdb.net"
-	GGPath = "api/GetGame.php"
-	GGLPath = "api/GetGamesList.php"
+	GGPath = "/api/GetGame.php"
+	GGLPath = "/api/GetGamesList.php"
 )
 
 type GGLReq struct {
