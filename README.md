@@ -2,10 +2,19 @@ scraper
 =======
 
 A scraper for EmulationStation written in Go using hashes.
-This currently only works with NES and SNES ROMs.
+This currently works with NES, SNES, GB, GBC, GBA ROMs.
 
 Installation
 ------------
+
+Make sure you have go version 1.2 or later installed.
+
+```bash
+$ go version
+go version go1.2.1 linux/amd64
+```
+
+Fetch and build.
 
 ```bash
 $ go get github.com/sselph/scraper
@@ -25,7 +34,7 @@ ROMs will be scanned and a gamelist.xml file will be created. All images will be
 
 Raspberry Pi
 ------------
-The Raspberry Pi's build process is a little different. At the time of writing this raspbian has an old version of go 1.0.2 so it can't handle progressive scan jpeg files also when building for the pi you have to specificy the type of ARM processor.
+The Raspberry Pi's build process is a little different and I recommend building and running on a machine other than the PI. At the time of writing this raspbian has an old version of go 1.0.2 so it can't handle progressive scan jpeg files also when building for the pi you have to specificy the type of ARM processor.
 
 Build:
 

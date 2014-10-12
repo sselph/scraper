@@ -30,6 +30,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strings"
 )
 
 var formats = make(map[string]func(*os.File) (io.ReadCloser, error))
@@ -41,7 +42,7 @@ func RegisterFormat(ext string, decode func(*os.File) (io.ReadCloser, error)) {
 
 // Decode takes a path and returns a reader for the inner rom data.
 func Decode(p string) (io.ReadCloser, error) {
-	ext := path.Ext(p)
+	ext := strings.ToLower(path.Ext(p))
 	decode, ok := formats[ext]
 	if !ok {
 		return nil, fmt.Errorf("no registered decoder for extention %s", ext)
@@ -78,6 +79,11 @@ func SHA1(p string) (string, error) {
 
 // KnownExt returns True if the extention is registered.
 func KnownExt(e string) bool {
-	_, ok := formats[e]
+	_, ok := formats[strings.ToLower(e)]
 	return ok
+}
+
+// Noop does nothong but return the passed in file.
+func Noop(f *os.File) (io.ReadCloser, error) {
+	return f, nil
 }

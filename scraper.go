@@ -40,6 +40,7 @@ import (
 	"path/filepath"
 	"github.com/sselph/scraper/gdb"
 	"github.com/sselph/scraper/rom"
+	_ "github.com/sselph/scraper/rom/gb"
 	_ "github.com/sselph/scraper/rom/nes"
 	_ "github.com/sselph/scraper/rom/snes"
 	"sync"
