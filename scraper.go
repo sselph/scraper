@@ -43,6 +43,8 @@ import (
 	_ "github.com/sselph/scraper/rom/gb"
 	_ "github.com/sselph/scraper/rom/nes"
 	_ "github.com/sselph/scraper/rom/snes"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -62,6 +64,7 @@ var maxWidth = flag.Uint("max_width", 400, "The max width of images. Larger imag
 var workers = flag.Int("workers", 1, "The number of worker threads used to process roms.")
 var retries = flag.Int("retries", 2, "The number of times to retry a rom on an error.")
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
+var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamedb.net is up.")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -99,6 +102,7 @@ type GameXML struct {
 	Developer   string   `xml:"developer"`
 	Publisher   string   `xml:"publisher"`
 	Genre       string   `xml:"genre"`
+	Players     int64    `xml:"players,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.
@@ -206,6 +210,10 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	}
 	if r.tPath != "" {
 		r.XML.Thumb = fixPath(r.tPath)
+	}
+	p, err := strconv.ParseInt(strings.TrimRight(r.game.Players, "+"), 10, 32)
+	if err == nil {
+		r.XML.Players = p
 	}
 	return nil
 }
@@ -376,6 +384,13 @@ func GetHashMap() (map[string]string, error) {
 
 func main() {
 	flag.Parse()
+	if !*skipCheck {
+		ok := gdb.IsUp()
+		if !ok {
+			fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
+			return
+		}
+	}
 	hm, err := GetHashMap()
 	if err != nil {
 		fmt.Println(err)

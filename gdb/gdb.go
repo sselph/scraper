@@ -180,3 +180,26 @@ func GetGameList(req GGLReq) (*GGLResp, error) {
 	}
 	return r, nil
 }
+
+// IsUp returns if thegamedb.net is up.
+func IsUp() bool {
+	u, err := url.Parse(GDBURL)
+	u.Path = GGPath
+	q := url.Values{}
+	q.Set("id", "1")
+	u.RawQuery = q.Encode()
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return false
+	}
+	if resp.StatusCode != 200 {
+		return false
+	}
+	defer resp.Body.Close()
+	r := &GGResp{}
+	decoder := xml.NewDecoder(resp.Body)
+	if err := decoder.Decode(r); err != nil {
+		return false
+	}
+	return true
+}
