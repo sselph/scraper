@@ -35,6 +35,7 @@ import (
 func init() {
 	rom.RegisterFormat(".smd", decodeSMD)
 	rom.RegisterFormat(".md", decodeMD)
+	rom.RegisterFormat(".gen", rom.Noop)
 }
 
 func DeInterleave(p []byte) []byte {
