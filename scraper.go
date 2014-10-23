@@ -282,6 +282,19 @@ func exists(s string) bool {
 	return !os.IsNotExist(err) && fi.Size() > 0
 }
 
+func validTemp(s string) bool {
+	fi, err := os.Stat(s)
+	if err != nil || fi.Size() == 0 {
+		return false
+	}
+	n := time.Now()
+	t := fi.ModTime().Add(30 * time.Minute)
+	if t.Before(n) {
+		return false
+	}
+	return true
+}
+
 // worker is a function to process roms from a channel.
 func worker(hm map[string]string, results chan GameXML, roms chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -348,7 +361,7 @@ func GetHashMap() (map[string]string, error) {
 		if err != nil {
 			return ret, err
 		}
-	case exists(tempFile):
+	case validTemp(tempFile):
 		f, err = os.Open(tempFile)
 		if err != nil {
 			return ret, err
