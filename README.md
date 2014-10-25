@@ -48,3 +48,10 @@ Add thumb_only so that it doesn't download the larger progressive jpeg files.
 ```bash
 $ scraper -thumb_only
 ```
+
+Used libraries
+==============
+
+| Package | Description | License |
+| --- | --- | --- |
+| [github.com/nfnt/resize](https://github.com/nfnt/resize) | resizes images | BSD/ISC |
