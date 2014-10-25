@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
+	"github.com/kr/fs"
 	"github.com/nfnt/resize"
 	"image"
 	"image/jpeg"
@@ -175,7 +176,7 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	}
 
 	r.XML = GameXML{
-		Path:        fixPath(path.Join(*romPath, r.fName)),
+		Path:        fixPath(path.Join(*romPath, strings.TrimPrefix(r.Path, *romDir))),
 		ID:          r.game.ID,
 		GameTitle:   r.game.GameTitle,
 		Overview:    r.game.Overview,
@@ -295,14 +296,6 @@ func CrawlROMs(gl *GameListXML, hm map[string]string) error {
 	var wg sync.WaitGroup
 	results := make(chan GameXML, *workers)
 	roms := make(chan string, 2**workers)
-	d, err := os.Open(*romDir)
-	if err != nil {
-		return err
-	}
-	files, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
 		go worker(hm, results, roms, &wg)
@@ -313,11 +306,15 @@ func CrawlROMs(gl *GameListXML, hm map[string]string) error {
 			gl.Append(r)
 		}
 	}()
-	for _, f := range files {
-		if !rom.KnownExt(path.Ext(f)) {
-			continue
+	walker := fs.Walk(*romDir)
+	for walker.Step() {
+		if err := walker.Err(); err != nil {
+			return err
 		}
-		roms <- path.Join(*romDir, f)
+		f := walker.Path()
+		if rom.KnownExt(path.Ext(f)) {
+			roms <- f
+		}
 	}
 	close(roms)
 	wg.Wait()

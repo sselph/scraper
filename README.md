@@ -54,4 +54,5 @@ Used libraries
 
 | Package | Description | License |
 | --- | --- | --- |
-| [github.com/nfnt/resize](https://github.com/nfnt/resize) | resizes images | BSD/ISC |
+| [github.com/nfnt/resize](https://github.com/nfnt/resize) | resizes images | ISC |
+| [github.com/kr/fs](https://github.com/kr/fs) | provides filesystem-related functions | New BSD |
