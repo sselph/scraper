@@ -2,9 +2,9 @@
 package snes
 
 import (
+	"github.com/sselph/scraper/rom"
 	"io"
 	"os"
-	"github.com/sselph/scraper/rom"
 )
 
 func init() {

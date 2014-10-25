@@ -31,15 +31,15 @@ func DeInterleave(p []byte) []byte {
 }
 
 type SMDReader struct {
-	f      *os.File
-	b      []byte
-	r      *int
+	f *os.File
+	b []byte
+	r *int
 }
 
 func (r SMDReader) Read(p []byte) (int, error) {
 	ll := len(p)
 	rl := ll - *r.r
-	l := rl + 16 - 1 - (rl - 1) % 16;
+	l := rl + 16 - 1 - (rl-1)%16
 	copy(p, r.b[:*r.r])
 	if rl <= 0 {
 		*r.r = *r.r - ll
@@ -47,7 +47,7 @@ func (r SMDReader) Read(p []byte) (int, error) {
 		return ll, nil
 	}
 	n := *r.r
-	for i := 0; i < l / 16; i++ {
+	for i := 0; i < l/16; i++ {
 		b := make([]byte, 16)
 		x, err := io.ReadFull(r.f, b)
 		if x == 0 || err != nil {
@@ -57,7 +57,7 @@ func (r SMDReader) Read(p []byte) (int, error) {
 		if ll < n+x {
 			copy(p[n:ll], b)
 			copy(r.b, b[ll-n:])
-			*r.r = n+x - ll
+			*r.r = n + x - ll
 			return ll, nil
 		} else {
 			copy(p[n:n+16], b)
@@ -78,7 +78,7 @@ func decodeSMD(f *os.File) (io.ReadCloser, error) {
 }
 
 type MDReader struct {
-	r      io.Reader
+	r io.Reader
 }
 
 func (r MDReader) Read(p []byte) (int, error) {

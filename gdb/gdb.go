@@ -1,5 +1,5 @@
 // Package gdb interacts with thegamedb.net's API.
-// 
+//
 // Example:
 //  resp, err := gdb.GetGame(GGReq{ID: "5"})
 package gdb
@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	GDBURL = "http://thegamesdb.net"
-	GGPath = "/api/GetGame.php"
+	GDBURL  = "http://thegamesdb.net"
+	GGPath  = "/api/GetGame.php"
 	GGLPath = "/api/GetGamesList.php"
 )
 
