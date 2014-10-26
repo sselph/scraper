@@ -22,9 +22,9 @@ func DeInterleave(p []byte) []byte {
 	b := make([]byte, l)
 	for i, x := range p {
 		if i < m {
-			b[i*2] = x
+			b[i*2+1] = x
 		} else {
-			b[i*2-l+1] = x
+			b[i*2-l] = x
 		}
 	}
 	return b
@@ -39,7 +39,7 @@ type SMDReader struct {
 func (r SMDReader) Read(p []byte) (int, error) {
 	ll := len(p)
 	rl := ll - *r.r
-	l := rl + 16 - 1 - (rl-1)%16
+	l := rl + 16384 - 1 - (rl-1)%16384
 	copy(p, r.b[:*r.r])
 	if rl <= 0 {
 		*r.r = *r.r - ll
@@ -47,8 +47,8 @@ func (r SMDReader) Read(p []byte) (int, error) {
 		return ll, nil
 	}
 	n := *r.r
-	for i := 0; i < l/16; i++ {
-		b := make([]byte, 16)
+	for i := 0; i < l/16384; i++ {
+		b := make([]byte, 16384)
 		x, err := io.ReadFull(r.f, b)
 		if x == 0 || err != nil {
 			return n, err
@@ -60,7 +60,7 @@ func (r SMDReader) Read(p []byte) (int, error) {
 			*r.r = n + x - ll
 			return ll, nil
 		} else {
-			copy(p[n:n+16], b)
+			copy(p[n:n+16384], b)
 		}
 		n += x
 	}
@@ -74,7 +74,7 @@ func (r SMDReader) Close() error {
 func decodeSMD(f *os.File) (io.ReadCloser, error) {
 	f.Seek(512, 0)
 	i := 0
-	return SMDReader{f, make([]byte, 16), &i}, nil
+	return SMDReader{f, make([]byte, 16384), &i}, nil
 }
 
 type MDReader struct {
@@ -92,6 +92,7 @@ func (r MDReader) Close() error {
 
 func decodeMD(f *os.File) (io.ReadCloser, error) {
 	b, err := ioutil.ReadAll(f)
+	f.Close()
 	b = DeInterleave(b)
 	if err != nil {
 		return nil, err
