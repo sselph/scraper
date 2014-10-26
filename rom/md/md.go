@@ -12,8 +12,9 @@ import (
 
 func init() {
 	rom.RegisterFormat(".smd", decodeSMD)
-	rom.RegisterFormat(".md", decodeMD)
+	rom.RegisterFormat(".mgd", decodeMGD)
 	rom.RegisterFormat(".gen", rom.Noop)
+	rom.RegisterFormat(".md", rom.Noop)
 }
 
 func DeInterleave(p []byte) []byte {
@@ -77,25 +78,25 @@ func decodeSMD(f *os.File) (io.ReadCloser, error) {
 	return SMDReader{f, make([]byte, 16384), &i}, nil
 }
 
-type MDReader struct {
+type MGDReader struct {
 	r io.Reader
 }
 
-func (r MDReader) Read(p []byte) (int, error) {
+func (r MGDReader) Read(p []byte) (int, error) {
 	n, err := r.r.Read(p)
 	return n, err
 }
 
-func (r MDReader) Close() error {
+func (r MGDReader) Close() error {
 	return nil
 }
 
-func decodeMD(f *os.File) (io.ReadCloser, error) {
+func decodeMGD(f *os.File) (io.ReadCloser, error) {
 	b, err := ioutil.ReadAll(f)
 	f.Close()
 	b = DeInterleave(b)
 	if err != nil {
 		return nil, err
 	}
-	return MDReader{bytes.NewReader(b)}, nil
+	return MGDReader{bytes.NewReader(b)}, nil
 }
