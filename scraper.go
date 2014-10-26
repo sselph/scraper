@@ -372,6 +372,20 @@ func GetHashMap() (map[string]string, error) {
 	return ret, nil
 }
 
+// mkImages checks if images directory exists and if it doesn't create it.
+func mkImages() error {
+	fi, err := os.Stat(*imageDir)
+	switch {
+	case os.IsNotExist(err):
+		return os.MkdirAll(*imageDir, 0777)
+	case err != nil:
+		return err
+	case fi.IsDir():
+		return nil
+	}
+	return fmt.Errorf("%s is a file not a directory.", *imageDir)
+}
+
 func main() {
 	flag.Parse()
 	if !*skipCheck {
@@ -380,6 +394,11 @@ func main() {
 			fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 			return
 		}
+	}
+	err := mkImages()
+	if err != nil {
+		fmt.Println(err)
+		return
 	}
 	hm, err := GetHashMap()
 	if err != nil {
