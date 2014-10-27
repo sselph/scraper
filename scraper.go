@@ -99,10 +99,12 @@ func (gl *GameListXML) Append(g GameXML) {
 
 // fixPaths fixes relative file paths to include the leading './'.
 func fixPath(s string) string {
+	s = filepath.ToSlash(s)
+	s = strings.Replace(s, "//", "/", -1)
 	if filepath.IsAbs(s) || s[0] == '.' || s[0] == '~' {
 		return s
 	}
-	return fmt.Sprintf(".%c%s", os.PathSeparator, s)
+	return fmt.Sprintf("./%s", s)
 }
 
 // rom stores information about the ROM.
@@ -123,10 +125,6 @@ type ROM struct {
 
 func (r *ROM) getID(hm map[string]string) error {
 	var ok bool
-	_, f := path.Split(r.Path)
-	r.fName = f
-	e := path.Ext(f)
-	r.bName = f[:len(f)-len(e)]
 	h, err := rom.SHA1(r.Path)
 	if err != nil {
 		return err
@@ -158,6 +156,10 @@ func (r *ROM) getGame() error {
 // The results are stored in the ROMs XML property.
 func (r *ROM) ProcessROM(hm map[string]string) error {
 	log.Printf("INFO: Starting: %s", r.Path)
+	f := filepath.Base(r.Path)
+	r.fName = f
+	e := path.Ext(f)
+	r.bName = f[:len(f)-len(e)]
 	err := r.getID(hm)
 	if err != nil {
 		return err
@@ -176,7 +178,7 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	}
 
 	r.XML = GameXML{
-		Path:        fixPath(path.Join(*romPath, strings.TrimPrefix(r.Path, *romDir))),
+		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
 		ID:          r.game.ID,
 		GameTitle:   r.game.GameTitle,
 		Overview:    r.game.Overview,
@@ -187,10 +189,10 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 		Genre:       genre,
 	}
 	if r.iPath != "" {
-		r.XML.Image = fixPath(r.iPath)
+		r.XML.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(r.iPath, *imageDir))
 	}
 	if r.tPath != "" {
-		r.XML.Thumb = fixPath(r.tPath)
+		r.XML.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(r.tPath, *imageDir))
 	}
 	p, err := strconv.ParseInt(strings.TrimRight(r.game.Players, "+"), 10, 32)
 	if err == nil {
