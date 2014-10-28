@@ -11,16 +11,22 @@ import (
 	"strings"
 )
 
-var formats = make(map[string]func(*os.File) (io.ReadCloser, error))
+type Decoder func(io.ReadCloser, int64) (io.ReadCloser, error)
+
+var formats = make(map[string]Decoder)
 
 // RegisterFormat registers a format with the rom package.
-func RegisterFormat(ext string, decode func(*os.File) (io.ReadCloser, error)) {
+func RegisterFormat(ext string, decode Decoder) {
 	formats[ext] = decode
 }
 
 // Decode takes a path and returns a reader for the inner rom data.
 func Decode(p string) (io.ReadCloser, error) {
 	ext := strings.ToLower(path.Ext(p))
+	if ext == ".zip" {
+		r, err := decodeZip(p)
+		return r, err
+	}
 	decode, ok := formats[ext]
 	if !ok {
 		return nil, fmt.Errorf("no registered decoder for extention %s", ext)
@@ -29,7 +35,11 @@ func Decode(p string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret, err := decode(r)
+	fi, err := r.Stat()
+	if err != nil {
+		return nil, err
+	}
+	ret, err := decode(r, fi.Size())
 	return ret, err
 }
 
@@ -57,11 +67,14 @@ func SHA1(p string) (string, error) {
 
 // KnownExt returns True if the extention is registered.
 func KnownExt(e string) bool {
+	if strings.ToLower(e) == ".zip" {
+		return true
+	}
 	_, ok := formats[strings.ToLower(e)]
 	return ok
 }
 
 // Noop does nothong but return the passed in file.
-func Noop(f *os.File) (io.ReadCloser, error) {
+func Noop(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 	return f, nil
 }

@@ -4,7 +4,6 @@ package snes
 import (
 	"github.com/sselph/scraper/rom"
 	"io"
-	"os"
 )
 
 func init() {
@@ -14,13 +13,13 @@ func init() {
 	rom.RegisterFormat(".swc", decodeSNES)
 }
 
-func decodeSNES(f *os.File) (io.ReadCloser, error) {
-	fi, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if fi.Size()%1024 == 512 {
-		f.Seek(512, 0)
+func decodeSNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	if s%1024 == 512 {
+		tmp := make([]byte, 512)
+		_, err := io.ReadFull(f, tmp)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return f, nil
 }

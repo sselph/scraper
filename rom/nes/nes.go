@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sselph/scraper/rom"
 	"io"
-	"os"
 )
 
 func init() {
@@ -13,7 +12,7 @@ func init() {
 }
 
 type NESReader struct {
-	f      *os.File
+	f      io.ReadCloser
 	offset int64
 	size   int64
 	start  int64
@@ -36,9 +35,9 @@ func (r *NESReader) Close() error {
 	return r.f.Close()
 }
 
-func decodeNES(f *os.File) (io.ReadCloser, error) {
+func decodeNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 	header := make([]byte, 16)
-	n, err := f.Read(header)
+	n, err := io.ReadFull(f, header)
 	if err != nil {
 		return nil, err
 	}
@@ -59,10 +58,12 @@ func decodeNES(f *os.File) (io.ReadCloser, error) {
 	var offset int64
 	offset = 16
 	if hasTrainer {
-		offset, err = f.Seek(512, 1)
+		tmp := make([]byte, 512)
+		n, err := io.ReadFull(f, tmp)
 		if err != nil {
 			return nil, err
 		}
+		offset += int64(n)
 	}
 	return &NESReader{f, offset, prg + chr, offset, offset + prg + chr}, nil
 }

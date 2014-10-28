@@ -7,7 +7,6 @@ import (
 	"github.com/sselph/scraper/rom"
 	"io"
 	"io/ioutil"
-	"os"
 )
 
 func init() {
@@ -32,7 +31,7 @@ func DeInterleave(p []byte) []byte {
 }
 
 type SMDReader struct {
-	f *os.File
+	f io.ReadCloser
 	b []byte
 	r *int
 }
@@ -72,8 +71,12 @@ func (r SMDReader) Close() error {
 	return r.f.Close()
 }
 
-func decodeSMD(f *os.File) (io.ReadCloser, error) {
-	f.Seek(512, 0)
+func decodeSMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	tmp := make([]byte, 512)
+	_, err := io.ReadFull(f, tmp)
+	if err != nil {
+		return nil, err
+	}
 	i := 0
 	return SMDReader{f, make([]byte, 16384), &i}, nil
 }
@@ -91,7 +94,7 @@ func (r MGDReader) Close() error {
 	return nil
 }
 
-func decodeMGD(f *os.File) (io.ReadCloser, error) {
+func decodeMGD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 	b, err := ioutil.ReadAll(f)
 	f.Close()
 	b = DeInterleave(b)
