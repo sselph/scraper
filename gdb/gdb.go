@@ -15,6 +15,9 @@ const (
 	GDBURL  = "http://thegamesdb.net"
 	GGPath  = "/api/GetGame.php"
 	GGLPath = "/api/GetGamesList.php"
+
+	CGDBURL = "https://stevenselph.appspot.com"
+	CGGPath = "/game"
 )
 
 type GGLReq struct {
@@ -42,6 +45,7 @@ type GGReq struct {
 	ID       string
 	Name     string
 	Platform string
+	Cache    bool
 }
 
 // GGResp is the response of the GetGame query.
@@ -92,8 +96,15 @@ type Game struct {
 
 // GetGame gets the game information from the DB.
 func GetGame(req GGReq) (*GGResp, error) {
-	u, err := url.Parse(GDBURL)
-	u.Path = GGPath
+	var u *url.URL
+	var err error
+	if req.Cache {
+		u, err = url.Parse(CGDBURL)
+		u.Path = CGGPath
+	} else {
+		u, err = url.Parse(GDBURL)
+		u.Path = GGPath
+	}
 	q := url.Values{}
 	switch {
 	case req.ID != "":

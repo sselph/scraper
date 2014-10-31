@@ -45,7 +45,8 @@ var maxWidth = flag.Uint("max_width", 400, "The max width of images. Larger imag
 var workers = flag.Int("workers", 1, "The number of worker threads used to process roms.")
 var retries = flag.Int("retries", 2, "The number of times to retry a rom on an error.")
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
-var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamedb.net is up.")
+var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
+var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -138,7 +139,7 @@ func (r *ROM) getID(hm map[string]string) error {
 
 // getGame gets the game information from the DB.
 func (r *ROM) getGame() error {
-	req := gdb.GGReq{ID: r.id}
+	req := gdb.GGReq{ID: r.id, Cache: *useCache}
 	resp, err := gdb.GetGame(req)
 	if err != nil {
 		return err
@@ -393,7 +394,7 @@ func main() {
 	if !*skipCheck {
 		ok := gdb.IsUp()
 		if !ok {
-			fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
+			fmt.Println("It appears that thegamesdb.net isn't up, try -use_cache to use my backup server. If you are sure it is use -skip_check to bypass this error.")
 			return
 		}
 	}
