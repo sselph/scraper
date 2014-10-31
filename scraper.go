@@ -13,6 +13,7 @@ import (
 	_ "github.com/sselph/scraper/rom/gb"
 	_ "github.com/sselph/scraper/rom/md"
 	_ "github.com/sselph/scraper/rom/nes"
+	_ "github.com/sselph/scraper/rom/sms"
 	_ "github.com/sselph/scraper/rom/snes"
 	"image"
 	"image/jpeg"
