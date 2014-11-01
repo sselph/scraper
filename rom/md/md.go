@@ -14,6 +14,7 @@ func init() {
 	rom.RegisterFormat(".mgd", decodeMGD)
 	rom.RegisterFormat(".gen", rom.Noop)
 	rom.RegisterFormat(".md", rom.Noop)
+	rom.RegisterFormat(".32x", rom.Noop)
 }
 
 func DeInterleave(p []byte) []byte {
