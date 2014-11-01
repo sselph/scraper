@@ -2,7 +2,7 @@ scraper
 =======
 
 A scraper for EmulationStation written in Go using hashes.
-This currently works with NES, SNES, GB, GBC, GBA, MD, SMS, PCE ROMs.
+This currently works with NES, SNES, GB, GBC, GBA, MD, SMS, 32X, GG, PCE ROMs.
 
 Installation
 ------------
