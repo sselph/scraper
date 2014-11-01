@@ -48,6 +48,9 @@ var retries = flag.Int("retries", 2, "The number of times to retry a rom on an e
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
 var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
+var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
+
+var imgDirs map[string]struct{}
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -120,6 +123,7 @@ type ROM struct {
 	tPath    string
 	bName    string
 	fName    string
+	fDir     string
 	iTag     string
 	tTag     string
 	XML      GameXML
@@ -159,6 +163,7 @@ func (r *ROM) getGame() error {
 func (r *ROM) ProcessROM(hm map[string]string) error {
 	log.Printf("INFO: Starting: %s", r.Path)
 	f := filepath.Base(r.Path)
+	r.fDir = strings.TrimPrefix(filepath.Dir(r.Path), *romDir)
 	r.fName = f
 	e := path.Ext(f)
 	r.bName = f[:len(f)-len(e)]
@@ -209,9 +214,22 @@ func (r *ROM) downloadImages() error {
 	if err != nil {
 		return err
 	}
+	var imgPath string
+	if *nestedImageDir {
+		imgPath = path.Join(*imageDir, r.fDir)
+	} else {
+		imgPath = *imageDir
+	}
+	if _, ok := imgDirs[imgPath]; !ok {
+		err := mkDir(imgPath)
+		if err != nil {
+			return err
+		}
+		imgDirs[imgPath] = struct{}{}
+	}
 	if !*thumbOnly {
 		iName := fmt.Sprintf("%s-image.jpg", r.bName)
-		r.iPath = path.Join(*imageDir, iName)
+		r.iPath = path.Join(imgPath, iName)
 		if !exists(r.iPath) {
 			err = getImage(r.imageURL+f.URL, r.iPath)
 			if err != nil {
@@ -222,7 +240,7 @@ func (r *ROM) downloadImages() error {
 		}
 	}
 	tName := fmt.Sprintf("%s-thumb.jpg", r.bName)
-	r.tPath = path.Join(*imageDir, tName)
+	r.tPath = path.Join(imgPath, tName)
 	if *thumbOnly {
 		r.iPath = r.tPath
 	}
@@ -376,21 +394,22 @@ func GetHashMap() (map[string]string, error) {
 	return ret, nil
 }
 
-// mkImages checks if images directory exists and if it doesn't create it.
-func mkImages() error {
-	fi, err := os.Stat(*imageDir)
+// mkDir checks if directory exists and if it doesn't create it.
+func mkDir(d string) error {
+	fi, err := os.Stat(d)
 	switch {
 	case os.IsNotExist(err):
-		return os.MkdirAll(*imageDir, 0777)
+		return os.MkdirAll(d, 0777)
 	case err != nil:
 		return err
 	case fi.IsDir():
 		return nil
 	}
-	return fmt.Errorf("%s is a file not a directory.", *imageDir)
+	return fmt.Errorf("%s is a file not a directory.", d)
 }
 
 func main() {
+	imgDirs = make(map[string]struct{})
 	flag.Parse()
 	if !*skipCheck {
 		ok := gdb.IsUp()
@@ -398,11 +417,6 @@ func main() {
 			fmt.Println("It appears that thegamesdb.net isn't up, try -use_cache to use my backup server. If you are sure it is use -skip_check to bypass this error.")
 			return
 		}
-	}
-	err := mkImages()
-	if err != nil {
-		fmt.Println(err)
-		return
 	}
 	hm, err := GetHashMap()
 	if err != nil {
