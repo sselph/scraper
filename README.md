@@ -4,6 +4,10 @@ scraper
 A scraper for EmulationStation written in Go using hashes.
 This currently works with NES, SNES, GB, GBC, GBA, MD, SMS, 32X, GG, PCE ROMs.
 
+How it Works
+------------
+The script works by crawling a directory of ROM files looking for known extensions. When it finds a file it hashes the ROM data minus any headers or special file formatting with the goal of hashing only the data pulled from the original game. It compares this hash to a DB I've compiled to look up the correct game in theGamesDB.net. It downloads the metadata and builds the gamelist.xml file.
+
 Installation
 ------------
 
