@@ -1,8 +1,8 @@
 scraper
 =======
 
-A scraper for EmulationStation written in Go using hashes.
-This currently works with NES, SNES, GB, GBC, GBA, MD, SMS, 32X, GG, PCE ROMs.
+An auto-scraper for EmulationStation written in Go using hashes.
+This currently works with NES, SNES, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600 ROMs.
 
 How it Works
 ------------
