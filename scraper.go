@@ -130,19 +130,6 @@ type ROM struct {
 	XML      GameXML
 }
 
-func (r *ROM) getID(hm map[string]string) error {
-	var ok bool
-	h, err := rom.SHA1(r.Path)
-	if err != nil {
-		return err
-	}
-	r.id, ok = hm[h]
-	if !ok {
-		return fmt.Errorf("hash for file %s not found", r.Path)
-	}
-	return nil
-}
-
 // getGame gets the game information from the DB.
 func (r *ROM) getGame() error {
 	req := gdb.GGReq{ID: r.id, Cache: *useCache}
@@ -168,10 +155,16 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	r.fName = f
 	e := path.Ext(f)
 	r.bName = f[:len(f)-len(e)]
-	err := r.getID(hm)
+	h, err := rom.SHA1(r.Path)
 	if err != nil {
 		return err
 	}
+	r.hash = h
+	id, ok := hm[h]
+	if !ok {
+		return fmt.Errorf("hash for file %s not found", r.Path)
+	}
+	r.id = id
 	err = r.getGame()
 	if err != nil {
 		return err
@@ -184,7 +177,6 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	if len(r.game.Genres) >= 1 {
 		genre = r.game.Genres[0]
 	}
-
 	r.XML = GameXML{
 		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
 		ID:          r.game.ID,
