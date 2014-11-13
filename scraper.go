@@ -1,13 +1,16 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"encoding/xml"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/kr/fs"
 	"github.com/nfnt/resize"
 	"github.com/sselph/scraper/gdb"
+	"github.com/sselph/scraper/ovgdb"
 	"github.com/sselph/scraper/rom"
 	_ "github.com/sselph/scraper/rom/bin"
 	_ "github.com/sselph/scraper/rom/gb"
@@ -50,8 +53,12 @@ var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both 
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
 var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
+var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
+var useOVGDB = flag.Bool("use_ovgdb", true, "Use the OpenVGDB if the hash isn't in hash.csv.")
 
 var imgDirs map[string]struct{}
+
+var HashNotFound = errors.New("hash not found")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -73,6 +80,11 @@ func ToXMLDate(d string) string {
 		return fmt.Sprintf("%s0101T000000", d)
 	}
 	return ""
+}
+
+type datasources struct {
+	HM    map[string]string
+	OVGDB *sql.DB
 }
 
 // GameXML is the object used to export the <game> elements of the gamelist.xml.
@@ -113,10 +125,10 @@ func fixPath(s string) string {
 	return fmt.Sprintf("./%s", s)
 }
 
-func GetGDBGame(r *ROM, hm map[string]string) (*GameXML, error) {
-	id, ok := hm[r.hash]
+func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
+	id, ok := ds.HM[r.Hash]
 	if !ok {
-		return nil, fmt.Errorf("hash for file %s not found", r.Path)
+		return nil, HashNotFound
 	}
 	req := gdb.GGReq{ID: id, Cache: *useCache}
 	resp, err := gdb.GetGame(req)
@@ -161,7 +173,7 @@ func GetGDBGame(r *ROM, hm map[string]string) (*GameXML, error) {
 	if len(game.Genres) >= 1 {
 		genre = game.Genres[0]
 	}
-	XML := &GameXML{
+	gxml := &GameXML{
 		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
 		ID:          game.ID,
 		GameTitle:   game.GameTitle,
@@ -173,22 +185,62 @@ func GetGDBGame(r *ROM, hm map[string]string) (*GameXML, error) {
 		Genre:       genre,
 	}
 	if iPath != "" {
-		XML.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
 	}
 	if tPath != "" {
-		XML.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
+		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
 	}
 	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
 	if err == nil {
-		XML.Players = p
+		gxml.Players = p
 	}
-	return XML, nil
+	return gxml, nil
+}
+
+func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
+	games, err := ovgdb.GetGamesFromHash(ds.OVGDB, r.Hash)
+	if err != nil {
+		return nil, err
+	}
+	if len(games) == 0 {
+		return nil, HashNotFound
+	}
+	g := games[0]
+	var imgPath string
+	if *nestedImageDir {
+		imgPath = path.Join(*imageDir, r.fDir)
+	} else {
+		imgPath = *imageDir
+	}
+	var iPath string
+	if g.Art != "" {
+		iName := fmt.Sprintf("%s-image.jpg", r.bName)
+		iPath = path.Join(imgPath, iName)
+		err = getImage(g.Art, iPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	gxml := &GameXML{
+		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
+		GameTitle:   g.Name,
+		Overview:    g.Desc,
+		ReleaseDate: g.Date,
+		Developer:   g.Developer,
+		Publisher:   g.Publisher,
+		Genre:       g.Genre,
+	}
+	if iPath != "" {
+		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+	}
+	return gxml, nil
 }
 
 // rom stores information about the ROM.
 type ROM struct {
 	Path  string
-	hash  string
+	Hash  string
 	bName string
 	fName string
 	fDir  string
@@ -198,7 +250,7 @@ type ROM struct {
 // ProcessROM does all the processing of the ROM. It hashes,
 // downloads the metadata, and downloads the images.
 // The results are stored in the ROMs XML property.
-func (r *ROM) ProcessROM(hm map[string]string) error {
+func (r *ROM) ProcessROM(ds *datasources) error {
 	log.Printf("INFO: Starting: %s", r.Path)
 	f := filepath.Base(r.Path)
 	r.fDir = strings.TrimPrefix(filepath.Dir(r.Path), *romDir)
@@ -209,8 +261,16 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 	if err != nil {
 		return err
 	}
-	r.hash = h
-	xml, err := GetGDBGame(r, hm)
+	r.Hash = h
+	var xml *GameXML
+	if xml == nil && *useGDB {
+		log.Printf("INFO: Attempting lookup in GDB: %s", r.Path)
+		xml, err = GetGDBGame(r, ds)
+	}
+	if xml == nil && *useOVGDB {
+		log.Printf("INFO: Attempting lookup in OVGDB: %s", r.Path)
+		xml, err = GetOVGDBGame(r, ds)
+	}
 	if err != nil {
 		return err
 	}
@@ -272,12 +332,12 @@ func validTemp(s string) bool {
 }
 
 // worker is a function to process roms from a channel.
-func worker(hm map[string]string, results chan *GameXML, roms chan string, wg *sync.WaitGroup) {
+func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for p := range roms {
 		r := ROM{Path: p}
 		for try := 0; try <= *retries; try++ {
-			err := r.ProcessROM(hm)
+			err := r.ProcessROM(ds)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				continue
@@ -289,13 +349,13 @@ func worker(hm map[string]string, results chan *GameXML, roms chan string, wg *s
 }
 
 // CrawlROMs crawls the rom directory and processes the files.
-func CrawlROMs(gl *GameListXML, hm map[string]string) error {
+func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	var wg sync.WaitGroup
 	results := make(chan *GameXML, *workers)
 	roms := make(chan string, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
-		go worker(hm, results, roms, &wg)
+		go worker(ds, results, roms, &wg)
 	}
 	go func() {
 		defer wg.Done()
@@ -393,13 +453,26 @@ func main() {
 			return
 		}
 	}
-	hm, err := GetHashMap()
-	if err != nil {
-		fmt.Println(err)
-		return
+	ds := &datasources{}
+	if *useGDB {
+		hm, err := GetHashMap()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		ds.HM = hm
+	}
+	if *useOVGDB {
+		o, err := ovgdb.GetDB()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer o.Close()
+		ds.OVGDB = o
 	}
 	gl := &GameListXML{}
-	CrawlROMs(gl, hm)
+	CrawlROMs(gl, ds)
 	output, err := xml.MarshalIndent(gl, "  ", "    ")
 	if err != nil {
 		fmt.Printf("error: %v\n", err)
