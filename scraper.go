@@ -95,11 +95,11 @@ type GameXML struct {
 // GameListXML is the structure used to export the gamelist.xml file.
 type GameListXML struct {
 	XMLName  xml.Name `xml:"gameList"`
-	GameList []GameXML
+	GameList []*GameXML
 }
 
 // Append appeads a GameXML to the GameList.
-func (gl *GameListXML) Append(g GameXML) {
+func (gl *GameListXML) Append(g *GameXML) {
 	gl.GameList = append(gl.GameList, g)
 }
 
@@ -113,36 +113,86 @@ func fixPath(s string) string {
 	return fmt.Sprintf("./%s", s)
 }
 
-// rom stores information about the ROM.
-type ROM struct {
-	Path     string
-	hash     string
-	id       string
-	game     gdb.Game
-	imageURL string
-	iPath    string
-	tPath    string
-	bName    string
-	fName    string
-	fDir     string
-	iTag     string
-	tTag     string
-	XML      GameXML
-}
-
-// getGame gets the game information from the DB.
-func (r *ROM) getGame() error {
-	req := gdb.GGReq{ID: r.id, Cache: *useCache}
+func GetGDBGame(r *ROM, hm map[string]string) (*GameXML, error) {
+	id, ok := hm[r.hash]
+	if !ok {
+		return nil, fmt.Errorf("hash for file %s not found", r.Path)
+	}
+	req := gdb.GGReq{ID: id, Cache: *useCache}
 	resp, err := gdb.GetGame(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if len(resp.Game) == 0 {
-		return fmt.Errorf("game with id (%s) not found", r.id)
+		return nil, fmt.Errorf("game with id (%s) not found", id)
 	}
-	r.game = resp.Game[0]
-	r.imageURL = resp.ImageURL
-	return nil
+	game := resp.Game[0]
+	imageURL := resp.ImageURL
+	front, err := GetFront(game)
+	if err != nil {
+		return nil, err
+	}
+	var imgPath string
+	if *nestedImageDir {
+		imgPath = path.Join(*imageDir, r.fDir)
+	} else {
+		imgPath = *imageDir
+	}
+	var iPath string
+	if !*thumbOnly {
+		iName := fmt.Sprintf("%s-image.jpg", r.bName)
+		iPath = path.Join(imgPath, iName)
+		err = getImage(imageURL+front.URL, iPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	tName := fmt.Sprintf("%s-thumb.jpg", r.bName)
+	tPath := path.Join(imgPath, tName)
+	if *thumbOnly {
+		iPath = tPath
+	}
+	err = getImage(imageURL+front.Thumb, tPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var genre string
+	if len(game.Genres) >= 1 {
+		genre = game.Genres[0]
+	}
+	XML := &GameXML{
+		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
+		ID:          game.ID,
+		GameTitle:   game.GameTitle,
+		Overview:    game.Overview,
+		Rating:      game.Rating / 10.0,
+		ReleaseDate: ToXMLDate(game.ReleaseDate),
+		Developer:   game.Developer,
+		Publisher:   game.Publisher,
+		Genre:       genre,
+	}
+	if iPath != "" {
+		XML.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+	}
+	if tPath != "" {
+		XML.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
+	}
+	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
+	if err == nil {
+		XML.Players = p
+	}
+	return XML, nil
+}
+
+// rom stores information about the ROM.
+type ROM struct {
+	Path  string
+	hash  string
+	bName string
+	fName string
+	fDir  string
+	XML   *GameXML
 }
 
 // ProcessROM does all the processing of the ROM. It hashes,
@@ -160,96 +210,28 @@ func (r *ROM) ProcessROM(hm map[string]string) error {
 		return err
 	}
 	r.hash = h
-	id, ok := hm[h]
-	if !ok {
-		return fmt.Errorf("hash for file %s not found", r.Path)
-	}
-	r.id = id
-	err = r.getGame()
+	xml, err := GetGDBGame(r, hm)
 	if err != nil {
 		return err
 	}
-	err = r.downloadImages()
-	if err != nil {
-		return err
-	}
-	var genre string
-	if len(r.game.Genres) >= 1 {
-		genre = r.game.Genres[0]
-	}
-	r.XML = GameXML{
-		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
-		ID:          r.game.ID,
-		GameTitle:   r.game.GameTitle,
-		Overview:    r.game.Overview,
-		Rating:      r.game.Rating / 10.0,
-		ReleaseDate: ToXMLDate(r.game.ReleaseDate),
-		Developer:   r.game.Developer,
-		Publisher:   r.game.Publisher,
-		Genre:       genre,
-	}
-	if r.iPath != "" {
-		r.XML.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(r.iPath, *imageDir))
-	}
-	if r.tPath != "" {
-		r.XML.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(r.tPath, *imageDir))
-	}
-	p, err := strconv.ParseInt(strings.TrimRight(r.game.Players, "+"), 10, 32)
-	if err == nil {
-		r.XML.Players = p
-	}
-	return nil
-}
-
-// downloadImages downloads the ROMs images.
-func (r *ROM) downloadImages() error {
-	f, err := GetFront(r.game)
-	if err != nil {
-		return err
-	}
-	var imgPath string
-	if *nestedImageDir {
-		imgPath = path.Join(*imageDir, r.fDir)
-	} else {
-		imgPath = *imageDir
-	}
-	if _, ok := imgDirs[imgPath]; !ok {
-		err := mkDir(imgPath)
-		if err != nil {
-			return err
-		}
-		imgDirs[imgPath] = struct{}{}
-	}
-	if !*thumbOnly {
-		iName := fmt.Sprintf("%s-image.jpg", r.bName)
-		r.iPath = path.Join(imgPath, iName)
-		if !exists(r.iPath) {
-			err = getImage(r.imageURL+f.URL, r.iPath)
-			if err != nil {
-				return err
-			}
-		} else {
-			log.Printf("INFO: Skipping %s", r.iPath)
-		}
-	}
-	tName := fmt.Sprintf("%s-thumb.jpg", r.bName)
-	r.tPath = path.Join(imgPath, tName)
-	if *thumbOnly {
-		r.iPath = r.tPath
-	}
-	if !exists(r.tPath) {
-		err = getImage(r.imageURL+f.Thumb, r.tPath)
-		if err != nil {
-			return err
-		}
-	} else {
-		log.Printf("INFO: Skipping %s", r.tPath)
-	}
+	r.XML = xml
 	return nil
 }
 
 // getImage gets the image, resizes it and saves it to specified path.
 func getImage(url string, p string) error {
+	if exists(p) {
+		log.Printf("INFO: Skipping %s", p)
+		return nil
+	}
+	dir := filepath.Dir(p)
+	if _, ok := imgDirs[dir]; !ok {
+		err := mkDir(dir)
+		if err != nil {
+			return err
+		}
+		imgDirs[dir] = struct{}{}
+	}
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -290,7 +272,7 @@ func validTemp(s string) bool {
 }
 
 // worker is a function to process roms from a channel.
-func worker(hm map[string]string, results chan GameXML, roms chan string, wg *sync.WaitGroup) {
+func worker(hm map[string]string, results chan *GameXML, roms chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for p := range roms {
 		r := ROM{Path: p}
@@ -309,7 +291,7 @@ func worker(hm map[string]string, results chan GameXML, roms chan string, wg *sy
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *GameListXML, hm map[string]string) error {
 	var wg sync.WaitGroup
-	results := make(chan GameXML, *workers)
+	results := make(chan *GameXML, *workers)
 	roms := make(chan string, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
