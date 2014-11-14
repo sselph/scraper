@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -84,13 +83,14 @@ func ToXMLDate(d string) string {
 
 type datasources struct {
 	HM    map[string]string
-	OVGDB *sql.DB
+	OVGDB *ovgdb.DB
 }
 
 // GameXML is the object used to export the <game> elements of the gamelist.xml.
 type GameXML struct {
 	XMLName     xml.Name `xml:"game"`
 	ID          string   `xml:"id,attr"`
+	Source      string   `xml:"source,attr"`
 	Path        string   `xml:"path"`
 	GameTitle   string   `xml:"name"`
 	Overview    string   `xml:"desc"`
@@ -183,6 +183,7 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 		Developer:   game.Developer,
 		Publisher:   game.Publisher,
 		Genre:       genre,
+		Source:      "theGamesDB.net",
 	}
 	if iPath != "" {
 		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
@@ -198,14 +199,10 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 }
 
 func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
-	games, err := ovgdb.GetGamesFromHash(ds.OVGDB, r.Hash)
+	g, err := ds.OVGDB.GetGame(r.Hash)
 	if err != nil {
 		return nil, err
 	}
-	if len(games) == 0 {
-		return nil, HashNotFound
-	}
-	g := games[0]
 	var imgPath string
 	if *nestedImageDir {
 		imgPath = path.Join(*imageDir, r.fDir)
@@ -222,6 +219,7 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 		}
 	}
 	gxml := &GameXML{
+		ID:          g.ReleaseID,
 		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
 		GameTitle:   g.Name,
 		Overview:    g.Desc,
@@ -229,6 +227,7 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 		Developer:   g.Developer,
 		Publisher:   g.Publisher,
 		Genre:       g.Genre,
+		Source:      g.Source,
 	}
 	if iPath != "" {
 		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))

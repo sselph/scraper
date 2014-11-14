@@ -61,3 +61,5 @@ Used libraries
 | [github.com/nfnt/resize](https://github.com/nfnt/resize) | resizes images | ISC |
 | [github.com/kr/fs](https://github.com/kr/fs) | provides filesystem-related functions | New BSD |
 | [github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | provides sqlite | MIT |
+| [github.com/mitchellh/go-homedir](https://github.com/mitchellh/go-homedir) | get user homedir | MIT |
+| [github.com/syndtr/goleveldb](https://github.com/syndtr/goleveldb) | provides leveldb | Simplified BSD |
