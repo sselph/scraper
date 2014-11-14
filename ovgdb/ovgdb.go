@@ -116,7 +116,7 @@ func mkDir(d string) error {
 	fi, err := os.Stat(d)
 	switch {
 	case os.IsNotExist(err):
-		return os.MkdirAll(d, 0777)
+		return os.MkdirAll(d, 0775)
 	case err != nil:
 		return err
 	case fi.IsDir():
@@ -154,7 +154,7 @@ func updateDB(version, p string) error {
 	if err != nil {
 		return err
 	}
-	err = os.Mkdir(dbp, 0777)
+	err = os.Mkdir(dbp, 0775)
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func updateDB(version, p string) error {
 		return err
 	}
 	zf := path.Join(p, zipName)
-	err = ioutil.WriteFile(zf, b, 0777)
+	err = ioutil.WriteFile(zf, b, 0664)
 	if err != nil {
 		return err
 	}
@@ -185,14 +185,14 @@ func updateDB(version, p string) error {
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(path.Join(dbp, n), b, 0777)
+		err = ioutil.WriteFile(path.Join(dbp, n), b, 0664)
 		if err != nil {
 			return err
 		}
 	}
 	log.Print("INFO: Upgrade Complete.")
 	os.Remove(zf)
-	ioutil.WriteFile(path.Join(p, metaName), []byte(newVersion), 0777)
+	ioutil.WriteFile(path.Join(p, metaName), []byte(newVersion), 0664)
 	return nil
 }
 

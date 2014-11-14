@@ -35,8 +35,9 @@ import (
 )
 
 const (
-	hashURL      = "https://stevenselph.appspot.com/csv/hash.csv"
-	tempHashFile = "hash.csv"
+	hashURL  = "https://storage.googleapis.com/stevenselph.appspot.com/hash.csv"
+	hashName = "hash.csv"
+	hashMeta = "hash.meta"
 )
 
 var hashFile = flag.String("hash_file", "", "The file containing hash information.")
@@ -380,38 +381,69 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	return nil
 }
 
+func updateHash(version, p string) error {
+	log.Print("INFO: Checking for new hash.csv.")
+	req, err := http.NewRequest("GET", hashURL, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("if-none-match", version)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotModified {
+		log.Printf("INFO: hash.csv %s up to date.", version)
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("got %v response", resp.Status)
+	}
+	newVersion := resp.Header.Get("etag")
+	log.Printf("INFO: Upgrading hash.csv: %s -> %s.", version, newVersion)
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	err = ioutil.WriteFile(path.Join(p, hashName), b, 0664)
+	if err != nil {
+		return err
+	}
+	ioutil.WriteFile(path.Join(p, hashMeta), []byte(newVersion), 0664)
+	return nil
+}
+
 // GetMap gets the mapping of hashes to IDs.
 func GetHashMap() (map[string]string, error) {
 	ret := make(map[string]string)
 	var f io.ReadCloser
 	var err error
-	tempFile := path.Join(os.TempDir(), tempHashFile)
-	switch {
-	case *hashFile != "":
+	if *hashFile != "" {
 		f, err = os.Open(*hashFile)
 		if err != nil {
 			return ret, err
 		}
-	case validTemp(tempFile):
-		f, err = os.Open(tempFile)
+	} else {
+		p, err := ovgdb.GetDBPath()
 		if err != nil {
 			return ret, err
 		}
-	default:
-		resp, err := http.Get(hashURL)
+		fp := path.Join(p, hashName)
+		mp := path.Join(p, hashMeta)
+		var version string
+		if exists(fp) && exists(mp) {
+			b, err := ioutil.ReadFile(mp)
+			if err != nil {
+				return nil, err
+			}
+			version = strings.Trim(string(b[:]), "\n\r")
+		}
+		err = updateHash(version, p)
 		if err != nil {
 			return ret, err
 		}
-		defer resp.Body.Close()
-		r, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return ret, err
-		}
-		err = ioutil.WriteFile(tempFile, r, 0644)
-		if err != nil {
-			return ret, err
-		}
-		f, err = os.Open(tempFile)
+		f, err = os.Open(fp)
 		if err != nil {
 			return ret, err
 		}
@@ -433,7 +465,7 @@ func mkDir(d string) error {
 	fi, err := os.Stat(d)
 	switch {
 	case os.IsNotExist(err):
-		return os.MkdirAll(d, 0777)
+		return os.MkdirAll(d, 0775)
 	case err != nil:
 		return err
 	case fi.IsDir():
