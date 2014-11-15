@@ -55,7 +55,7 @@ var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net
 var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
 var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
-var useOVGDB = flag.Bool("use_ovgdb", true, "Use the OpenVGDB if the hash isn't in hash.csv.")
+var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 
 var imgDirs map[string]struct{}
