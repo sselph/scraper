@@ -29,6 +29,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -482,6 +483,7 @@ func mkDir(d string) error {
 
 func main() {
 	flag.Parse()
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
 	}
