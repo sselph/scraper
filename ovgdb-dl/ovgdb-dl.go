@@ -96,6 +96,10 @@ func queryDB(db *sql.DB, q string) ([]ovgdb.Game, error) {
 			Hash:      strings.ToLower(v[10]),
 			FileName:  v[11],
 		}
+		// filter out rows that don't add much value.
+		if g.Desc == "" && g.Art == "" && g.Developer == "" && g.Date == "" {
+			continue
+		}
 		ret = append(ret, g)
 	}
 	return ret, nil
