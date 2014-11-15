@@ -429,6 +429,10 @@ func GetHashMap() (map[string]string, error) {
 		if err != nil {
 			return ret, err
 		}
+		err = mkDir(p)
+		if err != nil {
+			return ret, err
+		}
 		fp := path.Join(p, hashName)
 		mp := path.Join(p, hashMeta)
 		var version string
