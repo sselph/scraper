@@ -463,7 +463,7 @@ func GetHashMap() (map[string]string, error) {
 		return ret, err
 	}
 	for _, v := range r {
-		ret[v[0]] = v[1]
+		ret[strings.ToLower(v[0])] = v[1]
 	}
 	return ret, nil
 }
