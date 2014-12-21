@@ -50,7 +50,7 @@ At the time of writing this raspbian has an old version of go 1.0.2 so you can c
 Build:
 
 ```bash
-$ GOARM=6 GOARCH=linux go build github.com/sselph/scraper
+$ GOARM=6 GOARCH=arm GOOS=linux go build github.com/sselph/scraper
 ```
 
 Usage:
