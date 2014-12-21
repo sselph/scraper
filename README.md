@@ -36,18 +36,26 @@ $ scraper
 
 ROMs will be scanned and a gamelist.xml file will be created. All images will be placed inside the images folder.
 
+Command Line Flags
+------------------
+There are several command flags you can pass. To see a full list use -help
+
+```bash
+$ scraper -help
+```
+
 Raspberry Pi
 ------------
-The Raspberry Pi's build process is a little different and I recommend building and running on a machine other than the PI. At the time of writing this raspbian has an old version of go 1.0.2 so it can't handle progressive scan jpeg files also when building for the pi you have to specificy the type of ARM processor.
+At the time of writing this raspbian has an old version of go 1.0.2 so you can cross-compile on another system or download an unofficial go binary from [http://dave.cheney.net/unofficial-arm-tarballs](http://dave.cheney.net/unofficial-arm-tarballs).
 
 Build:
 
 ```bash
-$ GOARM=5 go build github.com/sselph/scraper
+$ GOARM=6 GOARCH=linux go build github.com/sselph/scraper
 ```
 
 Usage:
-Add thumb_only so that it doesn't download the larger progressive jpeg files.
+Add thumb_only can speed things up since the pi doesn't have a ton of memory.
 
 ```bash
 $ scraper -thumb_only
