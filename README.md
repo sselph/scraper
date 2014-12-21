@@ -30,7 +30,6 @@ Usage
 
 ```bash
 $ cd <rom directory>
-$ mkdir images
 $ scraper
 ```
 
