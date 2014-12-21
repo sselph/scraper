@@ -16,6 +16,7 @@ import (
 	_ "github.com/sselph/scraper/rom/md"
 	_ "github.com/sselph/scraper/rom/nes"
 	_ "github.com/sselph/scraper/rom/pce"
+	_ "github.com/sselph/scraper/rom/n64"
 	_ "github.com/sselph/scraper/rom/sms"
 	_ "github.com/sselph/scraper/rom/snes"
 	"image"
