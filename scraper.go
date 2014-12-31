@@ -59,6 +59,7 @@ var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img direct
 var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
 var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
+var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
 
 var imgDirs map[string]struct{}
 
@@ -277,6 +278,9 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	}
 	if err != nil {
 		return err
+	}
+	if *useFilename {
+		xml.GameTitle = r.bName
 	}
 	r.XML = xml
 	return nil
