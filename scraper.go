@@ -63,10 +63,11 @@ var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadat
 var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
+var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 
 var imgDirs map[string]struct{}
 
-var HashNotFound = errors.New("hash not found")
+var NotFound = errors.New("hash not found")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) (gdb.Image, error) {
@@ -137,7 +138,7 @@ func fixPath(s string) string {
 func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	id, ok := ds.HM[r.Hash]
 	if !ok {
-		return nil, HashNotFound
+		return nil, NotFound
 	}
 	req := gdb.GGReq{ID: id, Cache: *useCache}
 	resp, err := gdb.GetGame(req)
@@ -296,7 +297,15 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 		xml, err = GetOVGDBGame(r, ds)
 	}
 	if err != nil {
-		return err
+		if err == ovgdb.NotFound {
+			err = NotFound
+		}
+		if *addNotFound && err == NotFound {
+			log.Printf("INFO: %s: %s", r.Path, err)
+			xml = &GameXML{Path: fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)), GameTitle: r.bName}
+		} else {
+			return err
+		}
 	}
 	if *useFilename {
 		xml.GameTitle = r.bName
@@ -367,7 +376,11 @@ func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.W
 			err := r.ProcessROM(ds)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				continue
+				if err == NotFound {
+					break
+				} else {
+					continue
+				}
 			}
 			results <- r.XML
 			break

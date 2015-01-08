@@ -3,6 +3,7 @@ package ovgdb
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/mitchellh/go-homedir"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -21,6 +22,8 @@ const (
 	zipName  = "openvgdb.zip"
 	metaName = "openvgdb.meta"
 )
+
+var NotFound = errors.New("hash not found")
 
 type Game struct {
 	ReleaseID string
@@ -82,6 +85,9 @@ type DB struct {
 func (db *DB) GetGame(n string) (*Game, error) {
 	v, err := db.db.Get([]byte(n), nil)
 	if err != nil {
+		if err == leveldb.ErrNotFound {
+			err = NotFound
+		}
 		return nil, err
 	}
 	g, err := db.db.Get(v, nil)
