@@ -48,11 +48,14 @@ var romDir = flag.String("rom_dir", ".", "The directory containing the roms file
 var outputFile = flag.String("output_file", "gamelist.xml", "The XML file to output to.")
 var imageDir = flag.String("image_dir", "images", "The directory to place downloaded images to locally.")
 var imagePath = flag.String("image_path", "images", "The path to use for images in gamelist.xml.")
+var imageSuffix = flag.String("image_suffix", "-image", "The suffix added after rom name when creating image files.")
+var thumbSuffix = flag.String("thumb_suffix", "-thumb", "The suffix added after rom name when creating thumb files.")
 var romPath = flag.String("rom_path", ".", "The path to use for roms in gamelist.xml.")
 var maxWidth = flag.Uint("max_width", 400, "The max width of images. Larger images will be resized.")
 var workers = flag.Int("workers", 1, "The number of worker threads used to process roms.")
 var retries = flag.Int("retries", 2, "The number of times to retry a rom on an error.")
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
+var noThumb = flag.Bool("no_thumb", false, "Don't add thumbnails to the gamelist.")
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
 var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
@@ -156,23 +159,39 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	} else {
 		imgPath = *imageDir
 	}
-	var iPath string
-	if !*thumbOnly {
-		iName := fmt.Sprintf("%s-image.jpg", r.bName)
-		iPath = path.Join(imgPath, iName)
+	iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
+	iPath := path.Join(imgPath, iName)
+	tName := fmt.Sprintf("%s%s.jpg", r.bName, *thumbSuffix)
+	tPath := path.Join(imgPath, tName)
+	switch {
+	case !*thumbOnly && !*noThumb:
 		err = getImage(imageURL+front.URL, iPath)
 		if err != nil {
 			return nil, err
 		}
-	}
-	tName := fmt.Sprintf("%s-thumb.jpg", r.bName)
-	tPath := path.Join(imgPath, tName)
-	if *thumbOnly {
+		err = getImage(imageURL+front.Thumb, tPath)
+		if err != nil {
+			return nil, err
+		}
+	case *thumbOnly && !*noThumb:
+		err = getImage(imageURL+front.Thumb, tPath)
+		if err != nil {
+			return nil, err
+		}
 		iPath = tPath
-	}
-	err = getImage(imageURL+front.Thumb, tPath)
-	if err != nil {
-		return nil, err
+	case !*thumbOnly && *noThumb:
+		err = getImage(imageURL+front.URL, iPath)
+		if err != nil {
+			return nil, err
+		}
+		tPath = ""
+	case *thumbOnly && *noThumb:
+		err = getImage(imageURL+front.Thumb, tPath)
+		if err != nil {
+			return nil, err
+		}
+		iPath = tPath
+		tPath = ""
 	}
 
 	var genre string
