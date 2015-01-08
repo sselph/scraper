@@ -14,9 +14,9 @@ import (
 	_ "github.com/sselph/scraper/rom/bin"
 	_ "github.com/sselph/scraper/rom/gb"
 	_ "github.com/sselph/scraper/rom/md"
+	_ "github.com/sselph/scraper/rom/n64"
 	_ "github.com/sselph/scraper/rom/nes"
 	_ "github.com/sselph/scraper/rom/pce"
-	_ "github.com/sselph/scraper/rom/n64"
 	_ "github.com/sselph/scraper/rom/sms"
 	_ "github.com/sselph/scraper/rom/snes"
 	"image"
@@ -493,15 +493,15 @@ func main() {
 		go http.ListenAndServe(":8080", nil)
 	}
 	imgDirs = make(map[string]struct{})
-	if !*skipCheck {
-		ok := gdb.IsUp()
-		if !ok {
-			fmt.Println("It appears that thegamesdb.net isn't up, try -use_cache to use my backup server. If you are sure it is use -skip_check to bypass this error.")
-			return
-		}
-	}
 	ds := &datasources{}
 	if *useGDB {
+		if !(*skipCheck || *useCache) {
+			ok := gdb.IsUp()
+			if !ok {
+				fmt.Println("It appears that thegamesdb.net isn't up, try -use_cache to use my backup server. If you are sure it is use -skip_check to bypass this error.")
+				return
+			}
+		}
 		hm, err := GetHashMap()
 		if err != nil {
 			fmt.Println(err)
