@@ -65,6 +65,7 @@ var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
+var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 
 var imgDirs map[string]struct{}
 
@@ -92,8 +93,30 @@ func ToXMLDate(d string) string {
 	return ""
 }
 
+type HashMap struct {
+	Data    map[string][]string
+}
+
+func (hm *HashMap) GetID (s string) (string, bool) {
+	d, ok := hm.Data[s]
+	if !ok || d[0] == "" {
+		return "", false
+	} else {
+		return d[0], true
+	}
+}
+
+func (hm *HashMap) GetName (s string) (string, bool) {
+	d, ok := hm.Data[s]
+	if !ok || d[1] == "" {
+		return "", false
+	} else {
+		return d[1], true
+	}
+}
+
 type datasources struct {
-	HM    map[string]string
+	HM    *HashMap
 	OVGDB *ovgdb.DB
 }
 
@@ -137,7 +160,7 @@ func fixPath(s string) string {
 }
 
 func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
-	id, ok := ds.HM[r.Hash]
+	id, ok := ds.HM.GetID(r.Hash)
 	if !ok {
 		return nil, NotFound
 	}
@@ -217,6 +240,12 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	}
 	if tPath != "" {
 		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
+	}
+	if *useNoIntroName {
+		n, ok := ds.HM.GetName(r.Hash)
+		if ok {
+			gxml.GameTitle = n
+		}
 	}
 	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
 	if err == nil {
@@ -304,6 +333,12 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 		if *addNotFound && err == NotFound {
 			log.Printf("INFO: %s: %s", r.Path, err)
 			xml = &GameXML{Path: fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)), GameTitle: r.bName}
+			if *useNoIntroName && *useGDB {
+				n, ok := ds.HM.GetName(h)
+				if ok {
+					xml.GameTitle = n
+				}
+			}
 		} else {
 			return err
 		}
@@ -456,8 +491,8 @@ func updateHash(version, p string) error {
 }
 
 // GetMap gets the mapping of hashes to IDs.
-func GetHashMap() (map[string]string, error) {
-	ret := make(map[string]string)
+func GetHashMap() (*HashMap, error) {
+	ret := &HashMap{Data: make(map[string][]string)}
 	var f io.ReadCloser
 	var err error
 	if *hashFile != "" {
@@ -500,7 +535,7 @@ func GetHashMap() (map[string]string, error) {
 		return ret, err
 	}
 	for _, v := range r {
-		ret[strings.ToLower(v[0])] = v[1]
+		ret.Data[strings.ToLower(v[0])] = []string{v[1], v[3]}
 	}
 	return ret, nil
 }
