@@ -13,6 +13,7 @@ import (
 	"github.com/sselph/scraper/rom"
 	_ "github.com/sselph/scraper/rom/bin"
 	_ "github.com/sselph/scraper/rom/gb"
+	_ "github.com/sselph/scraper/rom/lnx"
 	_ "github.com/sselph/scraper/rom/md"
 	_ "github.com/sselph/scraper/rom/n64"
 	_ "github.com/sselph/scraper/rom/nes"
