@@ -9,6 +9,7 @@ import (
 	"github.com/kr/fs"
 	"github.com/nfnt/resize"
 	"github.com/sselph/scraper/gdb"
+	"github.com/sselph/scraper/mamedb"
 	"github.com/sselph/scraper/ovgdb"
 	"github.com/sselph/scraper/rom"
 	_ "github.com/sselph/scraper/rom/bin"
@@ -66,6 +67,7 @@ var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof servi
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
+var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 
 var imgDirs map[string]struct{}
 
@@ -94,10 +96,10 @@ func ToXMLDate(d string) string {
 }
 
 type HashMap struct {
-	Data    map[string][]string
+	Data map[string][]string
 }
 
-func (hm *HashMap) GetID (s string) (string, bool) {
+func (hm *HashMap) GetID(s string) (string, bool) {
 	d, ok := hm.Data[s]
 	if !ok || d[0] == "" {
 		return "", false
@@ -106,7 +108,7 @@ func (hm *HashMap) GetID (s string) (string, bool) {
 	}
 }
 
-func (hm *HashMap) GetName (s string) (string, bool) {
+func (hm *HashMap) GetName(s string) (string, bool) {
 	d, ok := hm.Data[s]
 	if !ok || d[1] == "" {
 		return "", false
@@ -267,7 +269,7 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	}
 	var iPath string
 	if g.Art != "" {
-		iName := fmt.Sprintf("%s-image.jpg", r.bName)
+		iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
 		iPath = path.Join(imgPath, iName)
 		err = getImage(g.Art, iPath)
 		if err != nil {
@@ -284,6 +286,44 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 		Publisher:   g.Publisher,
 		Genre:       g.Genre,
 		Source:      g.Source,
+	}
+	if iPath != "" {
+		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+	}
+	return gxml, nil
+}
+
+func GetMAMEGame(r *ROM) (*GameXML, error) {
+	g, err := mamedb.GetGame(r.bName)
+	if err != nil {
+		return nil, err
+	}
+	var imgPath string
+	if *nestedImageDir {
+		imgPath = path.Join(*imageDir, r.fDir)
+	} else {
+		imgPath = *imageDir
+	}
+	var iPath string
+	if g.Snap != "" {
+		iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
+		iPath = path.Join(imgPath, iName)
+		err = getImage(g.Snap, iPath)
+		if err != nil {
+			return nil, err
+		}
+	}
+	gxml := &GameXML{
+		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
+		ID:          g.ID,
+		GameTitle:   g.Name,
+		ReleaseDate: g.Date,
+		Developer:   g.Developer,
+		Genre:       g.Genre,
+		Source:      g.Source,
+		Players:     g.Players,
+		Rating:      g.Rating / 10.0,
 	}
 	if iPath != "" {
 		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
@@ -312,12 +352,18 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	r.fName = f
 	e := path.Ext(f)
 	r.bName = f[:len(f)-len(e)]
-	h, err := rom.SHA1(r.Path)
-	if err != nil {
-		return err
-	}
-	r.Hash = h
 	var xml *GameXML
+	var err error
+	if *mame {
+		log.Printf("INFO: Attempting lookup in MAMEDB: %s", r.Path)
+		xml, err = GetMAMEGame(r)
+	} else {
+		h, err := rom.SHA1(r.Path)
+		if err != nil {
+			return err
+		}
+		r.Hash = h
+	}
 	if xml == nil && *useGDB {
 		log.Printf("INFO: Attempting lookup in GDB: %s", r.Path)
 		xml, err = GetGDBGame(r, ds)
@@ -330,11 +376,14 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 		if err == ovgdb.NotFound {
 			err = NotFound
 		}
+		if err == mamedb.NotFound {
+			err = NotFound
+		}
 		if *addNotFound && err == NotFound {
 			log.Printf("INFO: %s: %s", r.Path, err)
 			xml = &GameXML{Path: fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)), GameTitle: r.bName}
 			if *useNoIntroName && *useGDB {
-				n, ok := ds.HM.GetName(h)
+				n, ok := ds.HM.GetName(r.Hash)
 				if ok {
 					xml.GameTitle = n
 				}
@@ -445,6 +494,10 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			return err
 		}
 		f := walker.Path()
+		if *mame && path.Ext(f) == ".zip" {
+			roms <- f
+			continue
+		}
 		if rom.KnownExt(path.Ext(f)) {
 			roms <- f
 		}
@@ -562,6 +615,10 @@ func main() {
 	}
 	imgDirs = make(map[string]struct{})
 	ds := &datasources{}
+	if *mame {
+		*useGDB = false
+		*useOVGDB = false
+	}
 	if *useGDB {
 		if !(*skipCheck || *useCache) {
 			ok := gdb.IsUp()
