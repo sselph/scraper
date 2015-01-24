@@ -43,6 +43,11 @@ The scraper now supports MAME but using file names instead of hashing. Since it 
 $ scraper -mame
 ```
 
+You can choose your preference of image type with the mame_img flag. If you prefer marquees but want to fallback to titles then snapshots you can do:
+```bash
+$ scraper -mame -mame_img "m,t,s"
+```
+
 Command Line Flags
 ------------------
 There are several command flags you can pass. To see a full list use -help

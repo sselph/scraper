@@ -68,6 +68,7 @@ var useFilename = flag.Bool("use_filename", false, "If true, use the filename mi
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
+var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 
 var imgDirs map[string]struct{}
 
@@ -295,7 +296,7 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 }
 
 func GetMAMEGame(r *ROM) (*GameXML, error) {
-	g, err := mamedb.GetGame(r.bName)
+	g, err := mamedb.GetGame(r.bName, strings.Split(*mameImg, ","))
 	if err != nil {
 		return nil, err
 	}
@@ -306,10 +307,10 @@ func GetMAMEGame(r *ROM) (*GameXML, error) {
 		imgPath = *imageDir
 	}
 	var iPath string
-	if g.Snap != "" {
+	if g.Art != "" {
 		iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
 		iPath = path.Join(imgPath, iName)
-		err = getImage(g.Snap, iPath)
+		err = getImage(g.Art, iPath)
 		if err != nil {
 			return nil, err
 		}

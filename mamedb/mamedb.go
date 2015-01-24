@@ -31,13 +31,16 @@ var (
 	genreRE      = regexp.MustCompile("<b>Category:&nbsp;</b><a .*?>(.*?)</a><br/>")
 	playersRE    = regexp.MustCompile("<b>Players:&nbsp;</b>(.*?)<br/>")
 	snapRE       = regexp.MustCompile("<img src='/snap/(.*?)\\.png'")
+	titleImgRE   = regexp.MustCompile("<img src='/title/(.*?)\\.png'")
+	cabinetRE    = regexp.MustCompile("<img src='/cabinets.small/(.*?)\\.(png|jpg|jpeg)'")
+	marqueeRE    = regexp.MustCompile("<img src='/marquees.small/(.*?)\\.(png|jpg|jpeg)'")
 	NotFound     = errors.New("rom not found")
 )
 
 type Game struct {
 	ID        string
 	Name      string
-	Snap      string
+	Art       string
 	Developer string
 	Rating    float64
 	Players   int64
@@ -46,7 +49,7 @@ type Game struct {
 	Source    string
 }
 
-func GetGame(name string) (*Game, error) {
+func GetGame(name string, imgPriority []string) (*Game, error) {
 	var g Game
 	g.Source = "mamedb.com"
 	g.ID = name
@@ -109,9 +112,34 @@ func GetGame(name string) (*Game, error) {
 			g.Players = players
 		}
 	}
-	sm := snapRE.FindSubmatch(body)
-	if sm != nil {
-		g.Snap = fmt.Sprintf("http://www.mamedb.com/snap/%s.png", string(sm[1]))
+Loop:
+	for _, i := range imgPriority {
+		switch i {
+		case "s":
+			sm := snapRE.FindSubmatch(body)
+			if sm != nil {
+				g.Art = fmt.Sprintf("http://www.mamedb.com/snap/%s.png", string(sm[1]))
+				break Loop
+			}
+		case "m":
+			mm := marqueeRE.FindSubmatch(body)
+			if mm != nil {
+				g.Art = fmt.Sprintf("http://mamedb.com/marquees/%s.png", string(mm[1]))
+				break Loop
+			}
+		case "t":
+			tim := titleImgRE.FindSubmatch(body)
+			if tim != nil {
+				g.Art = fmt.Sprintf("http://mamedb.com/titles/%s.png", string(tim[1]))
+				break Loop
+			}
+		case "c":
+			cm := cabinetRE.FindSubmatch(body)
+			if cm != nil {
+				g.Art = fmt.Sprintf("http://mamedb.com/cabinets/%s.png", string(cm[1]))
+				break Loop
+			}
+		}
 	}
 	return &g, nil
 }
