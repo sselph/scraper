@@ -35,6 +35,14 @@ $ scraper
 
 ROMs will be scanned and a gamelist.xml file will be created. All images will be placed inside the images folder.
 
+MAME
+----
+The scraper now supports MAME but using file names instead of hashing. Since it uses a different DB and lookup method, several of the command line flags no longer apply. When the -mame flag is used it disables all other databases and the mamedb only has the one size of image so the flags about thumbnails, gdb, ovgdb, etc don't do anything.
+
+```bash
+$ scraper -mame
+```
+
 Command Line Flags
 ------------------
 There are several command flags you can pass. To see a full list use -help
