@@ -31,7 +31,7 @@ var (
 	genreRE      = regexp.MustCompile("<b>Category:&nbsp;</b><a .*?>(.*?)</a><br/>")
 	playersRE    = regexp.MustCompile("<b>Players:&nbsp;</b>(.*?)<br/>")
 	snapRE       = regexp.MustCompile("<img src='/snap/(.*?)\\.png'")
-	titleImgRE   = regexp.MustCompile("<img src='/title/(.*?)\\.png'")
+	titleImgRE   = regexp.MustCompile("<img src='/titles/(.*?)\\.png'")
 	cabinetRE    = regexp.MustCompile("<img src='/cabinets.small/(.*?)\\.(png|jpg|jpeg)'")
 	marqueeRE    = regexp.MustCompile("<img src='/marquees.small/(.*?)\\.(png|jpg|jpeg)'")
 	NotFound     = errors.New("rom not found")
