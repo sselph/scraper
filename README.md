@@ -61,9 +61,13 @@ Raspberry Pi
 At the time of writing this raspbian has an old version of go 1.0.2 so you can cross-compile on another system or download an unofficial go binary from [http://dave.cheney.net/unofficial-arm-tarballs](http://dave.cheney.net/unofficial-arm-tarballs).
 
 Build:
-
+Rpi v1
 ```bash
 $ GOARM=6 GOARCH=arm GOOS=linux go build github.com/sselph/scraper
+```
+Rpi v2
+```bash
+$ GOARM=7 GOARCH=arm GOOS=linux go build github.com/sselph/scraper
 ```
 
 Usage:
