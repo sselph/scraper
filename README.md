@@ -78,12 +78,12 @@ Replace the release_name with the release like v0.6.3-beta
 #### Rpi v1
 ```bash
 $ wget https://github.com/sselph/scraper/releases/download/<release_name>/scraper_rpi.zip
-$ sudo unzip scraper_rpi.zip scraper -d /usr/local/bin/`
+$ sudo unzip scraper_rpi.zip scraper -d /usr/local/bin/
 ```
 #### Rpi v2
 ```bash
 $ wget https://github.com/sselph/scraper/releases/download/<release_name>/scraper_rpi2.zip
-$ sudo unzip scraper_rpi2.zip scraper -d /usr/local/bin/`
+$ sudo unzip scraper_rpi2.zip scraper -d /usr/local/bin/
 ```
 
 ### Usage
