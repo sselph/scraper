@@ -69,6 +69,7 @@ var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are 
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
+var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 
 var imgDirs map[string]struct{}
 
@@ -94,6 +95,22 @@ func ToXMLDate(d string) string {
 		return fmt.Sprintf("%s0101T000000", d)
 	}
 	return ""
+}
+
+func StripChars(r rune) rune {
+	// Single Quote
+	if r == 8217 || r == 8216 {
+		return 39
+	}
+	// Double Quote
+	if r == 8220 || r == 8221 {
+		return 34
+	}
+	// ASCII
+	if r < 127 {
+		return r
+	}
+	return -1
 }
 
 type HashMap struct {
@@ -395,6 +412,10 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	}
 	if *useFilename {
 		xml.GameTitle = r.bName
+	}
+	if *stripUnicode {
+		xml.Overview = strings.Map(StripChars, xml.Overview)
+		xml.GameTitle = strings.Map(StripChars, xml.GameTitle)
 	}
 	r.XML = xml
 	return nil
