@@ -70,19 +70,20 @@ var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
+var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 
 var imgDirs map[string]struct{}
 
 var NotFound = errors.New("hash not found")
 
 // GetFront gets the front boxart for a Game if it exists.
-func GetFront(g gdb.Game) (gdb.Image, error) {
+func GetFront(g gdb.Game) *gdb.Image {
 	for _, v := range g.BoxArt {
 		if v.Side == "front" {
-			return v, nil
+			return &v
 		}
 	}
-	return gdb.Image{}, fmt.Errorf("no image for %s", g.GameTitle)
+	return nil
 }
 
 // ToXMLDate converts a gdb date to the gamelist.xml date.
@@ -194,10 +195,7 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	}
 	game := resp.Game[0]
 	imageURL := resp.ImageURL
-	front, err := GetFront(game)
-	if err != nil {
-		return nil, err
-	}
+	front := GetFront(game)
 	var imgPath string
 	if *nestedImageDir {
 		imgPath = path.Join(*imageDir, r.fDir)
@@ -208,35 +206,51 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	iPath := path.Join(imgPath, iName)
 	tName := fmt.Sprintf("%s%s.jpg", r.bName, *thumbSuffix)
 	tPath := path.Join(imgPath, tName)
-	switch {
-	case !*thumbOnly && !*noThumb:
-		err = getImage(imageURL+front.URL, iPath)
-		if err != nil {
-			return nil, err
+
+	iExists := exists(iPath)
+	tExists := exists(tPath)
+
+	if front != nil && *downloadImages {
+		switch {
+		case !*thumbOnly && !*noThumb:
+			err = getImage(imageURL+front.URL, iPath)
+			if err != nil {
+				return nil, err
+			}
+			err = getImage(imageURL+front.Thumb, tPath)
+			if err != nil {
+				return nil, err
+			}
+		case *thumbOnly && !*noThumb:
+			err = getImage(imageURL+front.Thumb, tPath)
+			if err != nil {
+				return nil, err
+			}
+			iPath = tPath
+		case !*thumbOnly && *noThumb:
+			err = getImage(imageURL+front.URL, iPath)
+			if err != nil {
+				return nil, err
+			}
+			tPath = ""
+		case *thumbOnly && *noThumb:
+			err = getImage(imageURL+front.Thumb, tPath)
+			if err != nil {
+				return nil, err
+			}
+			iPath = tPath
+			tPath = ""
 		}
-		err = getImage(imageURL+front.Thumb, tPath)
-		if err != nil {
-			return nil, err
+	} else {
+		switch {
+		case !iExists && !tExists:
+			iPath = ""
+			tPath = ""
+		case iExists && !tExists:
+			tPath = ""
+		case !iExists && tExists:
+			iPath = tPath
 		}
-	case *thumbOnly && !*noThumb:
-		err = getImage(imageURL+front.Thumb, tPath)
-		if err != nil {
-			return nil, err
-		}
-		iPath = tPath
-	case !*thumbOnly && *noThumb:
-		err = getImage(imageURL+front.URL, iPath)
-		if err != nil {
-			return nil, err
-		}
-		tPath = ""
-	case *thumbOnly && *noThumb:
-		err = getImage(imageURL+front.Thumb, tPath)
-		if err != nil {
-			return nil, err
-		}
-		iPath = tPath
-		tPath = ""
 	}
 
 	var genre string
