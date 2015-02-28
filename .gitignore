@@ -21,3 +21,8 @@ _testmain.go
 
 *.exe
 *.test
+
+# My Build Tools
+*.sh
+*.zip
+scraper
