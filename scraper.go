@@ -243,6 +243,9 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 			iPath = tPath
 			tPath = ""
 		}
+	} else {
+		iPath = ""
+		tPath = ""
 	}
 
 	var genre string
@@ -291,6 +294,8 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		iPath = ""
 	}
 
 	gxml := &GameXML{
@@ -322,6 +327,8 @@ func GetMAMEGame(r *ROM) (*GameXML, error) {
 		if err != nil {
 			return nil, err
 		}
+	} else {
+		iPath = ""
 	}
 	gxml := &GameXML{
 		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
@@ -411,7 +418,6 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	iPath, tPath := GetImgPaths(r)
 	iExists := exists(iPath)
 	tExists := exists(tPath)
-	log.Printf("%s, %s, %s", r.bName, iPath, iExists)
 	if xml.Image == "" && iExists {
 		xml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
 	}
@@ -517,8 +523,10 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			return err
 		}
 		f := walker.Path()
-		if *mame && path.Ext(f) == ".zip" {
-			roms <- f
+		if *mame {
+			if path.Ext(f) == ".zip" {
+				roms <- f
+			}
 			continue
 		}
 		if rom.KnownExt(path.Ext(f)) {
