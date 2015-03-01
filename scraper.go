@@ -180,6 +180,20 @@ func fixPath(s string) string {
 	return fmt.Sprintf("./%s", s)
 }
 
+func GetImgPaths(r *ROM) (iPath, tPath string) {
+	var imgPath string
+	if *nestedImageDir {
+		imgPath = path.Join(*imageDir, r.fDir)
+	} else {
+		imgPath = *imageDir
+	}
+	iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
+	iPath = path.Join(imgPath, iName)
+	tName := fmt.Sprintf("%s%s.jpg", r.bName, *thumbSuffix)
+	tPath = path.Join(imgPath, tName)
+	return iPath, tPath
+}
+
 func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	id, ok := ds.HM.GetID(r.Hash)
 	if !ok {
@@ -196,19 +210,7 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	game := resp.Game[0]
 	imageURL := resp.ImageURL
 	front := GetFront(game)
-	var imgPath string
-	if *nestedImageDir {
-		imgPath = path.Join(*imageDir, r.fDir)
-	} else {
-		imgPath = *imageDir
-	}
-	iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
-	iPath := path.Join(imgPath, iName)
-	tName := fmt.Sprintf("%s%s.jpg", r.bName, *thumbSuffix)
-	tPath := path.Join(imgPath, tName)
-
-	iExists := exists(iPath)
-	tExists := exists(tPath)
+	iPath, tPath := GetImgPaths(r)
 
 	if front != nil && *downloadImages {
 		switch {
@@ -240,16 +242,6 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 			}
 			iPath = tPath
 			tPath = ""
-		}
-	} else {
-		switch {
-		case !iExists && !tExists:
-			iPath = ""
-			tPath = ""
-		case iExists && !tExists:
-			tPath = ""
-		case !iExists && tExists:
-			iPath = tPath
 		}
 	}
 
@@ -293,21 +285,14 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	if err != nil {
 		return nil, err
 	}
-	var imgPath string
-	if *nestedImageDir {
-		imgPath = path.Join(*imageDir, r.fDir)
-	} else {
-		imgPath = *imageDir
-	}
-	var iPath string
-	if g.Art != "" {
-		iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
-		iPath = path.Join(imgPath, iName)
+	iPath, _ := GetImgPaths(r)
+	if g.Art != "" && *downloadImages {
 		err = getImage(g.Art, iPath)
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	gxml := &GameXML{
 		ID:          g.ReleaseID,
 		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
@@ -331,16 +316,8 @@ func GetMAMEGame(r *ROM) (*GameXML, error) {
 	if err != nil {
 		return nil, err
 	}
-	var imgPath string
-	if *nestedImageDir {
-		imgPath = path.Join(*imageDir, r.fDir)
-	} else {
-		imgPath = *imageDir
-	}
-	var iPath string
-	if g.Art != "" {
-		iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
-		iPath = path.Join(imgPath, iName)
+	iPath, _ := GetImgPaths(r)
+	if g.Art != "" && *downloadImages {
 		err = getImage(g.Art, iPath)
 		if err != nil {
 			return nil, err
@@ -430,6 +407,16 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	if *stripUnicode {
 		xml.Overview = strings.Map(StripChars, xml.Overview)
 		xml.GameTitle = strings.Map(StripChars, xml.GameTitle)
+	}
+	iPath, tPath := GetImgPaths(r)
+	iExists := exists(iPath)
+	tExists := exists(tPath)
+	log.Printf("%s, %s, %s", r.bName, iPath, iExists)
+	if xml.Image == "" && iExists {
+		xml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
+	}
+	if xml.Thumb == "" && tExists {
+		xml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
 	}
 	r.XML = xml
 	return nil
