@@ -4,16 +4,17 @@ package md
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/sselph/scraper/rom"
 	"io"
 	"io/ioutil"
 )
 
 func init() {
-	rom.RegisterFormat(".smd", decodeSMD)
-	rom.RegisterFormat(".mgd", decodeMGD)
-	rom.RegisterFormat(".gen", rom.Noop)
-	rom.RegisterFormat(".md", rom.Noop)
+	rom.RegisterFormat(".smd", decodeMD)
+	rom.RegisterFormat(".mgd", decodeMD)
+	rom.RegisterFormat(".gen", decodeMD)
+	rom.RegisterFormat(".md", decodeMD)
 	rom.RegisterFormat(".32x", rom.Noop)
 	rom.RegisterFormat(".gg", rom.Noop)
 }
@@ -32,76 +33,47 @@ func DeInterleave(p []byte) []byte {
 	return b
 }
 
-type SMDReader struct {
-	f io.ReadCloser
-	b []byte
-	r *int
-}
-
-func (r SMDReader) Read(p []byte) (int, error) {
-	ll := len(p)
-	rl := ll - *r.r
-	l := rl + 16384 - 1 - (rl-1)%16384
-	copy(p, r.b[:*r.r])
-	if rl <= 0 {
-		*r.r = *r.r - ll
-		copy(r.b, r.b[ll:])
-		return ll, nil
-	}
-	n := *r.r
-	for i := 0; i < l/16384; i++ {
-		b := make([]byte, 16384)
-		x, err := io.ReadFull(r.f, b)
-		if x == 0 || err != nil {
-			return n, err
+func decodeMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	if s%16384 == 512 {
+		tmp := make([]byte, 512)
+		_, err := io.ReadFull(f, tmp)
+		if err != nil {
+			return nil, err
 		}
-		b = DeInterleave(b)
-		if ll < n+x {
-			copy(p[n:ll], b)
-			copy(r.b, b[ll-n:])
-			*r.r = n + x - ll
-			return ll, nil
-		} else {
-			copy(p[n:n+16384], b)
-		}
-		n += x
+		s -= 512
 	}
-	return ll, nil
-}
-
-func (r SMDReader) Close() error {
-	return r.f.Close()
-}
-
-func decodeSMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
-	tmp := make([]byte, 512)
-	_, err := io.ReadFull(f, tmp)
+	if s%16384 != 0 {
+		return nil, fmt.Errorf("Invalid MD size")
+	}
+	b, err := ioutil.ReadAll(f)
+	f.Close()
 	if err != nil {
 		return nil, err
 	}
-	i := 0
-	return SMDReader{f, make([]byte, 16384), &i}, nil
+	if bytes.Equal(b[256:260], []byte("SEGA")) {
+		return MDReader{bytes.NewReader(b)}, nil
+	}
+	x := DeInterleave(b[0:16384])
+	if bytes.Equal(x[256:260], []byte("SEGA")) {
+		for i := 0; int64(i) < (s / int64(16384)); i++ {
+			x := i * 16384
+			copy(b[x:x+16384], DeInterleave(b[x:x+16384]))
+		}
+		return MDReader{bytes.NewReader(b)}, nil
+	}
+	b = DeInterleave(b)
+	return MDReader{bytes.NewReader(b)}, nil
 }
 
-type MGDReader struct {
+type MDReader struct {
 	r io.Reader
 }
 
-func (r MGDReader) Read(p []byte) (int, error) {
+func (r MDReader) Read(p []byte) (int, error) {
 	n, err := r.r.Read(p)
 	return n, err
 }
 
-func (r MGDReader) Close() error {
+func (r MDReader) Close() error {
 	return nil
-}
-
-func decodeMGD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
-	b, err := ioutil.ReadAll(f)
-	f.Close()
-	b = DeInterleave(b)
-	if err != nil {
-		return nil, err
-	}
-	return MGDReader{bytes.NewReader(b)}, nil
 }
