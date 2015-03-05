@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/kr/fs"
+	"github.com/mitchellh/go-homedir"
 	"github.com/nfnt/resize"
 	"github.com/sselph/scraper/gdb"
 	"github.com/sselph/scraper/mamedb"
@@ -71,6 +72,7 @@ var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
+var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
 
 var imgDirs map[string]struct{}
 
@@ -638,6 +640,67 @@ func mkDir(d string) error {
 	return fmt.Errorf("%s is a file not a directory.", d)
 }
 
+func Scrape(ds *datasources) error {
+	gl := &GameListXML{}
+	CrawlROMs(gl, ds)
+	output, err := xml.MarshalIndent(gl, "  ", "    ")
+	if err != nil {
+		return err
+	}
+	if len(gl.GameList) == 0 {
+		return nil
+	}
+	err = ioutil.WriteFile(*outputFile, output, 0664)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type System struct {
+	Name      string `xml:"name"`
+	Path      string `xml:"path"`
+	Extension string `xml:"extension"`
+}
+
+type ESSystems struct {
+	XMLName xml.Name `xml:"systemList"`
+	Systems []System `xml:"system"`
+}
+
+func GetRomFolders() ([]string, error) {
+	hd, err := homedir.Dir()
+	if err != nil {
+		return nil, err
+	}
+	p := filepath.Join(hd, ".emulationstation", "es_systems.cfg")
+	ap := "/etc/emulationstation/es_systems.cfg"
+	if !exists(p) && !exists(ap) {
+		return nil, fmt.Errorf("%s and %s not found.", p, ap)
+	}
+	if exists(ap) && !exists(p) {
+		p = ap
+	}
+	d, err := ioutil.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	v := &ESSystems{}
+	err = xml.Unmarshal(d, &v)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	prefix := string([]rune{'~', filepath.Separator})
+	for _, s := range v.Systems {
+		if s.Path[:2] == prefix {
+			s.Path = filepath.Join(hd, s.Path[2:])
+		}
+		out = append(out, s.Path)
+	}
+	return out, nil
+}
+
 func main() {
 	flag.Parse()
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -674,16 +737,32 @@ func main() {
 		defer o.Close()
 		ds.OVGDB = o
 	}
-	gl := &GameListXML{}
-	CrawlROMs(gl, ds)
-	output, err := xml.MarshalIndent(gl, "  ", "    ")
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-		return
-	}
-	err = ioutil.WriteFile(*outputFile, output, 0664)
-	if err != nil {
-		fmt.Printf("error: %v\n", err)
-		return
+	if !*scrapeAll {
+		err := Scrape(ds)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	} else {
+		romFolders, err := GetRomFolders()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		for _, rf := range romFolders {
+			log.Printf("Starting System %s", rf)
+			*romDir = rf
+			*romPath = rf
+			p := filepath.Join(rf, "images")
+			*imageDir = p
+			*imagePath = p
+			out := filepath.Join(rf, "gamelist.xml")
+			*outputFile = out
+			err := Scrape(ds)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+		}
 	}
 }
