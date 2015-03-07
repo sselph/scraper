@@ -27,6 +27,10 @@ func Decode(p string) (io.ReadCloser, error) {
 		r, err := decodeZip(p)
 		return r, err
 	}
+	if ext == ".gz" {
+		r, err := decodeGZip(p)
+		return r, err
+	}
 	decode, ok := formats[ext]
 	if !ok {
 		return nil, fmt.Errorf("no registered decoder for extention %s", ext)
@@ -68,6 +72,9 @@ func SHA1(p string) (string, error) {
 // KnownExt returns True if the extention is registered.
 func KnownExt(e string) bool {
 	if strings.ToLower(e) == ".zip" {
+		return true
+	}
+	if strings.ToLower(e) == ".gz" {
 		return true
 	}
 	_, ok := formats[strings.ToLower(e)]
