@@ -313,7 +313,6 @@ func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	}
 	if iPath != "" {
 		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
 	}
 	return gxml, nil
 }
@@ -345,7 +344,6 @@ func GetMAMEGame(r *ROM) (*GameXML, error) {
 	}
 	if iPath != "" {
 		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
 	}
 	return gxml, nil
 }
