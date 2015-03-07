@@ -89,9 +89,15 @@ $ sudo unzip scraper_rpi2.zip scraper -d /usr/local/bin/
 ### Usage
 Add thumb_only can speed things up since the pi doesn't have a ton of memory.
 
+#### Single System
 ```bash
 $ cd ~/RetroPie/roms/<rom_dir>
 $ scraper -thumb_only
+```
+
+#### All Systems
+```bash
+$ scraper -scrape_all -thumb_only
 ```
 
 Used libraries
