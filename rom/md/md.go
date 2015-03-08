@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	rom.RegisterFormat(".smd", decodeMD)
-	rom.RegisterFormat(".mgd", decodeMD)
-	rom.RegisterFormat(".gen", decodeMD)
-	rom.RegisterFormat(".md", decodeMD)
+	rom.RegisterFormat(".smd", decodeSMD)
+	rom.RegisterFormat(".mgd", decodeMGD)
+	rom.RegisterFormat(".gen", decodeGEN)
+	rom.RegisterFormat(".md", decodeGEN)
 	rom.RegisterFormat(".32x", rom.Noop)
 	rom.RegisterFormat(".gg", rom.Noop)
 }
@@ -33,7 +33,19 @@ func DeInterleave(p []byte) []byte {
 	return b
 }
 
-func decodeMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+func decodeSMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	return decodeMD(f, s, ".smd")
+}
+
+func decodeMGD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	return decodeMD(f, s, ".mgd")
+}
+
+func decodeGEN(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	return decodeMD(f, s, ".gen")
+}
+
+func decodeMD(f io.ReadCloser, s int64, e string) (io.ReadCloser, error) {
 	if s%16384 == 512 {
 		tmp := make([]byte, 512)
 		_, err := io.ReadFull(f, tmp)
@@ -53,16 +65,31 @@ func decodeMD(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 	if bytes.Equal(b[256:260], []byte("SEGA")) {
 		return MDReader{bytes.NewReader(b)}, nil
 	}
-	x := DeInterleave(b[0:16384])
-	if bytes.Equal(x[256:260], []byte("SEGA")) {
+	if bytes.Equal(b[8320:8328], []byte("SG EEI  ")) || bytes.Equal(b[8320:8328], []byte("SG EADIE")) {
 		for i := 0; int64(i) < (s / int64(16384)); i++ {
 			x := i * 16384
 			copy(b[x:x+16384], DeInterleave(b[x:x+16384]))
 		}
 		return MDReader{bytes.NewReader(b)}, nil
 	}
-	b = DeInterleave(b)
-	return MDReader{bytes.NewReader(b)}, nil
+	if bytes.Equal(b[128:135], []byte("EAGNSS ")) || bytes.Equal(b[128:135], []byte("EAMG RV")) {
+		b = DeInterleave(b)
+		return MDReader{bytes.NewReader(b)}, nil
+	}
+	switch e {
+	case ".smd":
+		for i := 0; int64(i) < (s / int64(16384)); i++ {
+			x := i * 16384
+			copy(b[x:x+16384], DeInterleave(b[x:x+16384]))
+		}
+		return MDReader{bytes.NewReader(b)}, nil
+	case ".mgd":
+		b = DeInterleave(b)
+		return MDReader{bytes.NewReader(b)}, nil
+	case ".gen":
+		return MDReader{bytes.NewReader(b)}, nil
+	}
+	return nil, fmt.Errorf("Unknown MD Error")
 }
 
 type MDReader struct {
