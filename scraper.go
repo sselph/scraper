@@ -524,7 +524,8 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 		}
 		f := walker.Path()
 		if *mame {
-			if path.Ext(f) == ".zip" {
+			e := path.Ext(f)
+			if e == ".zip" || e == ".7z" {
 				roms <- f
 			}
 			continue
