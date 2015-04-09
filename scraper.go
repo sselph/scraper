@@ -24,7 +24,7 @@ import (
 	_ "github.com/sselph/scraper/rom/snes"
 	"image"
 	"image/jpeg"
-	_ "image/png"
+	"image/png"
 	"io"
 	"io/ioutil"
 	"log"
@@ -73,6 +73,8 @@ var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefe
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
+var gdbImg = flag.String("gdb_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo.")
+var imgFormat = flag.String("img_format", "jpg", "jpg or png, the format to write the images.")
 
 var imgDirs map[string]struct{}
 
@@ -189,9 +191,9 @@ func GetImgPaths(r *ROM) (iPath, tPath string) {
 	} else {
 		imgPath = *imageDir
 	}
-	iName := fmt.Sprintf("%s%s.jpg", r.bName, *imageSuffix)
+	iName := fmt.Sprintf("%s%s.%s", r.bName, *imageSuffix, *imgFormat)
 	iPath = path.Join(imgPath, iName)
-	tName := fmt.Sprintf("%s%s.jpg", r.bName, *thumbSuffix)
+	tName := fmt.Sprintf("%s%s.%s", r.bName, *thumbSuffix, *imgFormat)
 	tPath = path.Join(imgPath, tName)
 	return iPath, tPath
 }
@@ -211,34 +213,71 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	}
 	game := resp.Game[0]
 	imageURL := resp.ImageURL
-	front := GetFront(game)
+	imgPriority := strings.Split(*gdbImg, ",")
+	var iURL, tURL string
+Loop:
+	for _, i := range imgPriority {
+		switch i {
+		case "s":
+			if len(game.Screenshot) != 0 {
+				iURL = game.Screenshot[0].Original.URL
+				tURL = game.Screenshot[0].Thumb
+				break Loop
+			}
+		case "b":
+			front := GetFront(game)
+			if front != nil {
+				iURL = front.URL
+				tURL = front.Thumb
+				break Loop
+			}
+		case "f":
+			if len(game.FanArt) != 0 {
+				iURL = game.FanArt[0].Original.URL
+				tURL = game.FanArt[0].Thumb
+				break Loop
+			}
+		case "a":
+			if len(game.Banner) != 0 {
+				iURL = game.Banner[0].URL
+				tURL = game.Banner[0].URL
+				break Loop
+			}
+		case "l":
+			if len(game.ClearLogo) != 0 {
+				iURL = game.ClearLogo[0].URL
+				tURL = game.ClearLogo[0].URL
+				break Loop
+			}
+		}
+	}
 	iPath, tPath := GetImgPaths(r)
 
-	if front != nil && *downloadImages {
+	if iURL != "" && *downloadImages {
 		switch {
 		case !*thumbOnly && !*noThumb:
-			err = getImage(imageURL+front.URL, iPath)
+			err = getImage(imageURL+iURL, iPath)
 			if err != nil {
 				return nil, err
 			}
-			err = getImage(imageURL+front.Thumb, tPath)
+			err = getImage(imageURL+tURL, tPath)
 			if err != nil {
 				return nil, err
 			}
 		case *thumbOnly && !*noThumb:
-			err = getImage(imageURL+front.Thumb, tPath)
+			err = getImage(imageURL+tURL, tPath)
 			if err != nil {
 				return nil, err
 			}
 			iPath = tPath
 		case !*thumbOnly && *noThumb:
-			err = getImage(imageURL+front.URL, iPath)
+			err = getImage(imageURL+iURL, iPath)
 			if err != nil {
 				return nil, err
 			}
 			tPath = ""
 		case *thumbOnly && *noThumb:
-			err = getImage(imageURL+front.Thumb, tPath)
+			err = getImage(imageURL+tURL, tPath)
 			if err != nil {
 				return nil, err
 			}
@@ -459,7 +498,14 @@ func getImage(url string, p string) error {
 		return err
 	}
 	defer out.Close()
-	return jpeg.Encode(out, img, nil)
+	switch *imgFormat {
+	case "jpg":
+		return jpeg.Encode(out, img, nil)
+	case "png":
+		return png.Encode(out, img)
+	default:
+		return fmt.Errorf("Invalid image type.")
+	}
 }
 
 // exists checks if a file exists and contains data.
