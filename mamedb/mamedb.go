@@ -57,6 +57,7 @@ func GetGame(name string, imgPriority []string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
 		return nil, NotFound
 	}
@@ -67,7 +68,6 @@ func GetGame(name string, imgPriority []string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	resp.Body.Close()
 	ilm := infoLineRE.FindSubmatch(body)
 	if ilm == nil {
 		return nil, fmt.Errorf("ILM Bad HTML")
