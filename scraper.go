@@ -649,8 +649,8 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	go func() {
 		for {
 			<-sig
-			stop = true
-			if stop {
+			if !stop {
+				stop = true
 				log.Println("Stopping, ctrl-c again to stop now.")
 				ct.(*CancelTransport).Stop()
 				for _ = range roms {
