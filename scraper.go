@@ -582,6 +582,10 @@ func (t *CancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	resp, err := t.T.RoundTrip(req)
 	t.mu.Lock()
 	delete(t.Pending, req)
+	if t.stop {
+		t.mu.Unlock()
+		return nil, fmt.Errorf("Cancelled")
+	}
 	t.mu.Unlock()
 	return resp, err
 }
@@ -639,21 +643,15 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			gl.Append(r)
 		}
 	}()
-	var stop int
+	var stop bool
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	go func() {
 		for {
 			<-sig
-			stop++
-			if stop == 1 {
-				log.Println("Stopping but waiting until current operation completes, ctrl-c again to stop less gracefully.")
-				for _ = range roms {
-				}
-				continue
-			}
-			if stop == 2 {
-				log.Println("Stopping http requests, ctrl-c again to exit now.")
+			stop = true
+			if stop {
+				log.Println("Stopping, ctrl-c again to stop now.")
 				ct.(*CancelTransport).Stop()
 				for _ = range roms {
 				}
@@ -664,7 +662,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	}()
 	walker := fs.Walk(*romDir)
 	for walker.Step() {
-		if stop > 0 {
+		if stop {
 			break
 		}
 		if err := walker.Err(); err != nil {
