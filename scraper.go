@@ -28,9 +28,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -75,6 +77,7 @@ var downloadImages = flag.Bool("download_images", true, "If false, don't downloa
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
 var gdbImg = flag.String("gdb_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo.")
 var imgFormat = flag.String("img_format", "jpg", "jpg or png, the format to write the images.")
+var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 
 var imgDirs map[string]struct{}
 
@@ -165,8 +168,8 @@ type GameXML struct {
 
 // GameListXML is the structure used to export the gamelist.xml file.
 type GameListXML struct {
-	XMLName  xml.Name `xml:"gameList"`
-	GameList []*GameXML
+	XMLName  xml.Name   `xml:"gameList"`
+	GameList []*GameXML `xml:"game"`
 }
 
 // Append appeads a GameXML to the GameList.
@@ -530,9 +533,22 @@ func validTemp(s string) bool {
 // worker is a function to process roms from a channel.
 func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	var stop bool
+	go func() {
+		<-sig
+		stop = true
+	}()
 	for p := range roms {
+		if stop {
+			continue
+		}
 		r := ROM{Path: p}
 		for try := 0; try <= *retries; try++ {
+			if stop {
+				break
+			}
 			err := r.ProcessROM(ds)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
@@ -548,8 +564,68 @@ func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.W
 	}
 }
 
+type CancelTransport struct {
+	mu      sync.Mutex
+	Pending map[*http.Request]struct{}
+	T       *http.Transport
+	stop    bool
+}
+
+func (t *CancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	t.mu.Lock()
+	if t.stop {
+		t.mu.Unlock()
+		return nil, fmt.Errorf("Cancelled")
+	}
+	t.Pending[req] = struct{}{}
+	t.mu.Unlock()
+	resp, err := t.T.RoundTrip(req)
+	t.mu.Lock()
+	delete(t.Pending, req)
+	t.mu.Unlock()
+	return resp, err
+}
+
+func (t *CancelTransport) Stop() {
+	t.mu.Lock()
+	t.stop = true
+	for req := range t.Pending {
+		t.T.CancelRequest(req)
+	}
+	t.Pending = make(map[*http.Request]struct{})
+	t.mu.Unlock()
+}
+
+func NewCancelTransport(t *http.Transport) *CancelTransport {
+	ct := &CancelTransport{T: t}
+	ct.Pending = make(map[*http.Request]struct{})
+	return ct
+}
+
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *GameListXML, ds *datasources) error {
+	var t = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		Dial: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	var ct http.RoundTripper = NewCancelTransport(t)
+	http.DefaultClient.Transport = ct
+
+	existing := make(map[string]struct{})
+
+	for _, x := range gl.GameList {
+		p, err := filepath.Rel(*romPath, x.Path)
+		if err != nil {
+			log.Printf("Can't find original path: %s", x.Path)
+		}
+		f := filepath.Join(*romDir, p)
+		existing[f] = struct{}{}
+	}
+
 	var wg sync.WaitGroup
 	results := make(chan *GameXML, *workers)
 	roms := make(chan string, 2**workers)
@@ -563,12 +639,42 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			gl.Append(r)
 		}
 	}()
+	var stop int
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+	go func() {
+		for {
+			<-sig
+			stop++
+			if stop == 1 {
+				log.Println("Stopping but waiting until current operation completes, ctrl-c again to stop less gracefully.")
+				for _ = range roms {
+				}
+				continue
+			}
+			if stop == 2 {
+				log.Println("Stopping http requests, ctrl-c again to exit now.")
+				ct.(*CancelTransport).Stop()
+				for _ = range roms {
+				}
+				continue
+			}
+			panic("AHHHH!")
+		}
+	}()
 	walker := fs.Walk(*romDir)
 	for walker.Step() {
+		if stop > 0 {
+			break
+		}
 		if err := walker.Err(); err != nil {
 			return err
 		}
 		f := walker.Path()
+		if _, ok := existing[f]; ok {
+			log.Printf("INFO: Skipping %s, already in gamelist.", f)
+			continue
+		}
 		if *mame {
 			e := path.Ext(f)
 			if e == ".zip" || e == ".7z" {
@@ -687,6 +793,18 @@ func mkDir(d string) error {
 
 func Scrape(ds *datasources) error {
 	gl := &GameListXML{}
+	if *appendOut {
+		f, err := os.Open(*outputFile)
+		if err != nil {
+			log.Printf("ERR: Can't open %s, creating new file.", *outputFile)
+		} else {
+			decoder := xml.NewDecoder(f)
+			if err := decoder.Decode(gl); err != nil {
+				log.Printf("ERR: Can't open %s, creating new file.", *outputFile)
+			}
+			f.Close()
+		}
+	}
 	CrawlROMs(gl, ds)
 	output, err := xml.MarshalIndent(gl, "  ", "    ")
 	if err != nil {
