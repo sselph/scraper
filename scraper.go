@@ -82,6 +82,7 @@ var appendOut = flag.Bool("append", false, "If the gamelist file already exist s
 var imgDirs map[string]struct{}
 
 var NotFound = errors.New("hash not found")
+var UserCanceled = errors.New("user canceled")
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) *gdb.Image {
@@ -689,7 +690,11 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	wg.Add(1)
 	close(results)
 	wg.Wait()
-	return nil
+	if stop {
+		return UserCanceled
+	} else
+		return nil
+	}
 }
 
 func updateHash(version, p string) error {
@@ -803,19 +808,22 @@ func Scrape(ds *datasources) error {
 			f.Close()
 		}
 	}
-	CrawlROMs(gl, ds)
+	cerr := CrawlROMs(gl, ds)
+	if cerr != nil && cerr != UserCanceled {
+		return err
+	}
 	output, err := xml.MarshalIndent(gl, "  ", "    ")
 	if err != nil {
 		return err
 	}
 	if len(gl.GameList) == 0 {
-		return nil
+		return cerr
 	}
 	err = ioutil.WriteFile(*outputFile, output, 0664)
 	if err != nil {
 		return err
 	}
-	return nil
+	return cerr
 }
 
 type System struct {
