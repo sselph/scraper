@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -40,6 +41,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 const (
@@ -391,14 +394,115 @@ func GetMAMEGame(r *ROM) (*GameXML, error) {
 	return gxml, nil
 }
 
+// ScanWords is a split function for a Scanner that returns each
+// space-separated word of text, with surrounding spaces deleted. It will
+// never return an empty string. The definition of space is set by
+// unicode.IsSpace.
+func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	// Skip leading spaces.
+	start := 0
+	for width := 0; start < len(data); start += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[start:])
+		if !unicode.IsSpace(r) {
+			break
+		}
+	}
+	quote := false
+	// Scan until space, marking end of word.
+	for width, i := 0, start; i < len(data); i += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[i:])
+		switch {
+		case i == 0 && r == '"':
+			quote = true
+		case !quote && unicode.IsSpace(r):
+			return i + width, data[start:i], nil
+		case quote && r == '"':
+			return i + width, data[start+width : i], nil
+		}
+	}
+	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
+	if atEOF && len(data) > start {
+		return len(data), data[start:], nil
+	}
+	// Request more data.
+	return start, nil, nil
+}
+
 // rom stores information about the ROM.
 type ROM struct {
 	Path  string
 	Hash  string
+	dir   string
 	bName string
 	fName string
 	fDir  string
+	Ext   string
 	XML   *GameXML
+	Bins  []string
+	Cue   bool
+}
+
+func (r *ROM) PopulatePaths() {
+	r.dir, r.fName = filepath.Split(r.Path)
+	r.fDir = strings.TrimPrefix(r.dir, *romDir)
+	r.Ext = path.Ext(r.fName)
+	r.bName = r.fName[:len(r.fName)-len(r.Ext)]
+}
+
+func (r *ROM) PopulateBins() error {
+	r.PopulatePaths()
+	if !r.Cue {
+		return nil
+	}
+	f, err := os.Open(r.Path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	switch {
+	case r.Ext == ".gdi":
+		if !s.Scan() {
+			return fmt.Errorf("bad gdi")
+		}
+		for s.Scan() {
+			w := bufio.NewScanner(strings.NewReader(s.Text()))
+			w.Split(ScanWords)
+			for i := 0; i < 5; i++ {
+				if !w.Scan() {
+					return fmt.Errorf("bad gdi")
+				}
+			}
+			bin := w.Text()
+			p := filepath.Join(r.dir, bin)
+			if exists(p) {
+				r.Bins = append(r.Bins, p)
+			}
+		}
+	case r.Ext == ".cue":
+		for s.Scan() {
+			w := bufio.NewScanner(strings.NewReader(s.Text()))
+			w.Split(ScanWords)
+			if !w.Scan() {
+				continue
+			}
+			t := w.Text()
+			if t != "FILE" {
+				continue
+			}
+			if !w.Scan() {
+				continue
+			}
+			bin := w.Text()
+			p := filepath.Join(r.dir, bin)
+			if exists(p) {
+				r.Bins = append(r.Bins, p)
+			}
+		}
+	}
+	return nil
 }
 
 // ProcessROM does all the processing of the ROM. It hashes,
@@ -406,11 +510,7 @@ type ROM struct {
 // The results are stored in the ROMs XML property.
 func (r *ROM) ProcessROM(ds *datasources) error {
 	log.Printf("INFO: Starting: %s", r.Path)
-	f := filepath.Base(r.Path)
-	r.fDir = strings.TrimPrefix(filepath.Dir(r.Path), *romDir)
-	r.fName = f
-	e := path.Ext(f)
-	r.bName = f[:len(f)-len(e)]
+	r.PopulatePaths()
 	var xml *GameXML
 	var err error
 	if *mame {
@@ -430,6 +530,26 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	if xml == nil && *useOVGDB {
 		log.Printf("INFO: Attempting lookup in OVGDB: %s", r.Path)
 		xml, err = GetOVGDBGame(r, ds)
+	}
+	if r.Cue && err != nil && err == NotFound {
+		for _, bin := range r.Bins {
+			h, herr := rom.SHA1(bin)
+			if herr != nil {
+				return herr
+			}
+			r.Hash = h
+			if xml == nil && *useGDB {
+				log.Printf("INFO: Attempting lookup in GDB: %s", filepath.Base(bin))
+				xml, err = GetGDBGame(r, ds)
+			}
+			if xml == nil && *useOVGDB {
+				log.Printf("INFO: Attempting lookup in OVGDB: %s", filepath.Base(bin))
+				xml, err = GetOVGDBGame(r, ds)
+			}
+			if err != NotFound {
+				break
+			}
+		}
 	}
 	if err != nil {
 		if err == ovgdb.NotFound {
@@ -532,7 +652,7 @@ func validTemp(s string) bool {
 }
 
 // worker is a function to process roms from a channel.
-func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.WaitGroup) {
+func worker(ds *datasources, results chan *GameXML, roms chan *ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -541,11 +661,10 @@ func worker(ds *datasources, results chan *GameXML, roms chan string, wg *sync.W
 		<-sig
 		stop = true
 	}()
-	for p := range roms {
+	for r := range roms {
 		if stop {
 			continue
 		}
-		r := ROM{Path: p}
 		for try := 0; try <= *retries; try++ {
 			if stop {
 				break
@@ -633,7 +752,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 
 	var wg sync.WaitGroup
 	results := make(chan *GameXML, *workers)
-	roms := make(chan string, 2**workers)
+	roms := make(chan *ROM, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
 		go worker(ds, results, roms, &wg)
@@ -661,6 +780,34 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			panic("AHHHH!")
 		}
 	}()
+	bins := make(map[string]struct{})
+	if !*mame {
+		walker := fs.Walk(*romDir)
+		for walker.Step() {
+			if stop {
+				break
+			}
+			if err := walker.Err(); err != nil {
+				return err
+			}
+			f := walker.Path()
+			if _, ok := existing[f]; ok {
+				log.Printf("INFO: Skipping %s, already in gamelist.", f)
+				continue
+			}
+			e := path.Ext(f)
+			if e != ".cue" && e != ".gdi" {
+				continue
+			}
+			r := &ROM{Path: f, Cue: true}
+			r.PopulateBins()
+			for _, b := range r.Bins {
+				bins[b] = struct{}{}
+			}
+			bins[f] = struct{}{}
+			roms <- r
+		}
+	}
 	walker := fs.Walk(*romDir)
 	for walker.Step() {
 		if stop {
@@ -674,15 +821,17 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			continue
 		}
+		r := &ROM{Path: f}
+		e := path.Ext(f)
 		if *mame {
-			e := path.Ext(f)
 			if e == ".zip" || e == ".7z" {
-				roms <- f
+				roms <- r
 			}
 			continue
 		}
-		if rom.KnownExt(path.Ext(f)) {
-			roms <- f
+		_, ok := bins[f]
+		if !ok && rom.KnownExt(e) {
+			roms <- r
 		}
 	}
 	close(roms)
@@ -692,7 +841,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	wg.Wait()
 	if stop {
 		return UserCanceled
-	} else
+	} else {
 		return nil
 	}
 }
@@ -810,7 +959,7 @@ func Scrape(ds *datasources) error {
 	}
 	cerr := CrawlROMs(gl, ds)
 	if cerr != nil && cerr != UserCanceled {
-		return err
+		return cerr
 	}
 	output, err := xml.MarshalIndent(gl, "  ", "    ")
 	if err != nil {

@@ -10,4 +10,6 @@ func init() {
 	rom.RegisterFormat(".bin", rom.Noop)
 	rom.RegisterFormat(".a26", rom.Noop)
 	rom.RegisterFormat(".rom", rom.Noop)
+	rom.RegisterFormat(".cue", rom.Noop)
+	rom.RegisterFormat(".gdi", rom.Noop)
 }
