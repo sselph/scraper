@@ -791,10 +791,6 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 				return err
 			}
 			f := walker.Path()
-			if _, ok := existing[f]; ok {
-				log.Printf("INFO: Skipping %s, already in gamelist.", f)
-				continue
-			}
 			e := path.Ext(f)
 			if e != ".cue" && e != ".gdi" {
 				continue
@@ -805,6 +801,10 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 				bins[b] = struct{}{}
 			}
 			bins[f] = struct{}{}
+			if _, ok := existing[f]; ok {
+				log.Printf("INFO: Skipping %s, already in gamelist.", f)
+				continue
+			}
 			roms <- r
 		}
 	}
