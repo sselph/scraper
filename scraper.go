@@ -968,7 +968,7 @@ func Scrape(ds *datasources) error {
 	if len(gl.GameList) == 0 {
 		return cerr
 	}
-	err = ioutil.WriteFile(*outputFile, output, 0664)
+	err = ioutil.WriteFile(*outputFile, append([]byte(xml.Header), output...), 0664)
 	if err != nil {
 		return err
 	}
