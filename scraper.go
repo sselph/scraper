@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -46,7 +47,7 @@ import (
 )
 
 const (
-	hashURL  = "https://storage.googleapis.com/stevenselph.appspot.com/hash.csv"
+	hashURL  = "https://storage.googleapis.com/stevenselph.appspot.com/hash.csv.gz"
 	hashName = "hash.csv"
 	hashMeta = "hash.meta"
 )
@@ -867,7 +868,12 @@ func updateHash(version, p string) error {
 	}
 	newVersion := resp.Header.Get("etag")
 	log.Printf("INFO: Upgrading hash.csv: %s -> %s.", version, newVersion)
-	b, err := ioutil.ReadAll(resp.Body)
+	bz, err := gzip.NewReader(resp.Body)
+	if err != nil {
+		return err
+	}
+	defer bz.Close()
+	b, err := ioutil.ReadAll(bz)
 	if err != nil {
 		return err
 	}
