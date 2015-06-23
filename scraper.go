@@ -82,11 +82,14 @@ var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems list
 var gdbImg = flag.String("gdb_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo.")
 var imgFormat = flag.String("img_format", "jpg", "jpg or png, the format to write the images.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
+var version = flag.Bool("version", false, "Print the release version and exit.")
 
 var imgDirs map[string]struct{}
 
 var NotFound = errors.New("hash not found")
 var UserCanceled = errors.New("user canceled")
+
+var versionStr string
 
 // GetFront gets the front boxart for a Game if it exists.
 func GetFront(g gdb.Game) *gdb.Image {
@@ -1027,6 +1030,10 @@ func GetRomFolders() ([]string, error) {
 
 func main() {
 	flag.Parse()
+	if *version {
+		fmt.Println(versionStr)
+		return
+	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
