@@ -66,7 +66,6 @@ var retries = flag.Int("retries", 2, "The number of times to retry a rom on an e
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
 var noThumb = flag.Bool("no_thumb", false, "Don't add thumbnails to the gamelist.")
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
-var useCache = flag.Bool("use_cache", false, "Use sselph backup of thegamesdb.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
 var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
 var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
@@ -214,7 +213,7 @@ func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
 	if !ok {
 		return nil, NotFound
 	}
-	req := gdb.GGReq{ID: id, Cache: *useCache}
+	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
 	if err != nil {
 		return nil, err
@@ -1045,10 +1044,10 @@ func main() {
 		*useOVGDB = false
 	}
 	if *useGDB {
-		if !(*skipCheck || *useCache) {
+		if !*skipCheck {
 			ok := gdb.IsUp()
 			if !ok {
-				fmt.Println("It appears that thegamesdb.net isn't up, try -use_cache to use my backup server. If you are sure it is use -skip_check to bypass this error.")
+				fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 				return
 			}
 		}
