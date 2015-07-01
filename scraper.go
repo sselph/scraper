@@ -723,15 +723,7 @@ func NewCancelTransport(t *http.Transport) *CancelTransport {
 
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *GameListXML, ds *datasources) error {
-	var t = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-	var ct http.RoundTripper = NewCancelTransport(t)
+	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport)
 	http.DefaultClient.Transport = ct
 
 	existing := make(map[string]struct{})
