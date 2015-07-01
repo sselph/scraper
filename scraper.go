@@ -22,7 +22,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -723,7 +722,7 @@ func NewCancelTransport(t *http.Transport) *CancelTransport {
 
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *GameListXML, ds *datasources) error {
-	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport)
+	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport.(*http.Transport))
 	http.DefaultClient.Transport = ct
 
 	existing := make(map[string]struct{})
