@@ -1,24 +1,23 @@
-package rom
+package hash
 
 import (
 	"archive/zip"
 	"fmt"
 	"io"
 	"path"
-	"strings"
 )
 
-type ZipReader struct {
+type zipReader struct {
 	f   *zip.ReadCloser
 	rom io.ReadCloser
 }
 
-func (r ZipReader) Read(p []byte) (int, error) {
+func (r zipReader) Read(p []byte) (int, error) {
 	n, err := r.rom.Read(p)
 	return n, err
 }
 
-func (r ZipReader) Close() error {
+func (r zipReader) Close() error {
 	r.rom.Close()
 	return r.f.Close()
 }
@@ -28,21 +27,20 @@ func decodeZip(f string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	var zr ZipReader
+	var zr zipReader
 	for _, zf := range r.File {
-		ext := strings.ToLower(path.Ext(zf.FileHeader.Name))
-		if KnownExt(ext) {
+		ext := path.Ext(zf.FileHeader.Name)
+		if decoder, ok := getDecoder(ext); ok {
 			rf, err := zf.Open()
 			if err != nil {
 				continue
 			}
 			rs := zf.FileHeader.UncompressedSize64
-			decoder := formats[ext]
 			rom, err := decoder(rf, int64(rs))
 			if err != nil {
 				continue
 			}
-			zr = ZipReader{r, rom}
+			zr = zipReader{r, rom}
 			return zr, nil
 		}
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"compress/gzip"
+	"crypto/sha1"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -14,16 +15,7 @@ import (
 	"github.com/sselph/scraper/gdb"
 	"github.com/sselph/scraper/mamedb"
 	"github.com/sselph/scraper/ovgdb"
-	"github.com/sselph/scraper/rom"
-	_ "github.com/sselph/scraper/rom/bin"
-	_ "github.com/sselph/scraper/rom/gb"
-	_ "github.com/sselph/scraper/rom/lnx"
-	_ "github.com/sselph/scraper/rom/md"
-	_ "github.com/sselph/scraper/rom/n64"
-	_ "github.com/sselph/scraper/rom/nes"
-	_ "github.com/sselph/scraper/rom/pce"
-	_ "github.com/sselph/scraper/rom/sms"
-	_ "github.com/sselph/scraper/rom/snes"
+	rh "github.com/sselph/scraper/rom/hash"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -520,7 +512,7 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 		log.Printf("INFO: Attempting lookup in MAMEDB: %s", r.Path)
 		xml, err = GetMAMEGame(r)
 	} else {
-		h, err := rom.SHA1(r.Path)
+		h, err := rh.Hash(r.Path, sha1.New())
 		if err != nil {
 			return err
 		}
@@ -536,7 +528,7 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	}
 	if r.Cue && err != nil && err == NotFound {
 		for _, bin := range r.Bins {
-			h, herr := rom.SHA1(bin)
+			h, herr := rh.Hash(bin, sha1.New())
 			if herr != nil {
 				return herr
 			}
@@ -825,7 +817,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			continue
 		}
 		r := &ROM{Path: f}
-		e := path.Ext(f)
+		e := strings.ToLower(path.Ext(f))
 		if *mame {
 			if e == ".zip" || e == ".7z" {
 				roms <- r
@@ -833,7 +825,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && rom.KnownExt(e) {
+		if !ok && rh.KnownExt(e) {
 			roms <- r
 		}
 	}

@@ -1,4 +1,4 @@
-package rom
+package hash
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 )
 
 func decodeGZip(f string) (io.ReadCloser, error) {
@@ -22,14 +21,13 @@ func decodeGZip(f string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	defer gzr.Close()
-	ext := strings.ToLower(path.Ext(gzr.Header.Name))
-	if KnownExt(ext) {
+	ext := path.Ext(gzr.Header.Name)
+	if decoder, ok := getDecoder(ext); ok {
 		d, err := ioutil.ReadAll(gzr)
 		if err != nil {
 			return nil, err
 		}
 		r := bytes.NewReader(d)
-		decoder := formats[ext]
 		return decoder(ioutil.NopCloser(r), int64(r.Len()))
 	}
 	return nil, fmt.Errorf("No valid roms found in gzip.")
