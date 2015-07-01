@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"compress/gzip"
+	"crypto/sha1"
 	"encoding/csv"
 	"encoding/xml"
 	"errors"
@@ -14,23 +15,13 @@ import (
 	"github.com/sselph/scraper/gdb"
 	"github.com/sselph/scraper/mamedb"
 	"github.com/sselph/scraper/ovgdb"
-	"github.com/sselph/scraper/rom"
-	_ "github.com/sselph/scraper/rom/bin"
-	_ "github.com/sselph/scraper/rom/gb"
-	_ "github.com/sselph/scraper/rom/lnx"
-	_ "github.com/sselph/scraper/rom/md"
-	_ "github.com/sselph/scraper/rom/n64"
-	_ "github.com/sselph/scraper/rom/nes"
-	_ "github.com/sselph/scraper/rom/pce"
-	_ "github.com/sselph/scraper/rom/sms"
-	_ "github.com/sselph/scraper/rom/snes"
+	rh "github.com/sselph/scraper/rom/hash"
 	"image"
 	"image/jpeg"
 	"image/png"
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -520,7 +511,7 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 		log.Printf("INFO: Attempting lookup in MAMEDB: %s", r.Path)
 		xml, err = GetMAMEGame(r)
 	} else {
-		h, err := rom.SHA1(r.Path)
+		h, err := rh.Hash(r.Path, sha1.New())
 		if err != nil {
 			return err
 		}
@@ -536,7 +527,7 @@ func (r *ROM) ProcessROM(ds *datasources) error {
 	}
 	if r.Cue && err != nil && err == NotFound {
 		for _, bin := range r.Bins {
-			h, herr := rom.SHA1(bin)
+			h, herr := rh.Hash(bin, sha1.New())
 			if herr != nil {
 				return herr
 			}
@@ -731,15 +722,7 @@ func NewCancelTransport(t *http.Transport) *CancelTransport {
 
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *GameListXML, ds *datasources) error {
-	var t = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 10 * time.Second,
-	}
-	var ct http.RoundTripper = NewCancelTransport(t)
+	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport.(*http.Transport))
 	http.DefaultClient.Transport = ct
 
 	existing := make(map[string]struct{})
@@ -825,7 +808,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			continue
 		}
 		r := &ROM{Path: f}
-		e := path.Ext(f)
+		e := strings.ToLower(path.Ext(f))
 		if *mame {
 			if e == ".zip" || e == ".7z" {
 				roms <- r
@@ -833,7 +816,7 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && rom.KnownExt(e) {
+		if !ok && rh.KnownExt(e) {
 			roms <- r
 		}
 	}
