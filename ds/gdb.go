@@ -1,7 +1,6 @@
 package ds
 
 import (
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,8 +8,6 @@ import (
 
 	"github.com/sselph/scraper/gdb"
 )
-
-var NotFoundErr = errors.New("hash not found")
 
 type GDB struct {
 	HM     *HashMap

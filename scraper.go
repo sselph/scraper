@@ -382,6 +382,15 @@ func main() {
 		*useOVGDB = false
 		sources = append(sources, &ds.MAME{})
 	}
+	var hasher *ds.Hasher
+	if *useGDB || *useOVGDB {
+		var err error
+		hasher, err = ds.NewHasher(sha1.New)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 	if *useGDB {
 		if !*skipCheck {
 			ok := gdb.IsUp()
@@ -395,22 +404,17 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		h, err := ds.NewHasher(sha1.New)
+		sources = append(sources, &ds.GDB{HM: hm, Hasher: hasher})
+	}
+	if *useOVGDB {
+		o, err := ds.NewOVGDB(hasher)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		sources = append(sources, &ds.GDB{HM: hm, Hasher: h})
+		defer o.Close()
+		sources = append(sources, o)
 	}
-	//	if *useOVGDB {
-	//		o, err := ovgdb.GetDB()
-	//		if err != nil {
-	//			fmt.Println(err)
-	//			return
-	//		}
-	//		defer o.Close()
-	//		ds.OVGDB = o
-	//	}
 	if !*scrapeAll {
 		err := Scrape(sources, xmlOpts, gameOpts)
 		if err != nil {

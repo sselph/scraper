@@ -3,6 +3,7 @@ package ds
 import (
 	"compress/gzip"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -20,6 +21,8 @@ const (
 	hashName = "hash.csv"
 	hashMeta = "hash.meta"
 )
+
+var NotFoundErr = errors.New("hash not found")
 
 type ImgType string
 
