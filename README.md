@@ -110,3 +110,4 @@ Used libraries
 | [github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | provides sqlite | MIT |
 | [github.com/mitchellh/go-homedir](https://github.com/mitchellh/go-homedir) | get user homedir | MIT |
 | [github.com/syndtr/goleveldb](https://github.com/syndtr/goleveldb) | provides leveldb | Simplified BSD |
+| [github.com/hashicorp/golang-lru](https://github.com/hashicorp/golang-lru) | provides a LRU cache | Mozilla |
