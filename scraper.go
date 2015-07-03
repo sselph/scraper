@@ -377,10 +377,11 @@ func main() {
 		NoStripUnicode: !*stripUnicode,
 	}
 	sources := []ds.DS{}
-	//	if *mame {
-	//		*useGDB = false
-	//		*useOVGDB = false
-	//	}
+	if *mame {
+		*useGDB = false
+		*useOVGDB = false
+		sources = append(sources, &ds.MAME{})
+	}
 	if *useGDB {
 		if !*skipCheck {
 			ok := gdb.IsUp()

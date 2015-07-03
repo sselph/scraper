@@ -40,7 +40,10 @@ var (
 type Game struct {
 	ID        string
 	Name      string
-	Art       string
+	Title     string
+	Snap      string
+	Marquee   string
+	Cabinet   string
 	Developer string
 	Rating    float64
 	Players   int64
@@ -49,7 +52,7 @@ type Game struct {
 	Source    string
 }
 
-func GetGame(name string, imgPriority []string) (*Game, error) {
+func GetGame(name string) (*Game, error) {
 	var g Game
 	g.Source = "mamedb.com"
 	g.ID = name
@@ -112,34 +115,21 @@ func GetGame(name string, imgPriority []string) (*Game, error) {
 			g.Players = players
 		}
 	}
-Loop:
-	for _, i := range imgPriority {
-		switch i {
-		case "s":
-			sm := snapRE.FindSubmatch(body)
-			if sm != nil {
-				g.Art = fmt.Sprintf("http://www.mamedb.com/snap/%s.png", string(sm[1]))
-				break Loop
-			}
-		case "m":
-			mm := marqueeRE.FindSubmatch(body)
-			if mm != nil {
-				g.Art = fmt.Sprintf("http://mamedb.com/marquees/%s.png", string(mm[1]))
-				break Loop
-			}
-		case "t":
-			tim := titleImgRE.FindSubmatch(body)
-			if tim != nil {
-				g.Art = fmt.Sprintf("http://mamedb.com/titles/%s.png", string(tim[1]))
-				break Loop
-			}
-		case "c":
-			cm := cabinetRE.FindSubmatch(body)
-			if cm != nil {
-				g.Art = fmt.Sprintf("http://mamedb.com/cabinets/%s.png", string(cm[1]))
-				break Loop
-			}
-		}
+	sm := snapRE.FindSubmatch(body)
+	if sm != nil {
+		g.Snap = fmt.Sprintf("http://www.mamedb.com/snap/%s.png", string(sm[1]))
+	}
+	mm := marqueeRE.FindSubmatch(body)
+	if mm != nil {
+		g.Marquee = fmt.Sprintf("http://mamedb.com/marquees/%s.png", string(mm[1]))
+	}
+	tim := titleImgRE.FindSubmatch(body)
+	if tim != nil {
+		g.Title = fmt.Sprintf("http://mamedb.com/titles/%s.png", string(tim[1]))
+	}
+	cm := cabinetRE.FindSubmatch(body)
+	if cm != nil {
+		g.Cabinet = fmt.Sprintf("http://mamedb.com/cabinets/%s.png", string(cm[1]))
 	}
 	return &g, nil
 }
