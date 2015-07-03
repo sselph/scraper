@@ -1,46 +1,27 @@
 package main
 
 import (
-	"bufio"
-	"compress/gzip"
 	"crypto/sha1"
-	"encoding/csv"
 	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/kr/fs"
 	"github.com/mitchellh/go-homedir"
-	"github.com/nfnt/resize"
+	"github.com/sselph/scraper/ds"
 	"github.com/sselph/scraper/gdb"
-	"github.com/sselph/scraper/mamedb"
-	"github.com/sselph/scraper/ovgdb"
+	"github.com/sselph/scraper/rom"
 	rh "github.com/sselph/scraper/rom/hash"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
-	"unicode"
-	"unicode/utf8"
-)
-
-const (
-	hashURL  = "https://storage.googleapis.com/stevenselph.appspot.com/hash.csv.gz"
-	hashName = "hash.csv"
-	hashMeta = "hash.meta"
 )
 
 var hashFile = flag.String("hash_file", "", "The file containing hash information.")
@@ -74,557 +55,9 @@ var imgFormat = flag.String("img_format", "jpg", "jpg or png, the format to writ
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
 
-var imgDirs map[string]struct{}
-
-var NotFound = errors.New("hash not found")
 var UserCanceled = errors.New("user canceled")
 
 var versionStr string
-
-// GetFront gets the front boxart for a Game if it exists.
-func GetFront(g gdb.Game) *gdb.Image {
-	for _, v := range g.BoxArt {
-		if v.Side == "front" {
-			return &v
-		}
-	}
-	return nil
-}
-
-// ToXMLDate converts a gdb date to the gamelist.xml date.
-func ToXMLDate(d string) string {
-	switch len(d) {
-	case 10:
-		t, _ := time.Parse("01/02/2006", d)
-		return t.Format("20060102T000000")
-	case 4:
-		return fmt.Sprintf("%s0101T000000", d)
-	}
-	return ""
-}
-
-func StripChars(r rune) rune {
-	// Single Quote
-	if r == 8217 || r == 8216 {
-		return 39
-	}
-	// Double Quote
-	if r == 8220 || r == 8221 {
-		return 34
-	}
-	// ASCII
-	if r < 127 {
-		return r
-	}
-	return -1
-}
-
-type HashMap struct {
-	Data map[string][]string
-}
-
-func (hm *HashMap) GetID(s string) (string, bool) {
-	d, ok := hm.Data[s]
-	if !ok || d[0] == "" {
-		return "", false
-	} else {
-		return d[0], true
-	}
-}
-
-func (hm *HashMap) GetName(s string) (string, bool) {
-	d, ok := hm.Data[s]
-	if !ok || d[1] == "" {
-		return "", false
-	} else {
-		return d[1], true
-	}
-}
-
-type datasources struct {
-	HM    *HashMap
-	OVGDB *ovgdb.DB
-}
-
-// GameXML is the object used to export the <game> elements of the gamelist.xml.
-type GameXML struct {
-	XMLName     xml.Name `xml:"game"`
-	ID          string   `xml:"id,attr"`
-	Source      string   `xml:"source,attr"`
-	Path        string   `xml:"path"`
-	GameTitle   string   `xml:"name"`
-	Overview    string   `xml:"desc"`
-	Image       string   `xml:"image,omitempty"`
-	Thumb       string   `xml:"thumbnail,omitempty"`
-	Rating      float64  `xml:"rating,omitempty"`
-	ReleaseDate string   `xml:"releasedate"`
-	Developer   string   `xml:"developer"`
-	Publisher   string   `xml:"publisher"`
-	Genre       string   `xml:"genre"`
-	Players     int64    `xml:"players,omitempty"`
-}
-
-// GameListXML is the structure used to export the gamelist.xml file.
-type GameListXML struct {
-	XMLName  xml.Name   `xml:"gameList"`
-	GameList []*GameXML `xml:"game"`
-}
-
-// Append appeads a GameXML to the GameList.
-func (gl *GameListXML) Append(g *GameXML) {
-	gl.GameList = append(gl.GameList, g)
-}
-
-// fixPaths fixes relative file paths to include the leading './'.
-func fixPath(s string) string {
-	s = filepath.ToSlash(s)
-	s = strings.Replace(s, "//", "/", -1)
-	if filepath.IsAbs(s) || s[0] == '.' || s[0] == '~' {
-		return s
-	}
-	return fmt.Sprintf("./%s", s)
-}
-
-func GetImgPaths(r *ROM) (iPath, tPath string) {
-	var imgPath string
-	if *nestedImageDir {
-		imgPath = path.Join(*imageDir, r.fDir)
-	} else {
-		imgPath = *imageDir
-	}
-	iName := fmt.Sprintf("%s%s.%s", r.bName, *imageSuffix, *imgFormat)
-	iPath = path.Join(imgPath, iName)
-	tName := fmt.Sprintf("%s%s.%s", r.bName, *thumbSuffix, *imgFormat)
-	tPath = path.Join(imgPath, tName)
-	return iPath, tPath
-}
-
-func GetGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
-	id, ok := ds.HM.GetID(r.Hash)
-	if !ok {
-		return nil, NotFound
-	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(req)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp.Game) == 0 {
-		return nil, fmt.Errorf("game with id (%s) not found", id)
-	}
-	game := resp.Game[0]
-	imageURL := resp.ImageURL
-	imgPriority := strings.Split(*gdbImg, ",")
-	var iURL, tURL string
-Loop:
-	for _, i := range imgPriority {
-		switch i {
-		case "s":
-			if len(game.Screenshot) != 0 {
-				iURL = game.Screenshot[0].Original.URL
-				tURL = game.Screenshot[0].Thumb
-				break Loop
-			}
-		case "b":
-			front := GetFront(game)
-			if front != nil {
-				iURL = front.URL
-				tURL = front.Thumb
-				break Loop
-			}
-		case "f":
-			if len(game.FanArt) != 0 {
-				iURL = game.FanArt[0].Original.URL
-				tURL = game.FanArt[0].Thumb
-				break Loop
-			}
-		case "a":
-			if len(game.Banner) != 0 {
-				iURL = game.Banner[0].URL
-				tURL = game.Banner[0].URL
-				break Loop
-			}
-		case "l":
-			if len(game.ClearLogo) != 0 {
-				iURL = game.ClearLogo[0].URL
-				tURL = game.ClearLogo[0].URL
-				break Loop
-			}
-		}
-	}
-	iPath, tPath := GetImgPaths(r)
-
-	if iURL != "" && *downloadImages {
-		switch {
-		case !*thumbOnly && !*noThumb:
-			err = getImage(imageURL+iURL, iPath)
-			if err != nil {
-				return nil, err
-			}
-			err = getImage(imageURL+tURL, tPath)
-			if err != nil {
-				return nil, err
-			}
-		case *thumbOnly && !*noThumb:
-			err = getImage(imageURL+tURL, tPath)
-			if err != nil {
-				return nil, err
-			}
-			iPath = tPath
-		case !*thumbOnly && *noThumb:
-			err = getImage(imageURL+iURL, iPath)
-			if err != nil {
-				return nil, err
-			}
-			tPath = ""
-		case *thumbOnly && *noThumb:
-			err = getImage(imageURL+tURL, tPath)
-			if err != nil {
-				return nil, err
-			}
-			iPath = tPath
-			tPath = ""
-		}
-	} else {
-		iPath = ""
-		tPath = ""
-	}
-
-	var genre string
-	if len(game.Genres) >= 1 {
-		genre = game.Genres[0]
-	}
-	gxml := &GameXML{
-		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
-		ID:          game.ID,
-		GameTitle:   game.GameTitle,
-		Overview:    game.Overview,
-		Rating:      game.Rating / 10.0,
-		ReleaseDate: ToXMLDate(game.ReleaseDate),
-		Developer:   game.Developer,
-		Publisher:   game.Publisher,
-		Genre:       genre,
-		Source:      "theGamesDB.net",
-	}
-	if iPath != "" {
-		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-	}
-	if tPath != "" {
-		gxml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
-	}
-	if *useNoIntroName {
-		n, ok := ds.HM.GetName(r.Hash)
-		if ok {
-			gxml.GameTitle = n
-		}
-	}
-	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
-	if err == nil {
-		gxml.Players = p
-	}
-	return gxml, nil
-}
-
-func GetOVGDBGame(r *ROM, ds *datasources) (*GameXML, error) {
-	g, err := ds.OVGDB.GetGame(r.Hash)
-	if err != nil {
-		return nil, err
-	}
-	iPath, _ := GetImgPaths(r)
-	if g.Art != "" && *downloadImages {
-		err = getImage(g.Art, iPath)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		iPath = ""
-	}
-
-	gxml := &GameXML{
-		ID:          g.ReleaseID,
-		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
-		GameTitle:   g.Name,
-		Overview:    g.Desc,
-		ReleaseDate: g.Date,
-		Developer:   g.Developer,
-		Publisher:   g.Publisher,
-		Genre:       g.Genre,
-		Source:      g.Source,
-	}
-	if iPath != "" {
-		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-	}
-	return gxml, nil
-}
-
-func GetMAMEGame(r *ROM) (*GameXML, error) {
-	g, err := mamedb.GetGame(r.bName, strings.Split(*mameImg, ","))
-	if err != nil {
-		return nil, err
-	}
-	iPath, _ := GetImgPaths(r)
-	if g.Art != "" && *downloadImages {
-		err = getImage(g.Art, iPath)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		iPath = ""
-	}
-	gxml := &GameXML{
-		Path:        fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)),
-		ID:          g.ID,
-		GameTitle:   g.Name,
-		ReleaseDate: g.Date,
-		Developer:   g.Developer,
-		Genre:       g.Genre,
-		Source:      g.Source,
-		Players:     g.Players,
-		Rating:      g.Rating / 10.0,
-	}
-	if iPath != "" {
-		gxml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-	}
-	return gxml, nil
-}
-
-// ScanWords is a split function for a Scanner that returns each
-// space-separated word of text, with surrounding spaces deleted. It will
-// never return an empty string. The definition of space is set by
-// unicode.IsSpace.
-func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	// Skip leading spaces.
-	start := 0
-	for width := 0; start < len(data); start += width {
-		var r rune
-		r, width = utf8.DecodeRune(data[start:])
-		if !unicode.IsSpace(r) {
-			break
-		}
-	}
-	quote := false
-	// Scan until space, marking end of word.
-	for width, i := 0, start; i < len(data); i += width {
-		var r rune
-		r, width = utf8.DecodeRune(data[i:])
-		switch {
-		case i == 0 && r == '"':
-			quote = true
-		case !quote && unicode.IsSpace(r):
-			return i + width, data[start:i], nil
-		case quote && r == '"':
-			return i + width, data[start+width : i], nil
-		}
-	}
-	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
-	if atEOF && len(data) > start {
-		return len(data), data[start:], nil
-	}
-	// Request more data.
-	return start, nil, nil
-}
-
-// rom stores information about the ROM.
-type ROM struct {
-	Path  string
-	Hash  string
-	dir   string
-	bName string
-	fName string
-	fDir  string
-	Ext   string
-	XML   *GameXML
-	Bins  []string
-	Cue   bool
-}
-
-func (r *ROM) PopulatePaths() {
-	r.dir, r.fName = filepath.Split(r.Path)
-	r.fDir = strings.TrimPrefix(r.dir, *romDir)
-	r.Ext = path.Ext(r.fName)
-	r.bName = r.fName[:len(r.fName)-len(r.Ext)]
-}
-
-func (r *ROM) PopulateBins() error {
-	r.PopulatePaths()
-	if !r.Cue {
-		return nil
-	}
-	f, err := os.Open(r.Path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	s := bufio.NewScanner(f)
-	switch {
-	case r.Ext == ".gdi":
-		if !s.Scan() {
-			return fmt.Errorf("bad gdi")
-		}
-		for s.Scan() {
-			w := bufio.NewScanner(strings.NewReader(s.Text()))
-			w.Split(ScanWords)
-			for i := 0; i < 5; i++ {
-				if !w.Scan() {
-					return fmt.Errorf("bad gdi")
-				}
-			}
-			bin := w.Text()
-			p := filepath.Join(r.dir, bin)
-			if exists(p) {
-				r.Bins = append(r.Bins, p)
-			}
-		}
-	case r.Ext == ".cue":
-		for s.Scan() {
-			w := bufio.NewScanner(strings.NewReader(s.Text()))
-			w.Split(ScanWords)
-			if !w.Scan() {
-				continue
-			}
-			t := w.Text()
-			if t != "FILE" {
-				continue
-			}
-			if !w.Scan() {
-				continue
-			}
-			bin := w.Text()
-			p := filepath.Join(r.dir, bin)
-			if exists(p) {
-				r.Bins = append(r.Bins, p)
-			}
-		}
-	}
-	return nil
-}
-
-// ProcessROM does all the processing of the ROM. It hashes,
-// downloads the metadata, and downloads the images.
-// The results are stored in the ROMs XML property.
-func (r *ROM) ProcessROM(ds *datasources) error {
-	log.Printf("INFO: Starting: %s", r.Path)
-	r.PopulatePaths()
-	var xml *GameXML
-	var err error
-	if *mame {
-		log.Printf("INFO: Attempting lookup in MAMEDB: %s", r.Path)
-		xml, err = GetMAMEGame(r)
-	} else {
-		h, err := rh.Hash(r.Path, sha1.New())
-		if err != nil {
-			return err
-		}
-		r.Hash = h
-	}
-	if xml == nil && *useGDB {
-		log.Printf("INFO: Attempting lookup in GDB: %s", r.Path)
-		xml, err = GetGDBGame(r, ds)
-	}
-	if xml == nil && *useOVGDB {
-		log.Printf("INFO: Attempting lookup in OVGDB: %s", r.Path)
-		xml, err = GetOVGDBGame(r, ds)
-	}
-	if r.Cue && err != nil && err == NotFound {
-		for _, bin := range r.Bins {
-			h, herr := rh.Hash(bin, sha1.New())
-			if herr != nil {
-				return herr
-			}
-			r.Hash = h
-			if xml == nil && *useGDB {
-				log.Printf("INFO: Attempting lookup in GDB: %s", filepath.Base(bin))
-				xml, err = GetGDBGame(r, ds)
-			}
-			if xml == nil && *useOVGDB {
-				log.Printf("INFO: Attempting lookup in OVGDB: %s", filepath.Base(bin))
-				xml, err = GetOVGDBGame(r, ds)
-			}
-			if err != NotFound {
-				break
-			}
-		}
-	}
-	if err != nil {
-		if err == ovgdb.NotFound {
-			err = NotFound
-		}
-		if err == mamedb.NotFound {
-			err = NotFound
-		}
-		if *addNotFound && err == NotFound {
-			log.Printf("INFO: %s: %s", r.Path, err)
-			xml = &GameXML{Path: fixPath(*romPath + "/" + strings.TrimPrefix(r.Path, *romDir)), GameTitle: r.bName}
-			if *useNoIntroName && *useGDB {
-				n, ok := ds.HM.GetName(r.Hash)
-				if ok {
-					xml.GameTitle = n
-				}
-			}
-		} else {
-			return err
-		}
-	}
-	if *useFilename {
-		xml.GameTitle = r.bName
-	}
-	if *stripUnicode {
-		xml.Overview = strings.Map(StripChars, xml.Overview)
-		xml.GameTitle = strings.Map(StripChars, xml.GameTitle)
-	}
-	iPath, tPath := GetImgPaths(r)
-	iExists := exists(iPath)
-	tExists := exists(tPath)
-	if xml.Image == "" && iExists {
-		xml.Image = fixPath(*imagePath + "/" + strings.TrimPrefix(iPath, *imageDir))
-	}
-	if xml.Thumb == "" && tExists {
-		xml.Thumb = fixPath(*imagePath + "/" + strings.TrimPrefix(tPath, *imageDir))
-	}
-	r.XML = xml
-	return nil
-}
-
-// getImage gets the image, resizes it and saves it to specified path.
-func getImage(url string, p string) error {
-	if exists(p) {
-		log.Printf("INFO: Skipping %s", p)
-		return nil
-	}
-	dir := filepath.Dir(p)
-	if _, ok := imgDirs[dir]; !ok {
-		err := mkDir(dir)
-		if err != nil {
-			return err
-		}
-		imgDirs[dir] = struct{}{}
-	}
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	img, _, err := image.Decode(resp.Body)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	if uint(img.Bounds().Dx()) > *maxWidth {
-		img = resize.Resize(*maxWidth, 0, img, resize.Bilinear)
-	}
-	out, err := os.Create(p)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	switch *imgFormat {
-	case "jpg":
-		return jpeg.Encode(out, img, nil)
-	case "png":
-		return png.Encode(out, img)
-	default:
-		return fmt.Errorf("Invalid image type.")
-	}
-}
 
 // exists checks if a file exists and contains data.
 func exists(s string) bool {
@@ -632,21 +65,8 @@ func exists(s string) bool {
 	return !os.IsNotExist(err) && fi.Size() > 0
 }
 
-func validTemp(s string) bool {
-	fi, err := os.Stat(s)
-	if err != nil || fi.Size() == 0 {
-		return false
-	}
-	n := time.Now()
-	t := fi.ModTime().Add(30 * time.Minute)
-	if t.Before(n) {
-		return false
-	}
-	return true
-}
-
 // worker is a function to process roms from a channel.
-func worker(ds *datasources, results chan *GameXML, roms chan *ROM, wg *sync.WaitGroup) {
+func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan *rom.GameXML, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -663,16 +83,22 @@ func worker(ds *datasources, results chan *GameXML, roms chan *ROM, wg *sync.Wai
 			if stop {
 				break
 			}
-			err := r.ProcessROM(ds)
+			log.Printf("INFO: Starting: %s", r.Path)
+			err := r.GetGame(sources, gameOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				if err == NotFound {
+				if err == ds.NotFoundErr {
 					break
 				} else {
 					continue
 				}
 			}
-			results <- r.XML
+			xml, err := r.XML(xmlOpts)
+			if err != nil {
+				log.Printf("ERR: error processing %s: %s", r.Path, err)
+				continue
+			}
+			results <- xml
 			break
 		}
 	}
@@ -721,7 +147,7 @@ func NewCancelTransport(t *http.Transport) *CancelTransport {
 }
 
 // CrawlROMs crawls the rom directory and processes the files.
-func CrawlROMs(gl *GameListXML, ds *datasources) error {
+func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport.(*http.Transport))
 	http.DefaultClient.Transport = ct
 
@@ -737,11 +163,11 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	}
 
 	var wg sync.WaitGroup
-	results := make(chan *GameXML, *workers)
-	roms := make(chan *ROM, 2**workers)
+	results := make(chan *rom.GameXML, *workers)
+	roms := make(chan *rom.ROM, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
-		go worker(ds, results, roms, &wg)
+		go worker(sources, xmlOpts, gameOpts, results, roms, &wg)
 	}
 	go func() {
 		defer wg.Done()
@@ -777,12 +203,14 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 				return err
 			}
 			f := walker.Path()
-			e := path.Ext(f)
-			if e != ".cue" && e != ".gdi" {
+			r, err := rom.NewROM(f)
+			if err != nil {
+				log.Printf("ERR: Processing: %s, %s", f, err)
 				continue
 			}
-			r := &ROM{Path: f, Cue: true}
-			r.PopulateBins()
+			if !r.Cue {
+				continue
+			}
 			for _, b := range r.Bins {
 				bins[b] = struct{}{}
 			}
@@ -807,16 +235,19 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			continue
 		}
-		r := &ROM{Path: f}
-		e := strings.ToLower(path.Ext(f))
+		r, err := rom.NewROM(f)
+		if err != nil {
+			log.Printf("ERR: Processing: %s, %s", f, err)
+			continue
+		}
 		if *mame {
-			if e == ".zip" || e == ".7z" {
+			if r.Ext == ".zip" || r.Ext == ".7z" {
 				roms <- r
 			}
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && rh.KnownExt(e) {
+		if !ok && rh.KnownExt(r.Ext) {
 			roms <- r
 		}
 	}
@@ -832,110 +263,8 @@ func CrawlROMs(gl *GameListXML, ds *datasources) error {
 	}
 }
 
-func updateHash(version, p string) error {
-	log.Print("INFO: Checking for new hash.csv.")
-	req, err := http.NewRequest("GET", hashURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("if-none-match", version)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotModified {
-		log.Printf("INFO: hash.csv %s up to date.", version)
-		return nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("got %v response", resp.Status)
-	}
-	newVersion := resp.Header.Get("etag")
-	log.Printf("INFO: Upgrading hash.csv: %s -> %s.", version, newVersion)
-	bz, err := gzip.NewReader(resp.Body)
-	if err != nil {
-		return err
-	}
-	defer bz.Close()
-	b, err := ioutil.ReadAll(bz)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(path.Join(p, hashName), b, 0664)
-	if err != nil {
-		return err
-	}
-	ioutil.WriteFile(path.Join(p, hashMeta), []byte(newVersion), 0664)
-	return nil
-}
-
-// GetMap gets the mapping of hashes to IDs.
-func GetHashMap() (*HashMap, error) {
-	ret := &HashMap{Data: make(map[string][]string)}
-	var f io.ReadCloser
-	var err error
-	if *hashFile != "" {
-		f, err = os.Open(*hashFile)
-		if err != nil {
-			return ret, err
-		}
-	} else {
-		p, err := ovgdb.GetDBPath()
-		if err != nil {
-			return ret, err
-		}
-		err = mkDir(p)
-		if err != nil {
-			return ret, err
-		}
-		fp := path.Join(p, hashName)
-		mp := path.Join(p, hashMeta)
-		var version string
-		if exists(fp) && exists(mp) {
-			b, err := ioutil.ReadFile(mp)
-			if err != nil {
-				return nil, err
-			}
-			version = strings.Trim(string(b[:]), "\n\r")
-		}
-		err = updateHash(version, p)
-		if err != nil {
-			return ret, err
-		}
-		f, err = os.Open(fp)
-		if err != nil {
-			return ret, err
-		}
-	}
-	defer f.Close()
-	c := csv.NewReader(f)
-	r, err := c.ReadAll()
-	if err != nil {
-		return ret, err
-	}
-	for _, v := range r {
-		ret.Data[strings.ToLower(v[0])] = []string{v[1], v[3]}
-	}
-	return ret, nil
-}
-
-// mkDir checks if directory exists and if it doesn't create it.
-func mkDir(d string) error {
-	fi, err := os.Stat(d)
-	switch {
-	case os.IsNotExist(err):
-		return os.MkdirAll(d, 0775)
-	case err != nil:
-		return err
-	case fi.IsDir():
-		return nil
-	}
-	return fmt.Errorf("%s is a file not a directory.", d)
-}
-
-func Scrape(ds *datasources) error {
-	gl := &GameListXML{}
+func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+	gl := &rom.GameListXML{}
 	if *appendOut {
 		f, err := os.Open(*outputFile)
 		if err != nil {
@@ -948,7 +277,7 @@ func Scrape(ds *datasources) error {
 			f.Close()
 		}
 	}
-	cerr := CrawlROMs(gl, ds)
+	cerr := CrawlROMs(gl, sources, xmlOpts, gameOpts)
 	if cerr != nil && cerr != UserCanceled {
 		return cerr
 	}
@@ -1020,12 +349,38 @@ func main() {
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
 	}
-	imgDirs = make(map[string]struct{})
-	ds := &datasources{}
-	if *mame {
-		*useGDB = false
-		*useOVGDB = false
+	xmlOpts := &rom.XMLOpts{
+		RomDir:     *romDir,
+		RomXMLDir:  *romPath,
+		NestImgDir: *nestedImageDir,
+		ImgDir:     *imageDir,
+		ImgXMLDir:  *imagePath,
+		ImgSuffix:  *imageSuffix,
+		ThumbOnly:  *thumbOnly,
+		NoDownload: !*downloadImages,
+		ImgFormat:  *imgFormat,
+		ImgWidth:   *maxWidth,
 	}
+	var ifmt string
+	if *mame {
+		ifmt = *mameImg
+	} else {
+		ifmt = *gdbImg
+	}
+	for _, t := range strings.Split(ifmt, ",") {
+		xmlOpts.ImgPriority = append(xmlOpts.ImgPriority, ds.ImgType(t))
+	}
+	gameOpts := &rom.GameOpts{
+		AddNotFound:    *addNotFound,
+		NoPrettyName:   !*useNoIntroName,
+		UseFilename:    *useFilename,
+		NoStripUnicode: !*stripUnicode,
+	}
+	sources := []ds.DS{}
+	//	if *mame {
+	//		*useGDB = false
+	//		*useOVGDB = false
+	//	}
 	if *useGDB {
 		if !*skipCheck {
 			ok := gdb.IsUp()
@@ -1034,24 +389,29 @@ func main() {
 				return
 			}
 		}
-		hm, err := GetHashMap()
+		hm, err := ds.CachedHashMap("")
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		ds.HM = hm
-	}
-	if *useOVGDB {
-		o, err := ovgdb.GetDB()
+		h, err := ds.NewHasher(sha1.New)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		defer o.Close()
-		ds.OVGDB = o
+		sources = append(sources, &ds.GDB{HM: hm, Hasher: h})
 	}
+	//	if *useOVGDB {
+	//		o, err := ovgdb.GetDB()
+	//		if err != nil {
+	//			fmt.Println(err)
+	//			return
+	//		}
+	//		defer o.Close()
+	//		ds.OVGDB = o
+	//	}
 	if !*scrapeAll {
-		err := Scrape(ds)
+		err := Scrape(sources, xmlOpts, gameOpts)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -1071,7 +431,7 @@ func main() {
 			*imagePath = p
 			out := filepath.Join(rf, "gamelist.xml")
 			*outputFile = out
-			err := Scrape(ds)
+			err := Scrape(sources, xmlOpts, gameOpts)
 			if err != nil {
 				fmt.Println(err)
 				return
