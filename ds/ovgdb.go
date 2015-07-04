@@ -1,139 +1,101 @@
-package ovgdb
+package ds
 
 import (
 	"archive/zip"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/mitchellh/go-homedir"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
-	"runtime"
+	"path/filepath"
 	"strings"
 )
 
 const (
-	zipURL   = "https://storage.googleapis.com/stevenselph.appspot.com/openvgdb.zip"
+	zipURL   = "https://storage.googleapis.com/stevenselph.appspot.com/openvgdb2.zip"
 	dbName   = "ldb"
 	zipName  = "openvgdb.zip"
 	metaName = "openvgdb.meta"
 )
 
-var NotFound = errors.New("hash not found")
-
-type Game struct {
-	ReleaseID string
-	RomID     string
-	Name      string
-	Art       string
-	Desc      string
-	Developer string
-	Publisher string
-	Genre     string
-	Date      string
-	Source    string
-	Hash      string
-	FileName  string
-}
-
-func (g *Game) ToSlice() []string {
-	return []string{
-		g.ReleaseID,
-		g.RomID,
-		g.Name,
-		g.Art,
-		g.Desc,
-		g.Developer,
-		g.Publisher,
-		g.Genre,
-		g.Date,
-		g.Source,
-		g.Hash,
-		g.FileName,
+func ovgdbUnmarshalGame(b []byte) (*Game, error) {
+	var s []string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return nil, err
 	}
-}
-
-func GameFromSlice(s []string) (*Game, error) {
-	if len(s) != 12 {
-		return nil, fmt.Errorf("length of slice must be 12 but was %s", len(s))
+	if len(s) != 9 {
+		return nil, fmt.Errorf("length of slice must be 9 but was %s", len(s))
 	}
-	g := &Game{
-		ReleaseID: s[0],
-		RomID:     s[1],
-		Name:      s[2],
-		Art:       s[3],
-		Desc:      s[4],
-		Developer: s[5],
-		Publisher: s[6],
-		Genre:     s[7],
-		Date:      s[8],
-		Source:    s[9],
-		Hash:      s[10],
-		FileName:  s[11],
+	g := NewGame()
+	g.ID = s[0]
+	g.GameTitle = s[1]
+	g.Overview = s[2]
+	g.Developer = s[3]
+	g.Publisher = s[4]
+	g.Genre = s[5]
+	g.ReleaseDate = s[6]
+	g.Source = s[7]
+	if s[8] != "" {
+		g.Images[IMG_BOXART] = s[8]
+		g.Thumbs[IMG_BOXART] = s[8]
 	}
 	return g, nil
 }
 
-type DB struct {
-	db *leveldb.DB
+// OVGDB is a DataSource using OpenVGDB.
+type OVGDB struct {
+	db     *leveldb.DB
+	Hasher *Hasher
 }
 
-func (db *DB) GetGame(n string) (*Game, error) {
-	v, err := db.db.Get([]byte(n), nil)
+func (o *OVGDB) GetName(p string) string {
+	h, err := o.Hasher.Hash(p)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			err = NotFound
-		}
-		return nil, err
+		return ""
 	}
-	g, err := db.db.Get(v, nil)
+	n, err := o.db.Get([]byte(h+"-name"), nil)
 	if err != nil {
-		return nil, err
+		return ""
 	}
-	var s []string
-	err = json.Unmarshal(g, &s)
-	if err != nil {
-		return nil, err
-	}
-	return GameFromSlice(s)
+	return string(n)
 }
 
-func (db *DB) Close() error {
-	return db.db.Close()
-}
-
-func GetDBPath() (string, error) {
-	hd, err := homedir.Dir()
+func (o *OVGDB) GetID(p string) (string, error) {
+	h, err := o.Hasher.Hash(p)
 	if err != nil {
 		return "", err
 	}
-	if runtime.GOOS == "windows" {
-		return path.Join(hd, "Application Data", "sselph-scraper"), nil
-	} else {
-		return path.Join(hd, ".sselph-scraper"), nil
+	id, err := o.db.Get([]byte(h), nil)
+	if err == nil {
+		return string(id), nil
 	}
+	if err != nil && err != leveldb.ErrNotFound {
+		return "", err
+	}
+	b := filepath.Base(p)
+	n := b[:len(b)-len(filepath.Ext(b))]
+	id, err = o.db.Get([]byte(strings.ToLower(n)), nil)
+	if err != nil {
+		return "", NotFoundErr
+	}
+	return string(id), nil
 }
 
-func mkDir(d string) error {
-	fi, err := os.Stat(d)
-	switch {
-	case os.IsNotExist(err):
-		return os.MkdirAll(d, 0775)
-	case err != nil:
-		return err
-	case fi.IsDir():
-		return nil
+func (o *OVGDB) GetGame(id string) (*Game, error) {
+	g, err := o.db.Get([]byte(id), nil)
+	if err != nil {
+		return nil, err
 	}
-	return fmt.Errorf("%s is a file not a directory.", d)
+	return ovgdbUnmarshalGame(g)
 }
 
-func exists(f string) bool {
-	_, err := os.Stat(f)
-	return !os.IsNotExist(err)
+// Close closes the DB.
+func (db *OVGDB) Close() error {
+	return db.db.Close()
 }
 
 func updateDB(version, p string) error {
@@ -202,10 +164,13 @@ func updateDB(version, p string) error {
 	return nil
 }
 
-func GetDB() (*DB, error) {
-	p, err := GetDBPath()
-	if err != nil {
-		return nil, err
+func getDB(p string) (*leveldb.DB, error) {
+	var err error
+	if p == "" {
+		p, err = DefaultCachePath()
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = mkDir(p)
 	var version string
@@ -229,5 +194,14 @@ func GetDB() (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DB{db}, nil
+	return db, nil
+}
+
+// NewOVGDB returns a new OVGDB. OVGDB should be closed when not needed.
+func NewOVGDB(h *Hasher) (*OVGDB, error) {
+	db, err := getDB("")
+	if err != nil {
+		return nil, err
+	}
+	return &OVGDB{Hasher: h, db: db}, nil
 }

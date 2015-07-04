@@ -277,6 +277,7 @@ func getDecoder(ext string) (decoder, bool) {
 	}
 }
 
+// KnownExt returns true if the ext is recognized.
 func KnownExt(ext string) bool {
 	_, ok := getDecoder(strings.ToLower(ext))
 	return ok
@@ -309,6 +310,7 @@ func decode(p string) (io.ReadCloser, error) {
 	return ret, err
 }
 
+// Hash returns the hash of a rom given a path to the file and hash function.
 func Hash(p string, h hash.Hash) (string, error) {
 	r, err := decode(p)
 	if err != nil {

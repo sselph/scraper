@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sselph/scraper/ovgdb"
+	"github.com/sselph/scraper/ds"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"
@@ -60,9 +60,24 @@ func scanRow(rows *sql.Rows) ([]string, error) {
 	return r, nil
 }
 
-func queryDB(db *sql.DB, q string) ([]ovgdb.Game, error) {
+type game struct {
+	ReleaseID string
+	RomID     string
+	Name      string
+	Art       string
+	Desc      string
+	Developer string
+	Publisher string
+	Genre     string
+	Date      string
+	Source    string
+	Hash      string
+	FileName  string
+}
+
+func queryDB(db *sql.DB, q string) ([]game, error) {
 	rows, err := db.Query(q)
-	ret := []ovgdb.Game{}
+	ret := []game{}
 	if err != nil {
 		return ret, err
 	}
@@ -82,7 +97,7 @@ func queryDB(db *sql.DB, q string) ([]ovgdb.Game, error) {
 				source = append(source, u.Host)
 			}
 		}
-		g := ovgdb.Game{
+		g := game{
 			ReleaseID: v[0],
 			RomID:     v[1],
 			Name:      v[2],
@@ -214,7 +229,7 @@ func exists(f string) bool {
 }
 
 func GetDB() (*sql.DB, error) {
-	p, err := ovgdb.GetDBPath()
+	p, err := ds.DefaultCachePath()
 	if err != nil {
 		return nil, err
 	}
@@ -239,6 +254,21 @@ func GetDB() (*sql.DB, error) {
 	return sql.Open("sqlite3", fp)
 }
 
+func marshalGame(g game) ([]byte, error) {
+	s := []string{
+		g.RomID,
+		g.Name,
+		g.Desc,
+		g.Developer,
+		g.Publisher,
+		g.Genre,
+		g.Date,
+		g.Source,
+		g.Art,
+	}
+	return json.Marshal(s)
+}
+
 func main() {
 	db, err := GetDB()
 	if err != nil {
@@ -248,7 +278,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	p, err := ovgdb.GetDBPath()
+	p, err := ds.DefaultCachePath()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -262,17 +292,19 @@ func main() {
 	}
 	defer ldb.Close()
 	for _, g := range games {
-		b, err := json.Marshal(g.ToSlice())
+		b, err := marshalGame(g)
 		if err != nil {
 			log.Fatal(err)
 		}
 		batch := new(leveldb.Batch)
-		i := []byte(g.ReleaseID)
+		i := []byte(g.RomID)
 		h := []byte(g.Hash)
+		hn := []byte(g.Hash + "-name")
 		fn := []byte(strings.ToLower(g.FileName))
 		batch.Put(i, b)
 		batch.Put(h, i)
 		batch.Put(fn, i)
+		batch.Put(hn, fn)
 		err = ldb.Write(batch, nil)
 		if err != nil {
 			log.Fatal(err)
