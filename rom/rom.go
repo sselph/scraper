@@ -176,7 +176,7 @@ Loop:
 		for _, source := range data {
 			prettyName = source.GetName(file)
 			id, err = source.GetID(file)
-			if err == ds.NotFoundErr {
+			if err != nil {
 				continue
 			}
 			game, err = source.GetGame(id)
