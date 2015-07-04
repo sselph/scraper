@@ -380,7 +380,12 @@ func main() {
 	if *mame {
 		*useGDB = false
 		*useOVGDB = false
-		sources = append(sources, &ds.MAME{})
+		mds, err := ds.NewMAME("")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		sources = append(sources, mds)
 	}
 	var hasher *ds.Hasher
 	if *useGDB || *useOVGDB {
