@@ -21,6 +21,7 @@ const (
 	mameMetaName = "mamehist.meta"
 )
 
+// MAME is a Data Source using mamedb and arcade-history.
 type MAME struct {
 	db *leveldb.DB
 }
@@ -33,6 +34,10 @@ func (m *MAME) GetID(p string) (string, error) {
 
 func (m *MAME) GetName(p string) string {
 	return ""
+}
+
+func (m *MAME) Close() error {
+	return m.db.Close()
 }
 
 func (m *MAME) GetGame(id string) (*Game, error) {
@@ -174,6 +179,7 @@ func getMAMEDB(p string) (*leveldb.DB, error) {
 	return db, nil
 }
 
+// NewMAME returns a new MAME. MAME should be closed when not needed.
 func NewMAME(p string) (*MAME, error) {
 	db, err := getMAMEDB(p)
 	if err != nil {

@@ -44,6 +44,7 @@ func New(f io.ReadCloser) *Scanner {
 
 func (s *Scanner) Scan() (Entry, error) {
 	e := Entry{}
+	// Scan until we reach a \n$ that isn't $end.
 	for {
 		d, err := s.r.ReadBytes('$')
 		if err != nil {
@@ -61,6 +62,7 @@ func (s *Scanner) Scan() (Entry, error) {
 		}
 		break
 	}
+	// Parse $system=rom,rom,
 	l, err := s.r.ReadString('\n')
 	if err != nil {
 		return e, err
@@ -78,6 +80,7 @@ func (s *Scanner) Scan() (Entry, error) {
 	if err != nil {
 		return e, err
 	}
+	// Parse $bio\n\n<CopyRight>\n\n
 	l = strings.Trim(l, "\n\r")
 	if l != "$bio" {
 		return e, fmt.Errorf("unexpected line: %s", l)
@@ -110,6 +113,7 @@ func (s *Scanner) Scan() (Entry, error) {
 			break
 		}
 	}
+	// Read until we get to $end
 	for {
 		d, err := s.r.ReadString('$')
 		if err != nil {

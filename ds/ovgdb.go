@@ -46,6 +46,7 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 	return g, nil
 }
 
+// OVGDB is a DataSource using OpenVGDB.
 type OVGDB struct {
 	db     *leveldb.DB
 	Hasher *Hasher
@@ -92,6 +93,7 @@ func (o *OVGDB) GetGame(id string) (*Game, error) {
 	return ovgdbUnmarshalGame(g)
 }
 
+// Close closes the DB.
 func (db *OVGDB) Close() error {
 	return db.db.Close()
 }
@@ -195,6 +197,7 @@ func getDB(p string) (*leveldb.DB, error) {
 	return db, nil
 }
 
+// NewOVGDB returns a new OVGDB. OVGDB should be closed when not needed.
 func NewOVGDB(h *Hasher) (*OVGDB, error) {
 	db, err := getDB("")
 	if err != nil {

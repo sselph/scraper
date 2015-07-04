@@ -105,6 +105,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 	}
 }
 
+// CancelTransport is a special HTTP transport that tracks pending requests so they can be cancelled.
 type CancelTransport struct {
 	mu      sync.Mutex
 	Pending map[*http.Request]struct{}
@@ -141,6 +142,7 @@ func (t *CancelTransport) Stop() {
 	t.mu.Unlock()
 }
 
+// NewCancelTransport wraps a transport to create a CancelTransport
 func NewCancelTransport(t *http.Transport) *CancelTransport {
 	ct := &CancelTransport{T: t}
 	ct.Pending = make(map[*http.Request]struct{})
@@ -265,6 +267,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	}
 }
 
+// Scrape handles scraping and wriiting the XML.
 func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	gl := &rom.GameListXML{}
 	if *appendOut {
@@ -297,17 +300,20 @@ func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error
 	return cerr
 }
 
+// System represents a single system in es_systems.cfg
 type System struct {
 	Name      string `xml:"name"`
 	Path      string `xml:"path"`
 	Extension string `xml:"extension"`
 }
 
+// ESSystems represents es_systems.cfg
 type ESSystems struct {
 	XMLName xml.Name `xml:"systemList"`
 	Systems []System `xml:"system"`
 }
 
+// GetRomFolders finds and parses es_systems.cfg to get rom folders.
 func GetRomFolders() ([]string, error) {
 	hd, err := homedir.Dir()
 	if err != nil {
@@ -351,6 +357,7 @@ func main() {
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
 	}
+
 	xmlOpts := &rom.XMLOpts{
 		RomDir:     *romDir,
 		RomXMLDir:  *romPath,
@@ -383,6 +390,7 @@ func main() {
 		*useGDB = false
 		*useOVGDB = false
 		mds, err := ds.NewMAME("")
+		defer mds.Close()
 		if err != nil {
 			fmt.Println(err)
 			return

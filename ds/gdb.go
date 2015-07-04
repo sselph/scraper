@@ -9,13 +9,14 @@ import (
 	"github.com/sselph/scraper/gdb"
 )
 
+// GDB is a DataSource using thegamesdb.net
 type GDB struct {
 	HM     *HashMap
 	Hasher *Hasher
 }
 
-// GetFront gets the front boxart for a Game if it exists.
-func GetFront(g gdb.Game) *gdb.Image {
+// getFront gets the front boxart for a Game if it exists.
+func getFront(g gdb.Game) *gdb.Image {
 	for _, v := range g.BoxArt {
 		if v.Side == "front" {
 			return &v
@@ -24,8 +25,8 @@ func GetFront(g gdb.Game) *gdb.Image {
 	return nil
 }
 
-// ToXMLDate converts a gdb date to the gamelist.xml date.
-func ToXMLDate(d string) string {
+// toXMLDate converts a gdb date to the gamelist.xml date.
+func toXMLDate(d string) string {
 	switch len(d) {
 	case 10:
 		t, _ := time.Parse("01/02/2006", d)
@@ -75,7 +76,7 @@ func (g *GDB) GetGame(id string) (*Game, error) {
 		ret.Images[IMG_SCREEN] = resp.ImageURL + game.Screenshot[0].Original.URL
 		ret.Thumbs[IMG_SCREEN] = resp.ImageURL + game.Screenshot[0].Thumb
 	}
-	front := GetFront(game)
+	front := getFront(game)
 	if front != nil {
 		ret.Images[IMG_BOXART] = resp.ImageURL + front.URL
 		ret.Thumbs[IMG_BOXART] = resp.ImageURL + front.Thumb
@@ -101,7 +102,7 @@ func (g *GDB) GetGame(id string) (*Game, error) {
 	ret.GameTitle = game.GameTitle
 	ret.Overview = game.Overview
 	ret.Rating = game.Rating / 10.0
-	ret.ReleaseDate = ToXMLDate(game.ReleaseDate)
+	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
 	ret.Developer = game.Developer
 	ret.Publisher = game.Publisher
 	ret.Genre = genre

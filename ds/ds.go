@@ -22,6 +22,7 @@ const (
 	hashMeta = "hash.meta"
 )
 
+// NotFoundErr is the error returned when a rom can't be found in the soruce.
 var NotFoundErr = errors.New("hash not found")
 
 type ImgType string
@@ -38,6 +39,8 @@ const (
 	IMG_CABINET ImgType = "c"
 )
 
+// Game is the standard Game that all sources will return.
+// They don't have to populate all values.
 type Game struct {
 	ID          string
 	Source      string
@@ -53,6 +56,7 @@ type Game struct {
 	Players     int64
 }
 
+// NewGame returns a new Game.
 func NewGame() *Game {
 	g := &Game{}
 	g.Images = make(map[ImgType]string)
@@ -60,9 +64,13 @@ func NewGame() *Game {
 	return g
 }
 
+// DS is the interface all DataSoures should implement.
 type DS interface {
+	// GetGame takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
 	GetName(string) string
+	// GetGame takes an id and returns the Game.
 	GetGame(string) (*Game, error)
+	// GetID takes the path of a ROM and returns the id to use in GetGame.
 	GetID(string) (string, error)
 }
 
@@ -80,10 +88,12 @@ func mkDir(d string) error {
 	return fmt.Errorf("%s is a file not a directory.", d)
 }
 
+// HashMap a mapping of hash to names and GDB IDs.
 type HashMap struct {
 	data map[string][]string
 }
 
+// GetID returns the id for the given hash.
 func (hm *HashMap) GetID(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[0] == "" {
@@ -93,6 +103,7 @@ func (hm *HashMap) GetID(s string) (string, bool) {
 	}
 }
 
+// GetName returns the no-intro name for the given hash.
 func (hm *HashMap) GetName(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[1] == "" {
@@ -102,6 +113,8 @@ func (hm *HashMap) GetName(s string) (string, bool) {
 	}
 }
 
+// DefaultCachePath returns the path used for all cached data.
+// Current <HOME>/.sselph-scraper or <HOMEDIR>\Application Data\sselph-scraper
 func DefaultCachePath() (string, error) {
 	hd, err := homedir.Dir()
 	if err != nil {
@@ -120,6 +133,7 @@ func DefaultCachePath() (string, error) {
 	return p, nil
 }
 
+// updateHash downloads the latest hash file.
 func updateHash(version, p string) error {
 	log.Print("INFO: Checking for new hash.csv.")
 	req, err := http.NewRequest("GET", hashURL, nil)

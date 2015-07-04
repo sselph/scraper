@@ -18,27 +18,46 @@ import (
 	"github.com/sselph/scraper/ds"
 )
 
+// GameOpts represents the options for creating Game information.
 type GameOpts struct {
+	// AddNotFound instructs the scraper to create a Game even if the game isn't in the sources.
 	AddNotFound    bool
+	// NoPrettyName instructs the scraper to leave the name as the name in the source.
 	NoPrettyName   bool
+	// UseFilename instructs the scraper to use the filename minus extension as the xml name.
 	UseFilename    bool
+	// NoStripUnicode instructs the scraper to not strip out unicode characters.
 	NoStripUnicode bool
 }
 
+// XMLOpts represents the options for creating XML information.
 type XMLOpts struct {
+	// RomDir is the base directory for scraping rom files.
 	RomDir      string
+	// RomXMLDir is the base directory where roms will be located on the target system.
 	RomXMLDir   string
+	// NestImgDir if true tells the scraper to use the same directory structure of roms for rom images.
 	NestImgDir  bool
+	// ImgDir is the base directory for downloading images.
 	ImgDir      string
+	// ImgXMLDir is the directory where images will be located on the target system.
 	ImgXMLDir   string
+	// ImgPriority is the order or image preference when multiple images are avialable.
 	ImgPriority []ds.ImgType
+	// ImgSuffix is what will be appened to the end of the rom's name to name the image
+	// ie rom.bin with suffix of "-image" results in rom-image.jpg
 	ImgSuffix   string
+	// ThumbOnly tells the scraper to prefer thumbnail size images when available.
 	ThumbOnly   bool
+	// NoDownload tells the scraper to not download images.
 	NoDownload  bool
+	// ImgFormat is the format for the image, currently only "jpg" and "png" are supported.
 	ImgFormat   string
+	// ImgWidth is the max width of images. Anything larger will be resized.
 	ImgWidth    uint
 }
 
+// stripChars strips out unicode and converts "fancy" quotes to normal quotes.
 func stripChars(r rune) rune {
 	// Single Quote
 	if r == 8217 || r == 8216 {
@@ -91,7 +110,7 @@ func scanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	return start, nil, nil
 }
 
-// rom stores information about the ROM.
+// ROM stores information about the ROM.
 type ROM struct {
 	Path     string
 	Dir      string
@@ -103,12 +122,14 @@ type ROM struct {
 	Game     *ds.Game
 }
 
+// populatePaths populates all the relative path information from the full path.
 func (r *ROM) populatePaths() {
 	r.Dir, r.FileName = filepath.Split(r.Path)
 	r.Ext = filepath.Ext(r.FileName)
 	r.BaseName = r.FileName[:len(r.FileName)-len(r.Ext)]
 }
 
+// populateBins populates .bin information for .cue or .gdi files.
 func (r *ROM) populateBins() error {
 	f, err := os.Open(r.Path)
 	if err != nil {
@@ -159,6 +180,7 @@ func (r *ROM) populateBins() error {
 	return nil
 }
 
+// GetGame attempts to populates the Game from data sources in oder.
 func (r *ROM) GetGame(data []ds.DS, opts *GameOpts) error {
 	if opts == nil {
 		opts = &GameOpts{}
@@ -206,6 +228,7 @@ Loop:
 	return nil
 }
 
+// NewROM creates a new ROM and populates path and bin information.
 func NewROM(p string) (*ROM, error) {
 	r := &ROM{Path: p}
 	r.populatePaths()
@@ -219,6 +242,7 @@ func NewROM(p string) (*ROM, error) {
 	return r, nil
 }
 
+// getImgPaths gets the paths to use for images.
 func getImgPaths(r *ROM, opts *XMLOpts) string {
 	var imgPath string
 	if opts.NestImgDir {
@@ -299,6 +323,7 @@ func exists(s string) bool {
 	return !os.IsNotExist(err) && fi.Size() > 0
 }
 
+// imgExists checks if an image exists with either format.
 func imgExists(p string) (string, bool) {
 	if exists(p) {
 		return p, true
@@ -317,6 +342,7 @@ func imgExists(p string) (string, bool) {
 	return p, false
 }
 
+// XML creates the XML for the ROM after the Game has been populates.
 func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 	gxml := &GameXML{
 		Path:        fixPath(opts.RomXMLDir + "/" + strings.TrimPrefix(r.Path, opts.RomDir)),
