@@ -21,11 +21,11 @@ import (
 // GameOpts represents the options for creating Game information.
 type GameOpts struct {
 	// AddNotFound instructs the scraper to create a Game even if the game isn't in the sources.
-	AddNotFound    bool
+	AddNotFound bool
 	// NoPrettyName instructs the scraper to leave the name as the name in the source.
-	NoPrettyName   bool
+	NoPrettyName bool
 	// UseFilename instructs the scraper to use the filename minus extension as the xml name.
-	UseFilename    bool
+	UseFilename bool
 	// NoStripUnicode instructs the scraper to not strip out unicode characters.
 	NoStripUnicode bool
 }
@@ -33,28 +33,28 @@ type GameOpts struct {
 // XMLOpts represents the options for creating XML information.
 type XMLOpts struct {
 	// RomDir is the base directory for scraping rom files.
-	RomDir      string
+	RomDir string
 	// RomXMLDir is the base directory where roms will be located on the target system.
-	RomXMLDir   string
+	RomXMLDir string
 	// NestImgDir if true tells the scraper to use the same directory structure of roms for rom images.
-	NestImgDir  bool
+	NestImgDir bool
 	// ImgDir is the base directory for downloading images.
-	ImgDir      string
+	ImgDir string
 	// ImgXMLDir is the directory where images will be located on the target system.
-	ImgXMLDir   string
+	ImgXMLDir string
 	// ImgPriority is the order or image preference when multiple images are avialable.
 	ImgPriority []ds.ImgType
 	// ImgSuffix is what will be appened to the end of the rom's name to name the image
 	// ie rom.bin with suffix of "-image" results in rom-image.jpg
-	ImgSuffix   string
+	ImgSuffix string
 	// ThumbOnly tells the scraper to prefer thumbnail size images when available.
-	ThumbOnly   bool
+	ThumbOnly bool
 	// NoDownload tells the scraper to not download images.
-	NoDownload  bool
+	NoDownload bool
 	// ImgFormat is the format for the image, currently only "jpg" and "png" are supported.
-	ImgFormat   string
+	ImgFormat string
 	// ImgWidth is the max width of images. Anything larger will be resized.
-	ImgWidth    uint
+	ImgWidth uint
 }
 
 // stripChars strips out unicode and converts "fancy" quotes to normal quotes.
@@ -378,11 +378,13 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 			}
 		}
 	}
-	err := getImage(imgURL, imgPath, opts.ImgWidth)
-	if err != nil {
-		return nil, err
+	if imgURL != "" {
+		err := getImage(imgURL, imgPath, opts.ImgWidth)
+		if err != nil {
+			return nil, err
+		}
+		gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
 	}
-	gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
 	return gxml, nil
 }
 
