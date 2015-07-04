@@ -19,6 +19,13 @@ const (
 	dbName = "mame_history"
 )
 
+func mapper(r rune) rune {
+	if r == '\r' {
+		return -1
+	}
+	return r
+}
+
 type Entry struct {
 	Name   string
 	Clones []string
@@ -75,6 +82,34 @@ func (s *Scanner) Scan() (Entry, error) {
 	if l != "$bio" {
 		return e, fmt.Errorf("unexpected line: %s", l)
 	}
+	l, err = s.r.ReadString('\n')
+	if err != nil {
+		return e, err
+	}
+	l = strings.Trim(l, "\n\r")
+	if l != "" {
+		return e, fmt.Errorf("expected blank line after bio: %s", l)
+	}
+	for {
+		l, err = s.r.ReadString('\n')
+		if err != nil {
+			return e, err
+		}
+		l = strings.Trim(l, "\n\r")
+		if strings.Contains(l, "(c)") {
+			break
+		}
+	}
+	for {
+		l, err = s.r.ReadString('\n')
+		if err != nil {
+			return e, err
+		}
+		l = strings.Trim(l, "\n\r")
+		if l == "" {
+			break
+		}
+	}
 	for {
 		d, err := s.r.ReadString('$')
 		if err != nil {
@@ -89,10 +124,8 @@ func (s *Scanner) Scan() (Entry, error) {
 		}
 		if string(b) == "end" {
 			d = d[:len(d)-2]
-			if d[len(d)-1] == '\r' {
-				d = d[:len(d)-1]
-			}
 			e.Bio = e.Bio + d
+			e.Bio = strings.Map(mapper, e.Bio)
 			return e, nil
 		}
 		e.Bio = e.Bio + d
@@ -120,6 +153,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer ldb.Close()
+	var count int
 	for {
 		e, err := scanner.Scan()
 		if err != nil {
@@ -156,5 +190,7 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		count++
 	}
+	fmt.Printf("Found: %d\n", count)
 }
