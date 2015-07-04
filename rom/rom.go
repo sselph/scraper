@@ -318,28 +318,6 @@ func imgExists(p string) (string, bool) {
 }
 
 func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
-	imgPath := getImgPaths(r, opts)
-	var exists bool
-	if imgPath, exists = imgExists(imgPath); !exists && !opts.NoDownload {
-		var imgURL string
-		var ok bool
-		for _, it := range opts.ImgPriority {
-			if opts.ThumbOnly {
-				if imgURL, ok = r.Game.Thumbs[it]; ok {
-					break
-				}
-			} else {
-				if imgURL, ok = r.Game.Images[it]; ok {
-					break
-				}
-			}
-		}
-		err := getImage(imgURL, imgPath, opts.ImgWidth)
-		if err != nil {
-			return nil, err
-		}
-		exists = true
-	}
 	gxml := &GameXML{
 		Path:        fixPath(opts.RomXMLDir + "/" + strings.TrimPrefix(r.Path, opts.RomDir)),
 		ID:          r.Game.ID,
@@ -352,9 +330,33 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 		Genre:       r.Game.Genre,
 		Source:      r.Game.Source,
 	}
+	imgPath := getImgPaths(r, opts)
+	imgPath, exists := imgExists(imgPath)
 	if exists {
 		gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+		return gxml, nil
 	}
+	if opts.NoDownload {
+		return gxml, nil
+	}
+	var imgURL string
+	var ok bool
+	for _, it := range opts.ImgPriority {
+		if opts.ThumbOnly {
+			if imgURL, ok = r.Game.Thumbs[it]; ok {
+				break
+			}
+		} else {
+			if imgURL, ok = r.Game.Images[it]; ok {
+				break
+			}
+		}
+	}
+	err := getImage(imgURL, imgPath, opts.ImgWidth)
+	if err != nil {
+		return nil, err
+	}
+	gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
 	return gxml, nil
 }
 
