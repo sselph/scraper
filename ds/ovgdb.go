@@ -47,7 +47,7 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 }
 
 type OVGDB struct {
-	db *leveldb.DB
+	db     *leveldb.DB
 	Hasher *Hasher
 }
 

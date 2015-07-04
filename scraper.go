@@ -154,11 +154,11 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	existing := make(map[string]struct{})
 
 	for _, x := range gl.GameList {
-		p, err := filepath.Rel(*romPath, x.Path)
+		p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
 		if err != nil {
 			log.Printf("Can't find original path: %s", x.Path)
 		}
-		f := filepath.Join(*romDir, p)
+		f := filepath.Join(xmlOpts.RomDir, p)
 		existing[f] = struct{}{}
 	}
 
@@ -194,7 +194,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	}()
 	bins := make(map[string]struct{})
 	if !*mame {
-		walker := fs.Walk(*romDir)
+		walker := fs.Walk(xmlOpts.RomDir)
 		for walker.Step() {
 			if stop {
 				break
@@ -222,7 +222,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			roms <- r
 		}
 	}
-	walker := fs.Walk(*romDir)
+	walker := fs.Walk(xmlOpts.RomDir)
 	for walker.Step() {
 		if stop {
 			break
@@ -434,11 +434,11 @@ func main() {
 		}
 		for _, rf := range romFolders {
 			log.Printf("Starting System %s", rf)
-			*romDir = rf
-			*romPath = rf
+			xmlOpts.RomDir = rf
+			xmlOpts.RomXMLDir = rf
 			p := filepath.Join(rf, "images")
-			*imageDir = p
-			*imagePath = p
+			xmlOpts.ImgDir = p
+			xmlOpts.ImgXMLDir = p
 			out := filepath.Join(rf, "gamelist.xml")
 			*outputFile = out
 			err := Scrape(sources, xmlOpts, gameOpts)

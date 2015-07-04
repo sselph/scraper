@@ -15,13 +15,13 @@ import (
 )
 
 const (
-	mameDBName = "mame_history"
+	mameDBName   = "mame_history"
 	mameZipURL   = "https://storage.googleapis.com/stevenselph.appspot.com/mamehist.zip"
 	mameZipName  = "mamehist.zip"
 	mameMetaName = "mamehist.meta"
 )
 
-type MAME struct{
+type MAME struct {
 	db *leveldb.DB
 }
 

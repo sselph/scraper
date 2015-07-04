@@ -16,13 +16,13 @@ import (
 )
 
 const (
-	dbName   = "mame_history"
+	dbName = "mame_history"
 )
 
 type Entry struct {
-	Name string
+	Name   string
 	Clones []string
-	Bio string
+	Bio    string
 	System string
 }
 
@@ -68,21 +68,21 @@ func (s *Scanner) Scan() (Entry, error) {
 	e.Name = p[0]
 	e.Clones = append(e.Clones, p[1:]...)
 	l, err = s.r.ReadString('\n')
-        if err != nil {
-                return e, err
-        }
-        l = strings.Trim(l, "\n\r")
+	if err != nil {
+		return e, err
+	}
+	l = strings.Trim(l, "\n\r")
 	if l != "$bio" {
 		return e, fmt.Errorf("unexpected line: %s", l)
 	}
 	for {
 		d, err := s.r.ReadString('$')
-                if err != nil {
-                        return e, err
-                }
-                if len(d) <= 2 || d[len(d)-2] != '\n' {
-                        continue
-                }
+		if err != nil {
+			return e, err
+		}
+		if len(d) <= 2 || d[len(d)-2] != '\n' {
+			continue
+		}
 		b, err := s.r.Peek(3)
 		if err != nil {
 			return e, err
@@ -122,12 +122,12 @@ func main() {
 	defer ldb.Close()
 	for {
 		e, err := scanner.Scan()
-                if err != nil {
+		if err != nil {
 			if err == io.EOF {
 				break
 			}
-                        log.Fatal(err)
-                }
+			log.Fatal(err)
+		}
 		rID := make([]byte, 4)
 		for {
 			_, err = rand.Read(rID)

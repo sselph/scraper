@@ -299,7 +299,7 @@ func main() {
 		batch := new(leveldb.Batch)
 		i := []byte(g.RomID)
 		h := []byte(g.Hash)
-		hn := []byte(g.Hash+"-name")
+		hn := []byte(g.Hash + "-name")
 		fn := []byte(strings.ToLower(g.FileName))
 		batch.Put(i, b)
 		batch.Put(h, i)
