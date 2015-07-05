@@ -27,7 +27,14 @@ $ go build github.com/sselph/scraper/rename
 Usage
 -----
 
+Dry-Run
 ```bash
 $ cd <rom directory>
 $ rename *.nes
+```
+
+Actually rename
+```bash
+$ cd <rom directory>
+$ rename -dry_run=false *.nes
 ```
