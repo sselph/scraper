@@ -23,6 +23,7 @@ _testmain.go
 *.test
 
 # My Build Tools
-*.sh
+build.sh
+release.sh
 *.zip
 scraper
