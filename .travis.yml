@@ -18,8 +18,12 @@ env:
 
 
 install:
-    - go get -d -v ./...
+    - go get -d -v ./rename
+    - go get -d -v ./mame-history
+    - go get -d -v .
 
 script:
-    - go build -v ./...
-    - go test ./...
+    - go build -v ./rename
+    - go build -v ./mame-history
+    - go build -v .
+    - go test -v ./...
