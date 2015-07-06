@@ -2,7 +2,7 @@ scraper
 =======
 
 An auto-scraper for EmulationStation written in Go using hashes.
-This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600, LNX, MAME(see below), Dreamcast(bin/gdi), PSX(bin/cue) ROMs.
+This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600, LNX, MAME(see below), Dreamcast(bin/gdi), PSX(bin/cue), ScummVM ROMs.
 
 How it Works
 ------------
