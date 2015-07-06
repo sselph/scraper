@@ -1,5 +1,6 @@
 scraper
 =======
+[![Build Status](https://travis-ci.org/sselph/scraper.svg?branch=master)](https://travis-ci.org/sselph/scraper) [![GoDoc](https://godoc.org/github.com/sselph/scraper?status.svg)](https://godoc.org/github.com/sselph/scraper)
 
 An auto-scraper for EmulationStation written in Go using hashes.
 This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600, LNX, MAME(see below), Dreamcast(bin/gdi), PSX(bin/cue), ScummVM ROMs.
@@ -15,7 +16,7 @@ Make sure you have go version 1.2 or later installed.
 
 ```bash
 $ go version
-go version go1.2.1 linux/amd64
+go version go1.2.2 linux/amd64
 ```
 
 Fetch and build.

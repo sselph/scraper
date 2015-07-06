@@ -1,8 +1,8 @@
 language: go
 
 go:
-  - 1.2
-  - tip
+  - 1.2.2
+  - 1.4.2
 
 env:
     - GIMME_OS=linux GIMME_ARCH=amd64
