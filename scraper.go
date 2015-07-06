@@ -54,6 +54,7 @@ var gdbImg = flag.String("gdb_img", "b", "Comma seperated order to prefer images
 var imgFormat = flag.String("img_format", "jpg", "jpg or png, the format to write the images.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
+var refreshOut = flag.Bool("refresh", false, "Information will be attempted to be downloaded again but won't remove roms that are not scraped.")
 
 var UserCanceled = errors.New("user canceled")
 
@@ -157,12 +158,17 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	existing := make(map[string]struct{})
 
 	for _, x := range gl.GameList {
-		p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
-		if err != nil {
-			log.Printf("Can't find original path: %s", x.Path)
+		switch {
+		case *appendOut:
+			p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
+			if err != nil {
+				log.Printf("Can't find original path: %s", x.Path)
+			}
+			f := filepath.Join(xmlOpts.RomDir, p)
+			existing[f] = struct{}{}
+		case *refreshOut:
+			existing[x.Path] = struct{}{}
 		}
-		f := filepath.Join(xmlOpts.RomDir, p)
-		existing[f] = struct{}{}
 	}
 
 	var wg sync.WaitGroup
@@ -175,6 +181,15 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	go func() {
 		defer wg.Done()
 		for r := range results {
+			if _, ok := existing[r.Path]; ok && *refreshOut {
+				for i, g := range gl.GameList {
+					if g.Path != r.Path {
+						continue
+					}
+					copy(gl.GameList[i:], gl.GameList[i+1:])
+					gl.GameList = gl.GameList[:len(gl.GameList)-1]
+				}
+			}
 			gl.Append(r)
 		}
 	}()
@@ -219,7 +234,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 				bins[b] = struct{}{}
 			}
 			bins[f] = struct{}{}
-			if _, ok := existing[f]; ok {
+			if _, ok := existing[f]; !*refreshOut && ok {
 				log.Printf("INFO: Skipping %s, already in gamelist.", f)
 				continue
 			}
@@ -235,7 +250,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			return err
 		}
 		f := walker.Path()
-		if _, ok := existing[f]; ok {
+		if _, ok := existing[f]; !*refreshOut && ok {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			continue
 		}
@@ -270,7 +285,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 // Scrape handles scraping and wriiting the XML.
 func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	gl := &rom.GameListXML{}
-	if *appendOut {
+	if *appendOut || *refreshOut {
 		f, err := os.Open(*outputFile)
 		if err != nil {
 			log.Printf("ERR: Can't open %s, creating new file.", *outputFile)
