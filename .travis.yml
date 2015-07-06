@@ -23,7 +23,8 @@ install:
     - go get -d -v .
 
 script:
-    - go build -v ./rename
-    - go build -v ./mame-history
+    - go build -o rename-bin -v ./rename
+    - go build -o mame-history-bin -v ./mame-history
     - go build -v .
-    - go test -v ./...
+    - go test -v ./rom/hash
+    - go test -v ./ds
