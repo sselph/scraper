@@ -251,7 +251,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && rh.KnownExt(r.Ext) {
+		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm") {
 			roms <- r
 		}
 	}
@@ -406,6 +406,11 @@ func main() {
 			return
 		}
 	}
+	hm, err := ds.CachedHashMap("")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	if *useGDB {
 		if !*skipCheck {
 			ok := gdb.IsUp()
@@ -413,11 +418,6 @@ func main() {
 				fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 				return
 			}
-		}
-		hm, err := ds.CachedHashMap("")
-		if err != nil {
-			fmt.Println(err)
-			return
 		}
 		sources = append(sources, &ds.GDB{HM: hm, Hasher: hasher})
 	}
@@ -430,6 +430,7 @@ func main() {
 		defer o.Close()
 		sources = append(sources, o)
 	}
+	sources = append(sources, &ds.ScummVM{HM: hm})
 	if !*scrapeAll {
 		err := Scrape(sources, xmlOpts, gameOpts)
 		if err != nil {
