@@ -279,7 +279,14 @@ func getDecoder(ext string) (decoder, bool) {
 
 // KnownExt returns true if the ext is recognized.
 func KnownExt(ext string) bool {
-	_, ok := getDecoder(strings.ToLower(ext))
+	ext = strings.ToLower(ext)
+	if ext == ".zip" {
+		return true
+	}
+	if ext == ".gz" {
+		return true
+	}
+	_, ok := getDecoder(ext)
 	return ok
 }
 
