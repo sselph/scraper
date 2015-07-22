@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -356,6 +357,9 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 		Genre:       r.Game.Genre,
 		Source:      r.Game.Source,
 	}
+	if r.Game.Players > 0 {
+		gxml.Players = strconv.FormatInt(r.Game.Players, 10)
+	}
 	imgPath := getImgPaths(r, opts)
 	imgPath, exists := imgExists(imgPath)
 	if exists {
@@ -403,7 +407,7 @@ type GameXML struct {
 	Developer   string   `xml:"developer"`
 	Publisher   string   `xml:"publisher"`
 	Genre       string   `xml:"genre"`
-	Players     int64    `xml:"players,omitempty"`
+	Players     string    `xml:"players,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.
