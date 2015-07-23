@@ -288,11 +288,11 @@ func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error
 	if *appendOut || *refreshOut {
 		f, err := os.Open(*outputFile)
 		if err != nil {
-			log.Printf("ERR: Can't open %s, creating new file.", *outputFile)
+			log.Printf("ERR: Can't open %s, creating new file. error %q", *outputFile, err)
 		} else {
 			decoder := xml.NewDecoder(f)
 			if err := decoder.Decode(gl); err != nil {
-				log.Printf("ERR: Can't open %s, creating new file.", *outputFile)
+				log.Printf("ERR: Can't open %s, creating new file. error %q", *outputFile, err)
 			}
 			f.Close()
 		}
