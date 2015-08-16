@@ -66,6 +66,11 @@ func exists(s string) bool {
 	return !os.IsNotExist(err) && fi.Size() > 0
 }
 
+func dirExists(s string) bool {
+	fi, err := os.Stat(s)
+	return !os.IsNotExist(err) && fi.IsDir()
+}
+
 // worker is a function to process roms from a channel.
 func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan *rom.GameXML, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -156,6 +161,11 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	http.DefaultClient.Transport = ct
 
 	existing := make(map[string]struct{})
+
+	if !dirExists(xmlOpts.RomDir) {
+		log.Printf("ERR %s: does not exists", xmlOpts.RomDir)
+		return nil
+	}
 
 	for _, x := range gl.GameList {
 		switch {
@@ -320,6 +330,7 @@ type System struct {
 	Name      string `xml:"name"`
 	Path      string `xml:"path"`
 	Extension string `xml:"extension"`
+	Platform  string `xml:"platform"`
 }
 
 // ESSystems represents es_systems.cfg
@@ -329,7 +340,7 @@ type ESSystems struct {
 }
 
 // GetRomFolders finds and parses es_systems.cfg to get rom folders.
-func GetRomFolders() ([]string, error) {
+func GetSystems() ([]System, error) {
 	hd, err := homedir.Dir()
 	if err != nil {
 		return nil, err
@@ -351,13 +362,13 @@ func GetRomFolders() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var out []string
+	var out []System
 	prefix := string([]rune{'~', filepath.Separator})
 	for _, s := range v.Systems {
 		if s.Path[:2] == prefix {
 			s.Path = filepath.Join(hd, s.Path[2:])
 		}
-		out = append(out, s.Path)
+		out = append(out, s)
 	}
 	return out, nil
 }
@@ -385,14 +396,13 @@ func main() {
 		ImgFormat:  *imgFormat,
 		ImgWidth:   *maxWidth,
 	}
-	var ifmt string
-	if *mame {
-		ifmt = *mameImg
-	} else {
-		ifmt = *gdbImg
+	var arcadeImg []ds.ImgType
+	var consoleImg []ds.ImgType
+	for _, t := range strings.Split(*mameImg, ",") {
+		arcadeImg = append(arcadeImg, ds.ImgType(t))
 	}
-	for _, t := range strings.Split(ifmt, ",") {
-		xmlOpts.ImgPriority = append(xmlOpts.ImgPriority, ds.ImgType(t))
+	for _, t := range strings.Split(*gdbImg, ",") {
+		consoleImg = append(consoleImg, ds.ImgType(t))
 	}
 	gameOpts := &rom.GameOpts{
 		AddNotFound:    *addNotFound,
@@ -400,17 +410,21 @@ func main() {
 		UseFilename:    *useFilename,
 		NoStripUnicode: !*stripUnicode,
 	}
-	sources := []ds.DS{}
-	if *mame {
+
+	var arcadeSources []ds.DS
+	var consoleSources []ds.DS
+	if *mame && !*scrapeAll {
 		*useGDB = false
 		*useOVGDB = false
+	}
+	if *mame || *scrapeAll {
 		mds, err := ds.NewMAME("")
 		defer mds.Close()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		sources = append(sources, mds)
+		arcadeSources = append(arcadeSources, mds)
 	}
 	var hasher *ds.Hasher
 	if *useGDB || *useOVGDB {
@@ -434,7 +448,7 @@ func main() {
 				return
 			}
 		}
-		sources = append(sources, &ds.GDB{HM: hm, Hasher: hasher})
+		consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
 	}
 	if *useOVGDB {
 		o, err := ds.NewOVGDB(hasher)
@@ -443,30 +457,47 @@ func main() {
 			return
 		}
 		defer o.Close()
-		sources = append(sources, o)
+		consoleSources = append(consoleSources, o)
 	}
-	sources = append(sources, &ds.ScummVM{HM: hm})
+	consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
 	if !*scrapeAll {
+		var sources []ds.DS
+		if *mame {
+			sources = arcadeSources
+			xmlOpts.ImgPriority = arcadeImg
+		} else {
+			sources = consoleSources
+			xmlOpts.ImgPriority = consoleImg
+		}
 		err := Scrape(sources, xmlOpts, gameOpts)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	} else {
-		romFolders, err := GetRomFolders()
+		systems, err := GetSystems()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		for _, rf := range romFolders {
-			log.Printf("Starting System %s", rf)
-			xmlOpts.RomDir = rf
-			xmlOpts.RomXMLDir = rf
-			p := filepath.Join(rf, "images")
+		for _, s := range systems {
+			log.Printf("Starting System %s", s.Path)
+			xmlOpts.RomDir = s.Path
+			xmlOpts.RomXMLDir = s.Path
+			p := filepath.Join(s.Path, "images")
 			xmlOpts.ImgDir = p
 			xmlOpts.ImgXMLDir = p
-			out := filepath.Join(rf, "gamelist.xml")
+			out := filepath.Join(s.Path, "gamelist.xml")
 			*outputFile = out
+			var sources []ds.DS
+			switch s.Platform {
+			case "arcade", "neogeo":
+				sources = arcadeSources
+				xmlOpts.ImgPriority = arcadeImg
+			default:
+				sources = consoleSources
+				xmlOpts.ImgPriority = consoleImg
+			}
 			err := Scrape(sources, xmlOpts, gameOpts)
 			if err != nil {
 				fmt.Println(err)
