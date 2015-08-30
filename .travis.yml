@@ -3,6 +3,7 @@ language: go
 go:
   - 1.2.2
   - 1.4.2
+  - 1.5
 
 env:
     - GIMME_OS=linux GIMME_ARCH=amd64
