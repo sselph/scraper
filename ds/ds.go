@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/sselph/go-homedir"
+	"github.com/mitchellh/go-homedir"
 )
 
 const (
