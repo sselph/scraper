@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/kr/fs"
-	"github.com/mitchellh/go-homedir"
+	"github.com/sselph/go-homedir"
 	"github.com/sselph/scraper/ds"
 	"github.com/sselph/scraper/gdb"
 	"github.com/sselph/scraper/rom"
