@@ -232,6 +232,10 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 				return err
 			}
 			f := walker.Path()
+			if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
+				walker.SkipDir()
+				continue
+			}
 			r, err := rom.NewROM(f)
 			if err != nil {
 				log.Printf("ERR: Processing: %s, %s", f, err)
@@ -260,6 +264,10 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			return err
 		}
 		f := walker.Path()
+		if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
+			walker.SkipDir()
+			continue
+		}
 		if _, ok := existing[f]; !*refreshOut && ok {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			continue
