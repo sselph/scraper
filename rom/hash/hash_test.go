@@ -2,8 +2,8 @@ package hash
 
 import (
 	"crypto/sha1"
-	"path/filepath"
 	"github.com/sselph/scraper/testdata"
+	"path/filepath"
 	"testing"
 )
 

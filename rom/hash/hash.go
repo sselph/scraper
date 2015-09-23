@@ -301,10 +301,7 @@ func decode(p string) (io.ReadCloser, error) {
 		r, err := decodeGZip(p)
 		return r, err
 	}
-	decode, ok := getDecoder(ext)
-	if !ok {
-		return nil, fmt.Errorf("no registered decoder for extention %s", ext)
-	}
+	decode, _ := getDecoder(ext)
 	r, err := os.Open(p)
 	if err != nil {
 		return nil, err

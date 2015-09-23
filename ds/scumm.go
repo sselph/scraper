@@ -91,5 +91,3 @@ func (s *ScummVM) GetGame(id string) (*Game, error) {
 	}
 	return ret, nil
 }
-
-

@@ -46,7 +46,7 @@ var useFilename = flag.Bool("use_filename", false, "If true, use the filename mi
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
-var mameImg = flag.String("mame_img", "s,t,m,c", "Comma seperated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
+var mameImg = flag.String("mame_img", "s,t,m,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
@@ -55,6 +55,7 @@ var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to wr
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
 var refreshOut = flag.Bool("refresh", false, "Information will be attempted to be downloaded again but won't remove roms that are not scraped.")
+var extraExt = flag.String("extra_ext", "", "Comma separated list of extensions to also include in the scraper.")
 
 var UserCanceled = errors.New("user canceled")
 
@@ -167,6 +168,18 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		return nil
 	}
 
+	extraMap := make(map[string]struct{})
+	if *extraExt != "" {
+		extraSlice := strings.Split(*extraExt, ",")
+		for _, e := range extraSlice {
+			if e[0] != '.' {
+				extraMap["."+e] = struct{}{}
+			} else {
+				extraMap[e] = struct{}{}
+			}
+		}
+	}
+
 	for _, x := range gl.GameList {
 		switch {
 		case *appendOut:
@@ -277,14 +290,15 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			log.Printf("ERR: Processing: %s, %s", f, err)
 			continue
 		}
+		_, isExtra := extraMap[r.Ext]
 		if *mame {
-			if r.Ext == ".zip" || r.Ext == ".7z" {
+			if r.Ext == ".zip" || r.Ext == ".7z" || isExtra {
 				roms <- r
 			}
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm") {
+		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra) {
 			roms <- r
 		}
 	}

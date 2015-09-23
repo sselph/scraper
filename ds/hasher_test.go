@@ -1,12 +1,12 @@
 package ds
 
-import(
-"crypto/sha1"
-"io/ioutil"
-"os"
-"path/filepath"
-"sync"
-"testing"
+import (
+	"crypto/sha1"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
 )
 
 type File struct {

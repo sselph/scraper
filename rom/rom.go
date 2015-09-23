@@ -407,7 +407,7 @@ type GameXML struct {
 	Developer   string   `xml:"developer"`
 	Publisher   string   `xml:"publisher"`
 	Genre       string   `xml:"genre"`
-	Players     string    `xml:"players,omitempty"`
+	Players     string   `xml:"players,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.
