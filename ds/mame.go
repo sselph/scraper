@@ -43,6 +43,9 @@ func (m *MAME) Close() error {
 func (m *MAME) GetGame(id string) (*Game, error) {
 	g, err := mamedb.GetGame(id)
 	if err != nil {
+		if err == mamedb.NotFound {
+			return nil, NotFoundErr
+		}
 		return nil, err
 	}
 	game := NewGame()

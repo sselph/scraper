@@ -88,6 +88,9 @@ func (o *OVGDB) GetID(p string) (string, error) {
 func (o *OVGDB) GetGame(id string) (*Game, error) {
 	g, err := o.db.Get([]byte(id), nil)
 	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil, NotFoundErr
+		}
 		return nil, err
 	}
 	return ovgdbUnmarshalGame(g)
