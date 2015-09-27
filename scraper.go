@@ -101,6 +101,9 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 					continue
 				}
 			}
+			if r.NotFound {
+				log.Printf("INFO: %s, %s", r.Path, ds.NotFoundErr)
+			}
 			xml, err := r.XML(xmlOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)

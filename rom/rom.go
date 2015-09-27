@@ -121,6 +121,7 @@ type ROM struct {
 	Bins     []string
 	Cue      bool
 	Game     *ds.Game
+	NotFound bool
 }
 
 // populatePaths populates all the relative path information from the full path.
@@ -210,6 +211,9 @@ Loop:
 		}
 	}
 	if game == nil {
+		if err == ds.NotFoundErr {
+			r.NotFound = true
+		}
 		if err != ds.NotFoundErr || !opts.AddNotFound {
 			return err
 		}
