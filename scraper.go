@@ -460,7 +460,13 @@ func main() {
 			return
 		}
 	}
-	hm, err := ds.CachedHashMap("")
+	var hm *ds.HashMap
+	var err error
+	if *hashFile != "" {
+		hm, err = ds.FileHashMap(*hashFile)
+	} else {
+		hm, err = ds.CachedHashMap("")
+	}
 	if err != nil {
 		fmt.Println(err)
 		return
