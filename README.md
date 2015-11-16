@@ -3,7 +3,7 @@ scraper
 [![Build Status](https://travis-ci.org/sselph/scraper.svg?branch=master)](https://travis-ci.org/sselph/scraper) [![GoDoc](https://godoc.org/github.com/sselph/scraper?status.svg)](https://godoc.org/github.com/sselph/scraper)
 
 An auto-scraper for EmulationStation written in Go using hashes.
-This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600, LNX, MAME(see below), Dreamcast(bin/gdi), PSX(bin/cue), ScummVM, SegaCD ROMs.
+This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A2600, LNX, MAME/FBA(see below), Dreamcast(bin/gdi), PSX(bin/cue), ScummVM, SegaCD ROMs.
 
 How it Works
 ------------
@@ -36,9 +36,9 @@ $ scraper
 
 ROMs will be scanned and a gamelist.xml file will be created. All images will be placed inside the images folder.
 
-MAME
+MAME/FBA
 ----
-The scraper now supports MAME but using file names instead of hashing. Since it uses a different DB and lookup method, several of the command line flags no longer apply. When the -mame flag is used it disables all other databases and the mamedb only has the one size of image so the flags about thumbnails, gdb, ovgdb, etc don't do anything.
+The scraper now supports MAME/FBA but using file names instead of hashing. Since it uses a different DB and lookup method, several of the command line flags no longer apply. When the -mame flag is used it disables all other databases and the mamedb only has the one size of image so the flags about thumbnails, gdb, ovgdb, etc don't do anything.
 
 ```bash
 $ scraper -mame
