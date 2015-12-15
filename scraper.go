@@ -264,6 +264,19 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 				}
 				continue
 			}
+			if r.XML.Image == "" && *missing != "" {
+				var hash string
+				if gdbDS != nil {
+					var err error
+					hash, err = gdbDS.Hash(r.ROM.Path)
+					if err != nil {
+						log.Printf("ERR: Can't hash file %s", r.ROM.Path)
+					}
+				}
+				if err := missingCSV.Write([]string{r.ROM.FileName, "", hash, "missing image"}); err != nil {
+					log.Printf("ERR: Can't write to %s", *missing)
+				}
+			}
 			if _, ok := existing[r.XML.Path]; ok && *refreshOut {
 				for i, g := range gl.GameList {
 					if g.Path != r.XML.Path {
