@@ -37,6 +37,10 @@ func toXMLDate(d string) string {
 	return ""
 }
 
+func (g *GDB) Hash(p string) (string, error) {
+	return g.Hasher.Hash(p)
+}
+
 func (g *GDB) GetID(p string) (string, error) {
 	h, err := g.Hasher.Hash(p)
 	if err != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"encoding/csv"
 	"encoding/xml"
 	"errors"
 	"flag"
@@ -56,6 +57,7 @@ var appendOut = flag.Bool("append", false, "If the gamelist file already exist s
 var version = flag.Bool("version", false, "Print the release version and exit.")
 var refreshOut = flag.Bool("refresh", false, "Information will be attempted to be downloaded again but won't remove roms that are not scraped.")
 var extraExt = flag.String("extra_ext", "", "Comma separated list of extensions to also include in the scraper.")
+var missing = flag.String("missing", "", "The `file` where information about ROMs that weren't scraped is added.")
 
 var UserCanceled = errors.New("user canceled")
 
@@ -72,8 +74,14 @@ func dirExists(s string) bool {
 	return !os.IsNotExist(err) && fi.IsDir()
 }
 
+type Result struct {
+	ROM *rom.ROM
+	XML *rom.GameXML
+	Err error
+}
+
 // worker is a function to process roms from a channel.
-func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan *rom.GameXML, roms chan *rom.ROM, wg *sync.WaitGroup) {
+func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan Result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -87,6 +95,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 		if stop {
 			continue
 		}
+		result := Result{ROM: r}
 		for try := 0; try <= *retries; try++ {
 			if stop {
 				break
@@ -95,6 +104,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 			err := r.GetGame(sources, gameOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
+				result.Err = err
 				if err == ds.NotFoundErr {
 					break
 				} else {
@@ -109,9 +119,10 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				continue
 			}
-			results <- xml
+			result.XML = xml
 			break
 		}
+		results <- result
 	}
 }
 
@@ -161,6 +172,31 @@ func NewCancelTransport(t *http.Transport) *CancelTransport {
 
 // CrawlROMs crawls the rom directory and processes the files.
 func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+	var missingCSV *csv.Writer
+	var gdbDS *ds.GDB
+	if *missing != "" {
+		f, err := os.Create(*missing)
+		if err != nil {
+			return err
+		}
+		missingCSV = csv.NewWriter(f)
+		defer func () {
+			missingCSV.Flush()
+			if err := missingCSV.Error(); err != nil {
+				log.Fatal(err)
+			}
+			f.Close()
+		}()
+		if err := missingCSV.Write([]string{"Game", "Error", "Hash", "Extra"}); err != nil {
+			return err
+		}
+		for _, d := range sources {
+			switch d := d.(type) {
+			case *ds.GDB:
+				gdbDS = d
+			}
+		}
+	}
 	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport.(*http.Transport))
 	http.DefaultClient.Transport = ct
 
@@ -198,7 +234,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	}
 
 	var wg sync.WaitGroup
-	results := make(chan *rom.GameXML, *workers)
+	results := make(chan Result, *workers)
 	roms := make(chan *rom.ROM, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
@@ -207,16 +243,37 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	go func() {
 		defer wg.Done()
 		for r := range results {
-			if _, ok := existing[r.Path]; ok && *refreshOut {
+			if r.XML == nil {
+				if  *missing == "" {
+					continue
+				}
+				var hash, extra string
+				if gdbDS != nil {
+					var err error
+					hash, err = gdbDS.Hash(r.ROM.Path)
+					if err != nil {
+						log.Printf("ERR: Can't hash file %s", r.ROM.Path)
+					}
+					name := gdbDS.GetName(r.ROM.Path)
+					if name != "" && r.Err == ds.NotFoundErr {
+						extra = "hash found but no GDB ID"
+					}
+				}
+				if err := missingCSV.Write([]string{r.ROM.FileName, r.Err.Error(), hash, extra}); err != nil {
+					log.Printf("ERR: Can't write to %s", *missing)
+				}
+				continue
+			}
+			if _, ok := existing[r.XML.Path]; ok && *refreshOut {
 				for i, g := range gl.GameList {
-					if g.Path != r.Path {
+					if g.Path != r.XML.Path {
 						continue
 					}
 					copy(gl.GameList[i:], gl.GameList[i+1:])
 					gl.GameList = gl.GameList[:len(gl.GameList)-1]
 				}
 			}
-			gl.Append(r)
+			gl.Append(r.XML)
 		}
 	}()
 	var stop bool
@@ -511,6 +568,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+		origMissing := *missing
 		for _, s := range systems {
 			log.Printf("Starting System %s", s.Path)
 			xmlOpts.RomDir = s.Path
@@ -520,6 +578,9 @@ func main() {
 			xmlOpts.ImgXMLDir = p
 			out := filepath.Join(s.Path, "gamelist.xml")
 			*outputFile = out
+			if origMissing != "" {
+				*missing = fmt.Sprintf("%s_%s", s.Name, origMissing)
+			}
 			var sources []ds.DS
 			switch s.Platform {
 			case "arcade", "neogeo":
