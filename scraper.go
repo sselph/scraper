@@ -180,7 +180,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			return err
 		}
 		missingCSV = csv.NewWriter(f)
-		defer func () {
+		defer func() {
 			missingCSV.Flush()
 			if err := missingCSV.Error(); err != nil {
 				log.Fatal(err)
@@ -244,23 +244,29 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		defer wg.Done()
 		for r := range results {
 			if r.XML == nil {
-				if  *missing == "" {
+				if *missing == "" {
 					continue
 				}
-				var hash, extra string
-				if gdbDS != nil {
-					var err error
-					hash, err = gdbDS.Hash(r.ROM.Path)
-					if err != nil {
-						log.Printf("ERR: Can't hash file %s", r.ROM.Path)
-					}
-					name := gdbDS.GetName(r.ROM.Path)
-					if name != "" && r.Err == ds.NotFoundErr {
-						extra = "hash found but no GDB ID"
-					}
+				files := []string{r.ROM.Path}
+				if r.ROM.Cue {
+					files = append(files, r.ROM.Bins...)
 				}
-				if err := missingCSV.Write([]string{r.ROM.FileName, r.Err.Error(), hash, extra}); err != nil {
-					log.Printf("ERR: Can't write to %s", *missing)
+				for _, file := range files {
+					var hash, extra string
+					if gdbDS != nil {
+						var err error
+						hash, err = gdbDS.Hash(file)
+						if err != nil {
+							log.Printf("ERR: Can't hash file %s", file)
+						}
+						name := gdbDS.GetName(file)
+						if name != "" && r.Err == ds.NotFoundErr {
+							extra = "hash found but no GDB ID"
+						}
+					}
+					if err := missingCSV.Write([]string{file, r.Err.Error(), hash, extra}); err != nil {
+						log.Printf("ERR: Can't write to %s", *missing)
+					}
 				}
 				continue
 			}
