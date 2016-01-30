@@ -58,6 +58,7 @@ var version = flag.Bool("version", false, "Print the release version and exit.")
 var refreshOut = flag.Bool("refresh", false, "Information will be attempted to be downloaded again but won't remove roms that are not scraped.")
 var extraExt = flag.String("extra_ext", "", "Comma separated list of extensions to also include in the scraper.")
 var missing = flag.String("missing", "", "The `file` where information about ROMs that weren't scraped is added.")
+var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
 
 var UserCanceled = errors.New("user canceled")
 
@@ -510,6 +511,7 @@ func main() {
 		NoPrettyName:   !*useNoIntroName,
 		UseFilename:    *useFilename,
 		NoStripUnicode: !*stripUnicode,
+		OverviewLen:    *overviewLen,
 	}
 
 	var arcadeSources []ds.DS

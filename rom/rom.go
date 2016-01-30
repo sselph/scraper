@@ -29,6 +29,8 @@ type GameOpts struct {
 	UseFilename bool
 	// NoStripUnicode instructs the scraper to not strip out unicode characters.
 	NoStripUnicode bool
+	// OverviewLen is the max length allowed for a overview. 0 means no limit.
+	OverviewLen int
 }
 
 // XMLOpts represents the options for creating XML information.
@@ -228,6 +230,9 @@ Loop:
 	if !opts.NoStripUnicode {
 		game.Overview = strings.Map(stripChars, game.Overview)
 		game.GameTitle = strings.Map(stripChars, game.GameTitle)
+	}
+	if opts.OverviewLen != 0 && opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen + 3 {
+		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
 	return nil
