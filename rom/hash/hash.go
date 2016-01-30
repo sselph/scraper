@@ -315,13 +315,12 @@ func decode(p string) (io.ReadCloser, error) {
 }
 
 // Hash returns the hash of a rom given a path to the file and hash function.
-func Hash(p string, h hash.Hash) (string, error) {
+func Hash(p string, h hash.Hash, buf []byte) (string, error) {
 	r, err := decode(p)
 	if err != nil {
 		return "", err
 	}
 	defer r.Close()
-	buf := make([]byte, 4*1024*1024)
 	for {
 		n, err := r.Read(buf)
 		if err != nil && err != io.EOF {

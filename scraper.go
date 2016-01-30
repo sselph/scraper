@@ -532,7 +532,7 @@ func main() {
 	var hasher *ds.Hasher
 	if *useGDB || *useOVGDB {
 		var err error
-		hasher, err = ds.NewHasher(sha1.New)
+		hasher, err = ds.NewHasher(sha1.New, *workers)
 		if err != nil {
 			fmt.Println(err)
 			return

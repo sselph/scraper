@@ -60,7 +60,7 @@ func TestHasher(t *testing.T) {
 	}
 	defer d.Close()
 	d.Files = append(d.Files, File{Path: "doesnotexist"})
-	h, err := NewHasher(sha1.New)
+	h, err := NewHasher(sha1.New, 4)
 	if err != nil {
 		t.Error(err)
 	}

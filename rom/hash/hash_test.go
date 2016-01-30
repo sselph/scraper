@@ -17,7 +17,8 @@ func TestSHA1(t *testing.T) {
 		if e := filepath.Ext(f.Path); !KnownExt(e) {
 			t.Errorf("KnownExt(%q) => false; want true", e)
 		}
-		if got, err := Hash(f.Path, sha1.New()); err != nil {
+		buf := make([]byte, 4*1024*1024)
+		if got, err := Hash(f.Path, sha1.New(), buf); err != nil {
 			t.Errorf("Hash(%q, sha1.New()) => err = %v; want nil", f.Path, err)
 		} else if got != f.SHA1 {
 			t.Errorf("Hash(%q, sha1.New()) => %q; want %q", f.Path, got, f.SHA1)

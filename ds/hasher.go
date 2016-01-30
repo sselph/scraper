@@ -16,6 +16,7 @@ type Hasher struct {
 	c  *lru.Cache
 	cl *sync.Mutex
 	l  map[string]*sync.Mutex
+	b  chan []byte
 }
 
 // Hash returns the hash of the file at the given path.
@@ -38,7 +39,9 @@ func (h *Hasher) Hash(p string) (string, error) {
 		return h.Hash(p)
 	}
 	defer h.deletePathLock(p)
-	phash, err := rh.Hash(p, h.h())
+	b := <-h.b
+	phash, err := rh.Hash(p, h.h(), b)
+	h.b <- b
 	if err != nil {
 		h.c.Add(p, err)
 		return "", err
@@ -68,11 +71,16 @@ func (h *Hasher) deletePathLock(p string) {
 }
 
 // NewHasher creates a new Hasher that hashes using the provided hash.
-func NewHasher(hashFunc func() hash.Hash) (*Hasher, error) {
+// threads is the expected number of threads a 4MB buffer will be created for each.
+func NewHasher(hashFunc func() hash.Hash, threads int) (*Hasher, error) {
 	c, err := lru.New(500)
 	if err != nil {
 		return nil, err
 	}
 	l := make(map[string]*sync.Mutex)
-	return &Hasher{h: hashFunc, c: c, cl: &sync.Mutex{}, l: l}, nil
+	b := make(chan []byte, threads)
+	for i := 0; i < threads; i++ {
+		b <- make([]byte, 4*1024*1024)
+	}
+	return &Hasher{h: hashFunc, c: c, cl: &sync.Mutex{}, l: l, b: b}, nil
 }
