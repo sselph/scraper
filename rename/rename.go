@@ -58,7 +58,7 @@ func rename(source *ds.GDB, files []string) error {
 func main() {
 	flag.Parse()
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	hasher, err := ds.NewHasher(sha1.New)
+	hasher, err := ds.NewHasher(sha1.New, 1)
 	if err != nil {
 		fmt.Println(err)
 		return
