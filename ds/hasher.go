@@ -80,7 +80,7 @@ func NewHasher(hashFunc func() hash.Hash, threads int) (*Hasher, error) {
 	l := make(map[string]*sync.Mutex)
 	b := make(chan []byte, threads)
 	for i := 0; i < threads; i++ {
-		b <- make([]byte, 4*1024*1024)
+		b <- make([]byte, 1*1024*1024)
 	}
 	return &Hasher{h: hashFunc, c: c, cl: &sync.Mutex{}, l: l, b: b}, nil
 }

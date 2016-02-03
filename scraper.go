@@ -522,11 +522,11 @@ func main() {
 	}
 	if *mame || *scrapeAll {
 		mds, err := ds.NewMAME("")
-		defer mds.Close()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
+		defer mds.Close()
 		arcadeSources = append(arcadeSources, mds)
 	}
 	var hasher *ds.Hasher

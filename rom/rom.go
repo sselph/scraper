@@ -231,7 +231,7 @@ Loop:
 		game.Overview = strings.Map(stripChars, game.Overview)
 		game.GameTitle = strings.Map(stripChars, game.GameTitle)
 	}
-	if opts.OverviewLen != 0 && opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen + 3 {
+	if opts.OverviewLen != 0 && opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen+3 {
 		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
