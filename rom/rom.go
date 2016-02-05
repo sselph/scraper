@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
@@ -18,6 +19,20 @@ import (
 	"github.com/nfnt/resize"
 	"github.com/sselph/scraper/ds"
 )
+
+var lock chan struct{}
+
+func init() {
+	SetMaxImg(runtime.NumCPU())
+}
+
+// SetMaxImg sets the maximum number of threads that are allowed to have an open image.
+func SetMaxImg(x int) {
+	lock = make(chan struct{}, x)
+	for i := 0; i < x; i++ {
+		lock <- struct{}{}
+	}
+}
 
 // GameOpts represents the options for creating Game information.
 type GameOpts struct {
@@ -304,11 +319,15 @@ func getImage(url string, p string, w uint) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+	<-lock
+	defer func() {
+		lock<-struct{}{}
+	}()
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
 		return err
 	}
-	resp.Body.Close()
 	if w > 0 && uint(img.Bounds().Dx()) > w {
 		img = resize.Resize(w, 0, img, resize.Bilinear)
 	}

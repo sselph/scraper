@@ -35,6 +35,7 @@ var thumbSuffix = flag.String("thumb_suffix", "-thumb", "The `suffix` added afte
 var romPath = flag.String("rom_path", ".", "The `path` to use for roms in gamelist.xml.")
 var maxWidth = flag.Uint("max_width", 400, "The max `width` of images. Larger images will be resized.")
 var workers = flag.Int("workers", 1, "Use `N` worker threads to process roms.")
+var imgWorkers = flag.Int("img_workers", 0, "Use `N` worker threads to process images. If 0, then use the same value as workers.")
 var retries = flag.Int("retries", 2, "Retry a rom `N` times on an error.")
 var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both the image and thumb (faster).")
 var noThumb = flag.Bool("no_thumb", false, "Don't add thumbnails to the gamelist.")
@@ -485,6 +486,10 @@ func main() {
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
 	}
+	if *imgWorkers == 0 {
+		*imgWorkers = *workers
+	}
+	rom.SetMaxImg(*imgWorkers)
 
 	xmlOpts := &rom.XMLOpts{
 		RomDir:     *romDir,
