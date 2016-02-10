@@ -397,6 +397,11 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 
 // Scrape handles scraping and wriiting the XML.
 func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+	var err error
+	xmlOpts.RomDir, err = filepath.EvalSymlinks(xmlOpts.RomDir)
+	if err != nil {
+		return err
+	}
 	gl := &rom.GameListXML{}
 	if *appendOut || *refreshOut {
 		f, err := os.Open(*outputFile)
