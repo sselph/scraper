@@ -11,7 +11,7 @@ import (
 
 func main() {
 	files := os.Args[1:]
-	hasher, err := ds.NewHasher(sha1.New)
+	hasher, err := ds.NewHasher(sha1.New, 1)
 	if err != nil {
 		log.Fatal(err)
 	}
