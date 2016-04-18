@@ -9,6 +9,8 @@ How it Works
 ------------
 The script works by crawling a directory of ROM files looking for known extensions. When it finds a file it hashes the ROM data minus any headers or special file formatting with the goal of hashing only the data pulled from the original game. It compares this hash to a DB I've compiled to look up the correct game in theGamesDB.net. It downloads the metadata and builds the gamelist.xml file.
 
+If you have RetroPie-Setup 3.1 or later you can follow [the instructions on their wiki](https://github.com/RetroPie/RetroPie-setup/wiki/scraper) instead.
+
 Installation
 ------------
 
@@ -59,6 +61,9 @@ $ scraper -help
 
 Raspberry Pi
 ------------
+
+*Note:* Scraper is included in RetroPie-Setup from [version 3.1](https://github.com/RetroPie/RetroPie-Setup/releases/tag/3.1) and can be [accessed from their UI](https://github.com/RetroPie/RetroPie-setup/wiki/scraper). Otherwise you can use the instructions below.
+
 At the time of writing this raspbian has an old version of go 1.0.2 so you can cross-compile on another system or download an unofficial go binary from [http://dave.cheney.net/unofficial-arm-tarballs](http://dave.cheney.net/unofficial-arm-tarballs).
 
 ### Build:
