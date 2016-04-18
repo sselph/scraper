@@ -13,9 +13,9 @@ If you have RetroPie-Setup 3.1 or later you can follow [the instructions on thei
 
 Donate
 ------
-I don't accept donations but feel free to donate to:
-[retropie](https://retropie.org.uk/donate/)
-[theGamesDB](http://thegamesdb.net/)
+I don't accept donations but feel free to donate to:  
+[retropie](https://retropie.org.uk/donate/)  
+[theGamesDB](http://thegamesdb.net/)  
 
 Installation
 ------------
