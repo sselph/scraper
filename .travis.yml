@@ -2,7 +2,7 @@ language: go
 
 go:
   - 1.2.2
-  - 1.5.3
+  - 1.6.1
 
 env:
     - GIMME_OS=linux GIMME_ARCH=amd64
@@ -17,7 +17,7 @@ install:
     - go get -d -v .
 
 script:
-    - go build -o rename-bin -v ./rename
-    - go build -o mame-history-bin -v ./mame-history
-    - go build -v .
+    - go build -tags noasm -o rename-bin -v ./rename
+    - go build -tags noasm -o mame-history-bin -v ./mame-history
+    - go build -tags noasm -v .
     - ./scripts/run-tests.sh
