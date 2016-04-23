@@ -256,7 +256,7 @@ func decodeSNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 
 func getDecoder(ext string) (decoder, bool) {
 	switch strings.ToLower(ext) {
-	case ".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".col", ".ngp", ".ngpc", ".sg", ".int":
+	case ".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".col", ".ngp", ".ngpc", ".sg", ".int", ".vb":
 		return noop, true
 	case ".lnx":
 		return decodeLNX, true
