@@ -34,6 +34,8 @@ $ go get github.com/sselph/scraper
 $ go build github.com/sselph/scraper
 ```
 
+If you have issues that mention snappy try adding `-tags noasm` to the build command.
+
 Usage
 -----
 
