@@ -37,7 +37,7 @@ func New() (*Data, error) {
 	// Bin Extensions
 	binFile := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	binHash := "c5391e308af25b42d5934d6a201a34e898d255c6"
-	for _, e := range []string{".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".sg", ".col", ".int", ".ngp", ".ngpc", ".vb"} {
+	for _, e := range []string{".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".sg", ".col", ".int", ".ngp", ".ngc", ".vb"} {
 		p := filepath.Join(dir, fmt.Sprintf("test%s", e))
 		err = ioutil.WriteFile(p, binFile, 0777)
 		if err != nil {
