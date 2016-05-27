@@ -25,11 +25,40 @@ func decodeLNX(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 	}
 	tmp := make([]byte, 64)
 	_, err := io.ReadFull(f, tmp)
-	if err != nil {
+	if err != nil && err != io.ErrUnexpectedEOF {
 		return nil, err
 	}
-	if !bytes.Equal(tmp[:4], []byte("LYNX")) {
-		return nil, fmt.Errorf("lnx file missing magic LYNX header, maybe it is a lyx")
+	if err == io.ErrUnexpectedEOF || !bytes.Equal(tmp[:4], []byte("LYNX")) {
+		return MultiReader(tmp, f), nil
+	}
+	return f, nil
+}
+
+type multireader struct {
+	r io.ReadCloser
+	mr io.Reader
+}
+
+func (mr *multireader) Read(b []byte) (int, error) {
+	return mr.mr.Read(b)
+}
+
+func (mr *multireader) Close() error {
+	return mr.r.Close()
+}
+
+func MultiReader(b []byte, r io.ReadCloser) io.ReadCloser {
+	return &multireader{r, io.MultiReader(bytes.NewReader(b), r)}
+}
+
+func decodeA78(f io.ReadCloser, s int64) (io.ReadCloser, error) {
+	tmp := make([]byte, 128)
+	_, err := io.ReadFull(f, tmp)
+	if err != nil && err != io.ErrUnexpectedEOF {
+		return nil, err
+	}
+	if err == io.ErrUnexpectedEOF || !bytes.Equal(tmp[1:10], []byte("ATARI7800")) {
+		return MultiReader(tmp, f), nil
 	}
 	return f, nil
 }
@@ -256,10 +285,12 @@ func decodeSNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 
 func getDecoder(ext string) (decoder, bool) {
 	switch strings.ToLower(ext) {
-	case ".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".lyx", ".32x", ".gg",
-		".pce", ".sms", ".col", ".ngp", ".ngc", ".sg", ".int", ".vb", ".vec", ".gam":
+	case ".bin", ".a26", ".a52", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".32x", ".gg",
+		".pce", ".sms", ".col", ".ngp", ".ngc", ".sg", ".int", ".vb", ".vec", ".gam", ".j64", ".jag":
 		return noop, true
-	case ".lnx":
+	case ".a78":
+		return decodeA78, true
+	case ".lnx", ".lyx":
 		return decodeLNX, true
 	case ".smd":
 		return decodeSMD, true

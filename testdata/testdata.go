@@ -35,12 +35,13 @@ func New() (*Data, error) {
 		}
 	}()
 	// Bin Extensions
-	binFile := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	binHash := "c5391e308af25b42d5934d6a201a34e898d255c6"
+	binFile := make([]byte, 512)
+	binHash := "5c3eb80066420002bc3dcc7ca4ab6efad7ed4ae5"
 	binExts := []string{
 		".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba",
 		".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".sg",
 		".col", ".int", ".ngp", ".ngc", ".vb", ".vec", ".gam",
+		".a78", ".j64", ".jag", ".lnx",
 	}
 	for _, e := range binExts {
 		p := filepath.Join(dir, fmt.Sprintf("test%s", e))
@@ -56,11 +57,28 @@ func New() (*Data, error) {
 	copy(lnxFile, []byte("LYNX"))
 	lnxFile = append(lnxFile, binFile...)
 	lnxPath := filepath.Join(dir, "test.lnx")
+	lyxPath := filepath.Join(dir, "test.lyx")
 	err = ioutil.WriteFile(lnxPath, lnxFile, 0777)
 	if err != nil {
 		return data, err
 	}
+	err = ioutil.WriteFile(lyxPath, lnxFile, 0777)
+	if err != nil {
+		return data, err
+	}
 	data.Files = append(data.Files, File{Path: lnxPath, SHA1: binHash})
+	data.Files = append(data.Files, File{Path: lyxPath, SHA1: binHash})
+
+	// A7800
+	a78File := make([]byte, 128)
+	copy(a78File, []byte(" ATARI7800"))
+	a78File = append(a78File, binFile...)
+	a78Path := filepath.Join(dir, "a7800.a78")
+	err = ioutil.WriteFile(a78Path, a78File, 0777)
+	if err != nil {
+		return data, err
+	}
+	data.Files = append(data.Files, File{Path: a78Path, SHA1: binHash})
 
 	// N64
 	v64File := make([]byte, 1024)
