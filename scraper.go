@@ -395,6 +395,19 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	}
 }
 
+func mkDir(d string) error {
+	fi, err := os.Stat(d)
+	switch {
+	case os.IsNotExist(err):
+		return os.MkdirAll(d, 0775)
+	case err != nil:
+		return err
+	case fi.IsDir():
+		return nil
+	}
+	return fmt.Errorf("%s is a file not a directory.", d)
+}
+
 // Scrape handles scraping and wriiting the XML.
 func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var err error
@@ -425,6 +438,10 @@ func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error
 	}
 	if len(gl.GameList) == 0 {
 		return cerr
+	}
+	err = mkDir(filepath.Dir(*outputFile))
+	if err != nil {
+		return err
 	}
 	err = ioutil.WriteFile(*outputFile, append([]byte(xml.Header), output...), 0664)
 	if err != nil {
