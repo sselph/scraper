@@ -362,6 +362,9 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			walker.SkipDir()
 			continue
 		}
+		if filepath.Ext(f) == ".daphne" {
+			walker.SkipDir()
+		}
 		if _, ok := existing[f]; !*refreshOut && ok {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			continue
@@ -379,7 +382,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra) {
+		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra || r.Ext == ".daphne") {
 			roms <- r
 		}
 	}
@@ -596,6 +599,7 @@ func main() {
 		consoleSources = append(consoleSources, o)
 	}
 	consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
+	consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 	if !*scrapeAll {
 		var sources []ds.DS
 		if *mame {
