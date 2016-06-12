@@ -382,7 +382,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra || r.Ext == ".daphne") {
+		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra || r.Ext == ".daphne" || r.Ext == ".7z") {
 			roms <- r
 		}
 	}
@@ -550,15 +550,6 @@ func main() {
 		*useGDB = false
 		*useOVGDB = false
 	}
-	if *mame || *scrapeAll {
-		mds, err := ds.NewMAME("")
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		defer mds.Close()
-		arcadeSources = append(arcadeSources, mds)
-	}
 	var hasher *ds.Hasher
 	if *useGDB || *useOVGDB {
 		var err error
@@ -601,6 +592,16 @@ func main() {
 	consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
 	consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 	consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
+	arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+	if *mame || *scrapeAll {
+		mds, err := ds.NewMAME("")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer mds.Close()
+		arcadeSources = append(arcadeSources, mds)
+	}
 	if !*scrapeAll {
 		var sources []ds.DS
 		if *mame {
