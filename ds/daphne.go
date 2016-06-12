@@ -17,6 +17,14 @@ func (d *Daphne) GetID(p string) (string, error) {
 		return "", NotFoundErr
 	}
 	gameID := filepath.Base(p)
+	switch {
+	case strings.HasPrefix(gameID, "lair2_"):
+		gameID = "lair2_*.daphne"
+	case strings.HasPrefix(gameID, "sdq"):
+		gameID = "sdq*.daphne"
+	case strings.HasPrefix(gameID, "tq"):
+		gameID = "tq*.daphne"
+	}
 	id, ok := d.HM.GetID(gameID)
 	if !ok {
 		return "", NotFoundErr
