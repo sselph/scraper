@@ -3,6 +3,7 @@ package ds
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/sselph/scraper/gdb"
 )
