@@ -48,5 +48,9 @@ func (n *NeoGeo) GetGame(id string) (*Game, error) {
 	game := resp.Game[0]
 	ret := ParseGDBGame(game, resp.ImageURL)
 	ret.ID = id
+	ret.Images[IMG_TITLE] = ret.Images[IMG_BOXART]
+	ret.Thumbs[IMG_TITLE] = ret.Thumbs[IMG_BOXART]
+	ret.Images[IMG_MARQUEE] = ret.Images[IMG_LOGO]
+	ret.Thumbs[IMG_MARQUEE] = ret.Thumbs[IMG_LOGO]
 	return ret, nil
 }

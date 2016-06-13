@@ -48,7 +48,7 @@ var useFilename = flag.Bool("use_filename", false, "If true, use the filename mi
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
-var mameImg = flag.String("mame_img", "s,t,m,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
+var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
