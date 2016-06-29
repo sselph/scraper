@@ -592,7 +592,6 @@ func main() {
 	consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
 	consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 	consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
-	arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
 	if *mame || *scrapeAll {
 		mds, err := ds.NewMAME("")
 		if err != nil {
@@ -602,6 +601,7 @@ func main() {
 		defer mds.Close()
 		arcadeSources = append(arcadeSources, mds)
 	}
+	arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
 	if !*scrapeAll {
 		var sources []ds.DS
 		if *mame {
