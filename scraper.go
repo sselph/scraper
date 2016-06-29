@@ -308,7 +308,7 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 				stop = true
 				log.Println("Stopping, ctrl-c again to stop now.")
 				ct.(*cancelTransport).Stop()
-				for _ := range roms {
+				for _ = range roms {
 				}
 				continue
 			}
