@@ -228,10 +228,10 @@ Loop:
 		}
 	}
 	if game == nil {
-		if err == ds.NotFoundErr {
+		if err == ds.ErrNotFound {
 			r.NotFound = true
 		}
-		if err != ds.NotFoundErr || !opts.AddNotFound {
+		if err != ds.ErrNotFound || !opts.AddNotFound {
 			return err
 		}
 		game = &ds.Game{GameTitle: r.BaseName}
@@ -302,7 +302,7 @@ func mkDir(d string) error {
 	case fi.IsDir():
 		return nil
 	}
-	return fmt.Errorf("%s is a file not a directory.", d)
+	return fmt.Errorf("%s is a file not a directory", d)
 }
 
 // getImage gets the image, resizes it and saves it to specified path.
@@ -322,7 +322,7 @@ func getImage(url string, p string, w uint) error {
 	defer resp.Body.Close()
 	<-lock
 	defer func() {
-		lock<-struct{}{}
+		lock <- struct{}{}
 	}()
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
@@ -356,17 +356,16 @@ func exists(s string) bool {
 func imgExists(p string) (string, bool) {
 	if exists(p) {
 		return p, true
+	}
+	e := filepath.Ext(p)
+	if e == ".jpg" {
+		e = ".png"
 	} else {
-		e := filepath.Ext(p)
-		if e == ".jpg" {
-			e = ".png"
-		} else {
-			e = ".jpg"
-		}
-		op := p[:len(p)-len(e)] + e
-		if exists(op) {
-			return op, true
-		}
+		e = ".jpg"
+	}
+	op := p[:len(p)-len(e)] + e
+	if exists(op) {
+		return op, true
 	}
 	return p, false
 }

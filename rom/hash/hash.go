@@ -29,13 +29,13 @@ func decodeLNX(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if err == io.ErrUnexpectedEOF || !bytes.Equal(tmp[:4], []byte("LYNX")) {
-		return MultiReader(tmp, f), nil
+		return newMultiReader(tmp, f), nil
 	}
 	return f, nil
 }
 
 type multireader struct {
-	r io.ReadCloser
+	r  io.ReadCloser
 	mr io.Reader
 }
 
@@ -47,7 +47,7 @@ func (mr *multireader) Close() error {
 	return mr.r.Close()
 }
 
-func MultiReader(b []byte, r io.ReadCloser) io.ReadCloser {
+func newMultiReader(b []byte, r io.ReadCloser) io.ReadCloser {
 	return &multireader{r, io.MultiReader(bytes.NewReader(b), r)}
 }
 
@@ -58,7 +58,7 @@ func decodeA78(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if err == io.ErrUnexpectedEOF || !bytes.Equal(tmp[1:10], []byte("ATARI7800")) {
-		return MultiReader(tmp, f), nil
+		return newMultiReader(tmp, f), nil
 	}
 	return f, nil
 }
@@ -204,11 +204,10 @@ func (r swapReader) Read(p []byte) (int, error) {
 		copy(r.b, b[x+ll-n:x])
 		*r.r = n - ll
 		return ll, nil
-	} else {
-		r.s(p[:n])
-		*r.r = 0
-		return n, nil
 	}
+	r.s(p[:n])
+	*r.r = 0
+	return n, nil
 }
 
 func (r swapReader) Close() error {

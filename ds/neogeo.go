@@ -12,21 +12,23 @@ type NeoGeo struct {
 	HM *HashMap
 }
 
+// GetID implements DS.
 func (n *NeoGeo) GetID(p string) (string, error) {
 	if filepath.Ext(p) == ".7z" {
 		p = p[:len(p)-3] + ".zip"
 	}
 	if filepath.Ext(p) != ".zip" {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	gameID := filepath.Base(p)
 	id, ok := n.HM.GetID(gameID)
 	if !ok {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	return id, nil
 }
 
+// GetName implements DS.
 func (n *NeoGeo) GetName(p string) string {
 	gameID := filepath.Base(p)
 	name, ok := n.HM.GetName(gameID)
@@ -36,6 +38,7 @@ func (n *NeoGeo) GetName(p string) string {
 	return name
 }
 
+// GetGame implements DS.
 func (n *NeoGeo) GetGame(id string) (*Game, error) {
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
@@ -48,9 +51,9 @@ func (n *NeoGeo) GetGame(id string) (*Game, error) {
 	game := resp.Game[0]
 	ret := ParseGDBGame(game, resp.ImageURL)
 	ret.ID = id
-	ret.Images[IMG_TITLE] = ret.Images[IMG_BOXART]
-	ret.Thumbs[IMG_TITLE] = ret.Thumbs[IMG_BOXART]
-	ret.Images[IMG_MARQUEE] = ret.Images[IMG_LOGO]
-	ret.Thumbs[IMG_MARQUEE] = ret.Thumbs[IMG_LOGO]
+	ret.Images[ImgTitle] = ret.Images[ImgBoxart]
+	ret.Thumbs[ImgTitle] = ret.Thumbs[ImgBoxart]
+	ret.Images[ImgMarquee] = ret.Images[ImgLogo]
+	ret.Thumbs[ImgMarquee] = ret.Thumbs[ImgLogo]
 	return ret, nil
 }

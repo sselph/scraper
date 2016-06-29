@@ -61,7 +61,7 @@ var extraExt = flag.String("extra_ext", "", "Comma separated list of extensions 
 var missing = flag.String("missing", "", "The `file` where information about ROMs that weren't scraped is added.")
 var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
 
-var UserCanceled = errors.New("user canceled")
+var errUserCanceled = errors.New("user canceled")
 
 var versionStr string
 
@@ -76,14 +76,14 @@ func dirExists(s string) bool {
 	return !os.IsNotExist(err) && fi.IsDir()
 }
 
-type Result struct {
+type result struct {
 	ROM *rom.ROM
 	XML *rom.GameXML
 	Err error
 }
 
 // worker is a function to process roms from a channel.
-func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan Result, roms chan *rom.ROM, wg *sync.WaitGroup) {
+func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -97,7 +97,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 		if stop {
 			continue
 		}
-		result := Result{ROM: r}
+		res := result{ROM: r}
 		for try := 0; try <= *retries; try++ {
 			if stop {
 				break
@@ -106,37 +106,37 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 			err := r.GetGame(sources, gameOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				result.Err = err
-				if err == ds.NotFoundErr {
+				res.Err = err
+				if err == ds.ErrNotFound {
 					break
 				} else {
 					continue
 				}
 			}
 			if r.NotFound {
-				log.Printf("INFO: %s, %s", r.Path, ds.NotFoundErr)
+				log.Printf("INFO: %s, %s", r.Path, ds.ErrNotFound)
 			}
 			xml, err := r.XML(xmlOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				continue
 			}
-			result.XML = xml
+			res.XML = xml
 			break
 		}
-		results <- result
+		results <- res
 	}
 }
 
-// CancelTransport is a special HTTP transport that tracks pending requests so they can be cancelled.
-type CancelTransport struct {
+// cancelTransport is a special HTTP transport that tracks pending requests so they can be cancelled.
+type cancelTransport struct {
 	mu      sync.Mutex
 	Pending map[*http.Request]struct{}
 	T       *http.Transport
 	stop    bool
 }
 
-func (t *CancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *cancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	t.mu.Lock()
 	if t.stop {
 		t.mu.Unlock()
@@ -155,7 +155,7 @@ func (t *CancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-func (t *CancelTransport) Stop() {
+func (t *cancelTransport) Stop() {
 	t.mu.Lock()
 	t.stop = true
 	for req := range t.Pending {
@@ -165,15 +165,15 @@ func (t *CancelTransport) Stop() {
 	t.mu.Unlock()
 }
 
-// NewCancelTransport wraps a transport to create a CancelTransport
-func NewCancelTransport(t *http.Transport) *CancelTransport {
-	ct := &CancelTransport{T: t}
+// newCancelTransport wraps a transport to create a cancelTransport
+func newCancelTransport(t *http.Transport) *cancelTransport {
+	ct := &cancelTransport{T: t}
 	ct.Pending = make(map[*http.Request]struct{})
 	return ct
 }
 
-// CrawlROMs crawls the rom directory and processes the files.
-func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+// crawlROMs crawls the rom directory and processes the files.
+func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var missingCSV *csv.Writer
 	var gdbDS *ds.GDB
 	if *missing != "" {
@@ -199,7 +199,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			}
 		}
 	}
-	var ct http.RoundTripper = NewCancelTransport(http.DefaultTransport.(*http.Transport))
+	var ct http.RoundTripper = newCancelTransport(http.DefaultTransport.(*http.Transport))
 	http.DefaultClient.Transport = ct
 
 	existing := make(map[string]struct{})
@@ -236,7 +236,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	}
 
 	var wg sync.WaitGroup
-	results := make(chan Result, *workers)
+	results := make(chan result, *workers)
 	roms := make(chan *rom.ROM, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
@@ -262,7 +262,7 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 							log.Printf("ERR: Can't hash file %s", file)
 						}
 						name := gdbDS.GetName(file)
-						if name != "" && r.Err == ds.NotFoundErr {
+						if name != "" && r.Err == ds.ErrNotFound {
 							extra = "hash found but no GDB ID"
 						}
 					}
@@ -307,8 +307,8 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			if !stop {
 				stop = true
 				log.Println("Stopping, ctrl-c again to stop now.")
-				ct.(*CancelTransport).Stop()
-				for _ = range roms {
+				ct.(*cancelTransport).Stop()
+				for range roms {
 				}
 				continue
 			}
@@ -392,10 +392,9 @@ func CrawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	close(results)
 	wg.Wait()
 	if stop {
-		return UserCanceled
-	} else {
-		return nil
+		return errUserCanceled
 	}
+	return nil
 }
 
 func mkDir(d string) error {
@@ -408,11 +407,11 @@ func mkDir(d string) error {
 	case fi.IsDir():
 		return nil
 	}
-	return fmt.Errorf("%s is a file not a directory.", d)
+	return fmt.Errorf("%s is a file not a directory", d)
 }
 
-// Scrape handles scraping and wriiting the XML.
-func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+// scrape handles scraping and wriiting the XML.
+func scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var err error
 	xmlOpts.RomDir, err = filepath.EvalSymlinks(xmlOpts.RomDir)
 	if err != nil {
@@ -431,8 +430,8 @@ func Scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error
 			f.Close()
 		}
 	}
-	cerr := CrawlROMs(gl, sources, xmlOpts, gameOpts)
-	if cerr != nil && cerr != UserCanceled {
+	cerr := crawlROMs(gl, sources, xmlOpts, gameOpts)
+	if cerr != nil && cerr != errUserCanceled {
 		return cerr
 	}
 	output, err := xml.MarshalIndent(gl, "  ", "    ")
@@ -467,8 +466,8 @@ type ESSystems struct {
 	Systems []System `xml:"system"`
 }
 
-// GetRomFolders finds and parses es_systems.cfg to get rom folders.
-func GetSystems() ([]System, error) {
+// getSystems finds and parses es_systems.cfg to get rom folders.
+func getSystems() ([]System, error) {
 	hd, err := homedir.Dir()
 	if err != nil {
 		return nil, err
@@ -476,7 +475,7 @@ func GetSystems() ([]System, error) {
 	p := filepath.Join(hd, ".emulationstation", "es_systems.cfg")
 	ap := "/etc/emulationstation/es_systems.cfg"
 	if !exists(p) && !exists(ap) {
-		return nil, fmt.Errorf("%s and %s not found.", p, ap)
+		return nil, fmt.Errorf("%s and %s not found", p, ap)
 	}
 	if exists(ap) && !exists(p) {
 		p = ap
@@ -611,13 +610,13 @@ func main() {
 			sources = consoleSources
 			xmlOpts.ImgPriority = consoleImg
 		}
-		err := Scrape(sources, xmlOpts, gameOpts)
+		err := scrape(sources, xmlOpts, gameOpts)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	} else {
-		systems, err := GetSystems()
+		systems, err := getSystems()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -644,7 +643,7 @@ func main() {
 				sources = consoleSources
 				xmlOpts.ImgPriority = consoleImg
 			}
-			err := Scrape(sources, xmlOpts, gameOpts)
+			err := scrape(sources, xmlOpts, gameOpts)
 			if err != nil {
 				fmt.Println(err)
 				return

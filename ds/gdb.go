@@ -37,10 +37,12 @@ func toXMLDate(d string) string {
 	return ""
 }
 
+// Hash hashes a ROM.
 func (g *GDB) Hash(p string) (string, error) {
 	return g.Hasher.Hash(p)
 }
 
+// GetID implements DS
 func (g *GDB) GetID(p string) (string, error) {
 	h, err := g.Hasher.Hash(p)
 	if err != nil {
@@ -48,11 +50,12 @@ func (g *GDB) GetID(p string) (string, error) {
 	}
 	id, ok := g.HM.GetID(h)
 	if !ok {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	return id, nil
 }
 
+// GetName implements DS
 func (g *GDB) GetName(p string) string {
 	h, err := g.Hasher.Hash(p)
 	if err != nil {
@@ -65,6 +68,7 @@ func (g *GDB) GetName(p string) string {
 	return name
 }
 
+// GetGame implements DS
 func (g *GDB) GetGame(id string) (*Game, error) {
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
@@ -80,28 +84,29 @@ func (g *GDB) GetGame(id string) (*Game, error) {
 	return ret, nil
 }
 
+// ParseGDBGame parses a gdb.Game and returns a Game.
 func ParseGDBGame(game gdb.Game, imgURL string) *Game {
 	ret := NewGame()
 	if len(game.Screenshot) != 0 {
-		ret.Images[IMG_SCREEN] = imgURL + game.Screenshot[0].Original.URL
-		ret.Thumbs[IMG_SCREEN] = imgURL + game.Screenshot[0].Thumb
+		ret.Images[ImgScreen] = imgURL + game.Screenshot[0].Original.URL
+		ret.Thumbs[ImgScreen] = imgURL + game.Screenshot[0].Thumb
 	}
 	front := getFront(game)
 	if front != nil {
-		ret.Images[IMG_BOXART] = imgURL + front.URL
-		ret.Thumbs[IMG_BOXART] = imgURL + front.Thumb
+		ret.Images[ImgBoxart] = imgURL + front.URL
+		ret.Thumbs[ImgBoxart] = imgURL + front.Thumb
 	}
 	if len(game.FanArt) != 0 {
-		ret.Images[IMG_FANART] = imgURL + game.FanArt[0].Original.URL
-		ret.Thumbs[IMG_FANART] = imgURL + game.FanArt[0].Thumb
+		ret.Images[ImgFanart] = imgURL + game.FanArt[0].Original.URL
+		ret.Thumbs[ImgFanart] = imgURL + game.FanArt[0].Thumb
 	}
 	if len(game.Banner) != 0 {
-		ret.Images[IMG_BANNER] = imgURL + game.Banner[0].URL
-		ret.Thumbs[IMG_BANNER] = imgURL + game.Banner[0].URL
+		ret.Images[ImgBanner] = imgURL + game.Banner[0].URL
+		ret.Thumbs[ImgBanner] = imgURL + game.Banner[0].URL
 	}
 	if len(game.ClearLogo) != 0 {
-		ret.Images[IMG_LOGO] = imgURL + game.ClearLogo[0].URL
-		ret.Thumbs[IMG_LOGO] = imgURL + game.ClearLogo[0].URL
+		ret.Images[ImgLogo] = imgURL + game.ClearLogo[0].URL
+		ret.Thumbs[ImgLogo] = imgURL + game.ClearLogo[0].URL
 	}
 
 	var genre string

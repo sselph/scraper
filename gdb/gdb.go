@@ -12,21 +12,23 @@ import (
 )
 
 const (
-	GDBURL  = "http://thegamesdb.net"
-	GGPath  = "/api/GetGame.php"
-	GGLPath = "/api/GetGamesList.php"
+	gdbURL  = "http://thegamesdb.net"
+	ggPath  = "/api/GetGame.php"
+	gglPath = "/api/GetGamesList.php"
 )
 
+// GGLReq represents a request for a GetGameList command.
 type GGLReq struct {
 	Name     string
 	Platform string
 	Genre    string
 }
 
+// GGLResp represents the response of a GetGameList command.
 type GGLResp struct {
 	XMLName xml.Name
 	Game    []GameTrunc
-	err     string `xml:",chardata"`
+	Err     string `xml:",chardata"`
 }
 
 // GameTrunc is used to parse the GetGamesList's <Game> tag.
@@ -49,7 +51,7 @@ type GGResp struct {
 	XMLName  xml.Name
 	ImageURL string `xml:"baseImgUrl"`
 	Game     []Game
-	err      string `xml:",chardata"`
+	Err      string `xml:",chardata"`
 }
 
 // Image is used to parse the GetGame's <Images> tags.
@@ -92,8 +94,8 @@ type Game struct {
 
 // GetGame gets the game information from the DB.
 func GetGame(req GGReq) (*GGResp, error) {
-	u, err := url.Parse(GDBURL)
-	u.Path = GGPath
+	u, err := url.Parse(gdbURL)
+	u.Path = ggPath
 	q := url.Values{}
 	switch {
 	case req.ID != "":
@@ -104,7 +106,7 @@ func GetGame(req GGReq) (*GGResp, error) {
 			q.Set("platform", req.Platform)
 		}
 	default:
-		return nil, fmt.Errorf("must provide an ID or Name.")
+		return nil, fmt.Errorf("must provide an ID or Name")
 	}
 	u.RawQuery = q.Encode()
 	resp, err := http.Get(u.String())
@@ -118,17 +120,16 @@ func GetGame(req GGReq) (*GGResp, error) {
 		return nil, err
 	}
 	if r.XMLName.Local == "Error" {
-		return nil, fmt.Errorf("GetGame error: %s", r.err)
-	} else {
-		r.err = ""
+		return nil, fmt.Errorf("GetGame error: %s", r.Err)
 	}
+	r.Err = ""
 	return r, nil
 }
 
 // GetGameList gets the game information from the DB.
 func GetGameList(req GGLReq) (*GGLResp, error) {
-	u, err := url.Parse(GDBURL)
-	u.Path = GGLPath
+	u, err := url.Parse(gdbURL)
+	u.Path = gglPath
 	q := url.Values{}
 	if req.Name == "" {
 		return nil, fmt.Errorf("must provide Name")
@@ -152,17 +153,16 @@ func GetGameList(req GGLReq) (*GGLResp, error) {
 		return nil, err
 	}
 	if r.XMLName.Local == "Error" {
-		return nil, fmt.Errorf("GetGameList error: %s", r.err)
-	} else {
-		r.err = ""
+		return nil, fmt.Errorf("GetGameList error: %s", r.Err)
 	}
+	r.Err = ""
 	return r, nil
 }
 
 // IsUp returns if thegamedb.net is up.
 func IsUp() bool {
-	u, err := url.Parse(GDBURL)
-	u.Path = GGPath
+	u, err := url.Parse(gdbURL)
+	u.Path = ggPath
 	q := url.Values{}
 	q.Set("id", "1")
 	u.RawQuery = q.Encode()

@@ -13,9 +13,10 @@ type Daphne struct {
 	HM *HashMap
 }
 
+// GetID implements DS.
 func (d *Daphne) GetID(p string) (string, error) {
 	if filepath.Ext(p) != ".daphne" {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	gameID := filepath.Base(p)
 	switch {
@@ -28,11 +29,12 @@ func (d *Daphne) GetID(p string) (string, error) {
 	}
 	id, ok := d.HM.GetID(gameID)
 	if !ok {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	return id, nil
 }
 
+// GetName implements DS.
 func (d *Daphne) GetName(p string) string {
 	gameID := filepath.Base(p)
 	n, ok := d.HM.GetName(gameID)
@@ -42,6 +44,7 @@ func (d *Daphne) GetName(p string) string {
 	return n
 }
 
+// GetGame implements DS.
 func (d *Daphne) GetGame(id string) (*Game, error) {
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)

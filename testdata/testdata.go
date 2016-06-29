@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 )
 
-var ()
-
 type Data struct {
 	Dir   string
 	Files []File

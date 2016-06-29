@@ -34,9 +34,12 @@ var (
 	titleImgRE   = regexp.MustCompile("<img src='/titles/(.*?)\\.png'")
 	cabinetRE    = regexp.MustCompile("<img src='/cabinets.small/(.*?)\\.(png|jpg|jpeg)'")
 	marqueeRE    = regexp.MustCompile("<img src='/marquees.small/(.*?)\\.(png|jpg|jpeg)'")
-	NotFound     = errors.New("rom not found")
 )
 
+// ErrNotFound is returned when a game is not found.
+var ErrNotFound = errors.New("rom not found")
+
+// Game represents a game response from mamedb.
 type Game struct {
 	ID        string
 	Name      string
@@ -52,6 +55,7 @@ type Game struct {
 	Source    string
 }
 
+// GetGame gets a game from mamedb.
 func GetGame(name string) (*Game, error) {
 	var g Game
 	g.Source = "mamedb.com"
@@ -62,7 +66,7 @@ func GetGame(name string) (*Game, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 404 {
-		return nil, NotFound
+		return nil, ErrNotFound
 	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("got %d status", resp.StatusCode)

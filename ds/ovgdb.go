@@ -28,7 +28,7 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 		return nil, err
 	}
 	if len(s) != 9 {
-		return nil, fmt.Errorf("length of slice must be 9 but was %s", len(s))
+		return nil, fmt.Errorf("length of slice must be 9 but was %d", len(s))
 	}
 	g := NewGame()
 	g.ID = s[0]
@@ -40,8 +40,8 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 	g.ReleaseDate = s[6]
 	g.Source = s[7]
 	if s[8] != "" {
-		g.Images[IMG_BOXART] = s[8]
-		g.Thumbs[IMG_BOXART] = s[8]
+		g.Images[ImgBoxart] = s[8]
+		g.Thumbs[ImgBoxart] = s[8]
 	}
 	return g, nil
 }
@@ -52,6 +52,7 @@ type OVGDB struct {
 	Hasher *Hasher
 }
 
+// GetName implements DS.
 func (o *OVGDB) GetName(p string) string {
 	h, err := o.Hasher.Hash(p)
 	if err != nil {
@@ -64,6 +65,7 @@ func (o *OVGDB) GetName(p string) string {
 	return string(n)
 }
 
+// GetID implements DS.
 func (o *OVGDB) GetID(p string) (string, error) {
 	h, err := o.Hasher.Hash(p)
 	if err != nil {
@@ -80,16 +82,17 @@ func (o *OVGDB) GetID(p string) (string, error) {
 	n := b[:len(b)-len(filepath.Ext(b))]
 	id, err = o.db.Get([]byte(strings.ToLower(n)), nil)
 	if err != nil {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	return string(id), nil
 }
 
+// GetGame implements DS.
 func (o *OVGDB) GetGame(id string) (*Game, error) {
 	g, err := o.db.Get([]byte(id), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
-			return nil, NotFoundErr
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -97,8 +100,8 @@ func (o *OVGDB) GetGame(id string) (*Game, error) {
 }
 
 // Close closes the DB.
-func (db *OVGDB) Close() error {
-	return db.db.Close()
+func (o *OVGDB) Close() error {
+	return o.db.Close()
 }
 
 func updateDB(version, p string) error {

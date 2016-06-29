@@ -22,21 +22,22 @@ const (
 	hashMeta = "hash.meta"
 )
 
-// NotFoundErr is the error returned when a rom can't be found in the soruce.
-var NotFoundErr = errors.New("hash not found")
+// ErrNotFound is the error returned when a rom can't be found in the soruce.
+var ErrNotFound = errors.New("hash not found")
 
+// ImgType represents the different image types that sources may provide.
 type ImgType string
 
 // Image types for Datasource options. Not all types are valid for all sources.
 const (
-	IMG_BOXART  ImgType = "b"
-	IMG_SCREEN  ImgType = "s"
-	IMG_FANART  ImgType = "f"
-	IMG_BANNER  ImgType = "a"
-	IMG_LOGO    ImgType = "l"
-	IMG_TITLE   ImgType = "t"
-	IMG_MARQUEE ImgType = "m"
-	IMG_CABINET ImgType = "c"
+	ImgBoxart  ImgType = "b"
+	ImgScreen  ImgType = "s"
+	ImgFanart  ImgType = "f"
+	ImgBanner  ImgType = "a"
+	ImgLogo    ImgType = "l"
+	ImgTitle   ImgType = "t"
+	ImgMarquee ImgType = "m"
+	ImgCabinet ImgType = "c"
 )
 
 // Game is the standard Game that all sources will return.
@@ -66,7 +67,7 @@ func NewGame() *Game {
 
 // DS is the interface all DataSoures should implement.
 type DS interface {
-	// GetGame takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
+	// GetName takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
 	GetName(string) string
 	// GetGame takes an id and returns the Game.
 	GetGame(string) (*Game, error)
@@ -85,7 +86,7 @@ func mkDir(d string) error {
 	case fi.IsDir():
 		return nil
 	}
-	return fmt.Errorf("%s is a file not a directory.", d)
+	return fmt.Errorf("%s is a file not a directory", d)
 }
 
 // HashMap a mapping of hash to names and GDB IDs.
@@ -98,9 +99,8 @@ func (hm *HashMap) GetID(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[0] == "" {
 		return "", false
-	} else {
-		return d[0], true
 	}
+	return d[0], true
 }
 
 // GetName returns the no-intro name for the given hash.
@@ -108,9 +108,8 @@ func (hm *HashMap) GetName(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[1] == "" {
 		return "", false
-	} else {
-		return d[1], true
 	}
+	return d[1], true
 }
 
 // DefaultCachePath returns the path used for all cached data.

@@ -26,25 +26,29 @@ type MAME struct {
 	db *leveldb.DB
 }
 
+// GetID implements DS.
 func (m *MAME) GetID(p string) (string, error) {
 	b := filepath.Base(p)
 	id := b[:len(b)-len(filepath.Ext(b))]
 	return id, nil
 }
 
+// GetName implements DS.
 func (m *MAME) GetName(p string) string {
 	return ""
 }
 
+// Close implements io.Closer.
 func (m *MAME) Close() error {
 	return m.db.Close()
 }
 
+// GetGame implements DS.
 func (m *MAME) GetGame(id string) (*Game, error) {
 	g, err := mamedb.GetGame(id)
 	if err != nil {
-		if err == mamedb.NotFound {
-			return nil, NotFoundErr
+		if err == mamedb.ErrNotFound {
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -58,20 +62,20 @@ func (m *MAME) GetGame(id string) (*Game, error) {
 	game.Players = g.Players
 	game.Rating = g.Rating / 10.0
 	if g.Title != "" {
-		game.Images[IMG_TITLE] = g.Title
-		game.Thumbs[IMG_TITLE] = g.Title
+		game.Images[ImgTitle] = g.Title
+		game.Thumbs[ImgTitle] = g.Title
 	}
 	if g.Snap != "" {
-		game.Images[IMG_SCREEN] = g.Snap
-		game.Thumbs[IMG_SCREEN] = g.Snap
+		game.Images[ImgScreen] = g.Snap
+		game.Thumbs[ImgScreen] = g.Snap
 	}
 	if g.Marquee != "" {
-		game.Images[IMG_MARQUEE] = g.Marquee
-		game.Thumbs[IMG_MARQUEE] = g.Marquee
+		game.Images[ImgMarquee] = g.Marquee
+		game.Thumbs[ImgMarquee] = g.Marquee
 	}
 	if g.Cabinet != "" {
-		game.Images[IMG_CABINET] = g.Cabinet
-		game.Thumbs[IMG_CABINET] = g.Cabinet
+		game.Images[ImgCabinet] = g.Cabinet
+		game.Thumbs[ImgCabinet] = g.Cabinet
 	}
 	hi, err := m.db.Get([]byte(id), nil)
 	if err == nil {

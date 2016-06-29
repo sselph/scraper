@@ -120,11 +120,13 @@ func queryDB(db *sql.DB, q string) ([]game, error) {
 	return ret, nil
 }
 
+// Release represents a github release.
 type Release struct {
 	TagName string  `json:"tag_name"`
 	Assets  []Asset `json:"assets"`
 }
 
+// Asset represents a github relesae asset.
 type Asset struct {
 	Name        string `json:"name"`
 	DownloadURL string `json:"browser_download_url"`
@@ -220,7 +222,7 @@ func mkDir(d string) error {
 	case fi.IsDir():
 		return nil
 	}
-	return fmt.Errorf("%s is a file not a directory.", d)
+	return fmt.Errorf("%s is a file not a directory", d)
 }
 
 func exists(f string) bool {
@@ -228,7 +230,7 @@ func exists(f string) bool {
 	return !os.IsNotExist(err) && fi.Size() > 0
 }
 
-func GetDB() (*sql.DB, error) {
+func getDB() (*sql.DB, error) {
 	p, err := ds.DefaultCachePath()
 	if err != nil {
 		return nil, err
@@ -270,7 +272,7 @@ func marshalGame(g game) ([]byte, error) {
 }
 
 func main() {
-	db, err := GetDB()
+	db, err := getDB()
 	if err != nil {
 		log.Fatal(err)
 	}

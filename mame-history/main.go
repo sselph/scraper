@@ -26,24 +26,24 @@ func mapper(r rune) rune {
 	return r
 }
 
-type Entry struct {
+type entry struct {
 	Name   string
 	Clones []string
 	Bio    string
 	System string
 }
 
-type Scanner struct {
+type scanner struct {
 	r *bufio.Reader
 	f io.ReadCloser
 }
 
-func New(f io.ReadCloser) *Scanner {
-	return &Scanner{bufio.NewReader(f), f}
+func newScanner(f io.ReadCloser) *scanner {
+	return &scanner{bufio.NewReader(f), f}
 }
 
-func (s *Scanner) Scan() (Entry, error) {
-	e := Entry{}
+func (s *scanner) Scan() (entry, error) {
+	e := entry{}
 	// Scan until we reach a \n$ that isn't $end.
 	for {
 		d, err := s.r.ReadBytes('$')
@@ -143,7 +143,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer f.Close()
-	scanner := New(f)
+	scan := newScanner(f)
 	p, err := ds.DefaultCachePath()
 	if err != nil {
 		log.Fatal(err)
@@ -159,7 +159,7 @@ func main() {
 	defer ldb.Close()
 	var count int
 	for {
-		e, err := scanner.Scan()
+		e, err := scan.Scan()
 		if err != nil {
 			if err == io.EOF {
 				break

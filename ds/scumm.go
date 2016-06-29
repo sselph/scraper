@@ -13,20 +13,22 @@ type ScummVM struct {
 	HM *HashMap
 }
 
+// GetID implements DS.
 func (s *ScummVM) GetID(p string) (string, error) {
 	if filepath.Ext(p) != ".svm" {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	b := filepath.Base(p)
 	svm := b[:len(b)-len(filepath.Ext(b))]
 	gameID := strings.Split(svm, "-")[0]
 	id, ok := s.HM.GetID(gameID)
 	if !ok {
-		return "", NotFoundErr
+		return "", ErrNotFound
 	}
 	return id, nil
 }
 
+// GetName implements DS.
 func (s *ScummVM) GetName(p string) string {
 	b := filepath.Base(p)
 	svm := b[:len(b)-len(filepath.Ext(b))]
@@ -38,6 +40,7 @@ func (s *ScummVM) GetName(p string) string {
 	return n
 }
 
+// GetGame implements DS.
 func (s *ScummVM) GetGame(id string) (*Game, error) {
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
