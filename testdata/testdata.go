@@ -39,7 +39,7 @@ func New() (*Data, error) {
 		".bin", ".a26", ".rom", ".cue", ".gdi", ".gb", ".gba",
 		".gbc", ".lyx", ".32x", ".gg", ".pce", ".sms", ".sg",
 		".col", ".int", ".ngp", ".ngc", ".vb", ".vec", ".gam",
-		".a78", ".j64", ".jag", ".lnx", ".mgw",
+		".a78", ".j64", ".jag", ".lnx", ".mgw", ".nds",
 	}
 	for _, e := range binExts {
 		p := filepath.Join(dir, fmt.Sprintf("test%s", e))
