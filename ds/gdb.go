@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sselph/scraper/gdb"
+	"github.com/danmcgoo/scraper/gdb"
 )
 
 // GDB is a DataSource using thegamesdb.net

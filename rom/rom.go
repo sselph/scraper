@@ -17,7 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nfnt/resize"
-	"github.com/sselph/scraper/ds"
+	"github.com/danmcgoo/scraper/ds"
 )
 
 var lock chan struct{}

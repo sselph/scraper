@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/sselph/scraper/ds"
+	"github.com/danmcgoo/scraper/ds"
 )
 
 func main() {

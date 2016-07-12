@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sselph/scraper/mamedb"
+	"github.com/danmcgoo/scraper/mamedb"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 

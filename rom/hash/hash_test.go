@@ -2,7 +2,7 @@ package hash
 
 import (
 	"crypto/sha1"
-	"github.com/sselph/scraper/testdata"
+	"github.com/danmcgoo/scraper/testdata"
 	"path/filepath"
 	"testing"
 )

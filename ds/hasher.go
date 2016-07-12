@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/golang-lru"
-	rh "github.com/sselph/scraper/rom/hash"
+	rh "github.com/danmcgoo/scraper/rom/hash"
 )
 
 // Hasher is a thread-safe object to hash files. Hashes are cached and

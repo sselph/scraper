@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sselph/scraper/gdb"
+	"github.com/danmcgoo/scraper/gdb"
 )
 
 // Daphne is a data source using GDB for Daphne games.
