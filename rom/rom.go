@@ -17,7 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nfnt/resize"
-	"github.com/sselph/scraper/ds"
+	"github.com/danmcgoo/scraper/ds"
 )
 
 var lock chan struct{}
@@ -328,8 +328,16 @@ func getImage(url string, p string, w uint) error {
 	if err != nil {
 		return err
 	}
-	if w > 0 && uint(img.Bounds().Dx()) > w {
-		img = resize.Resize(w, 0, img, resize.Bilinear)
+	if w > 0 {
+		if uint(img.Bounds().Dx()) >= uint(img.Bounds().Dy()) {
+			if uint(img.Bounds().Dx()) > w {
+				img = resize.Resize(w, 0, img, resize.Bilinear)
+			}
+		} else {
+			if uint(img.Bounds().Dy()) > w {
+				img = resize.Resize(0, w, img, resize.Bilinear)
+			}
+		}
 	}
 	out, err := os.Create(p)
 	if err != nil {

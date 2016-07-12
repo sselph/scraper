@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/sselph/scraper/gdb"
+	"github.com/danmcgoo/scraper/gdb"
 )
 
 // NeoGeo is a data source using GDB for Daphne games.

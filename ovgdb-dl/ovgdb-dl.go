@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/sselph/scraper/ds"
+	"github.com/danmcgoo/scraper/ds"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"

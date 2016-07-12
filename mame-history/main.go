@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sselph/scraper/ds"
+	"github.com/danmcgoo/scraper/ds"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
