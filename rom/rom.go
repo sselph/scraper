@@ -349,7 +349,7 @@ func getImage(url string, p string, w uint) error {
 
 func exists(s string) bool {
 	fi, err := os.Stat(s)
-	return !os.IsNotExist(err) && fi.Size() > 0
+	return err == nil && fi.Size() > 0
 }
 
 // imgExists checks if an image exists with either format.
