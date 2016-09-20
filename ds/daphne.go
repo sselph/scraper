@@ -27,7 +27,7 @@ func (d *Daphne) GetID(p string) (string, error) {
 	case strings.HasPrefix(gameID, "tq"):
 		gameID = "tq*.daphne"
 	}
-	id, ok := d.HM.GetID(gameID)
+	id, ok := d.HM.ID(gameID)
 	if !ok {
 		return "", ErrNotFound
 	}
@@ -37,7 +37,7 @@ func (d *Daphne) GetID(p string) (string, error) {
 // GetName implements DS.
 func (d *Daphne) GetName(p string) string {
 	gameID := filepath.Base(p)
-	n, ok := d.HM.GetName(gameID)
+	n, ok := d.HM.Name(gameID)
 	if !ok {
 		return ""
 	}

@@ -48,7 +48,7 @@ func (g *GDB) GetID(p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	id, ok := g.HM.GetID(h)
+	id, ok := g.HM.ID(h)
 	if !ok {
 		return "", ErrNotFound
 	}
@@ -61,7 +61,7 @@ func (g *GDB) GetName(p string) string {
 	if err != nil {
 		return ""
 	}
-	name, ok := g.HM.GetName(h)
+	name, ok := g.HM.Name(h)
 	if !ok {
 		return ""
 	}

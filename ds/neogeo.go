@@ -21,7 +21,7 @@ func (n *NeoGeo) GetID(p string) (string, error) {
 		return "", ErrNotFound
 	}
 	gameID := filepath.Base(p)
-	id, ok := n.HM.GetID(gameID)
+	id, ok := n.HM.ID(gameID)
 	if !ok {
 		return "", ErrNotFound
 	}
@@ -31,7 +31,7 @@ func (n *NeoGeo) GetID(p string) (string, error) {
 // GetName implements DS.
 func (n *NeoGeo) GetName(p string) string {
 	gameID := filepath.Base(p)
-	name, ok := n.HM.GetName(gameID)
+	name, ok := n.HM.Name(gameID)
 	if !ok {
 		return ""
 	}

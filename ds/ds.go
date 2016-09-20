@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
@@ -30,14 +31,40 @@ type ImgType string
 
 // Image types for Datasource options. Not all types are valid for all sources.
 const (
-	ImgBoxart  ImgType = "b"
-	ImgScreen  ImgType = "s"
-	ImgFanart  ImgType = "f"
-	ImgBanner  ImgType = "a"
-	ImgLogo    ImgType = "l"
-	ImgTitle   ImgType = "t"
-	ImgMarquee ImgType = "m"
-	ImgCabinet ImgType = "c"
+	ImgBoxart   ImgType = "b"
+	ImgBoxart3D ImgType = "3b"
+	ImgScreen   ImgType = "s"
+	ImgFanart   ImgType = "f"
+	ImgBanner   ImgType = "a"
+	ImgLogo     ImgType = "l"
+	ImgTitle    ImgType = "t"
+	ImgMarquee  ImgType = "m"
+	ImgCabinet  ImgType = "c"
+)
+
+// RegionType represents the different region types that sources may provide.
+type RegionType string
+
+// Region types for Datasource options. Not all types are valid for all sources.
+const (
+	RegionUnknown RegionType = ""
+	RegionUS      RegionType = "us"
+	RegionEU      RegionType = "eu"
+	RegionFR      RegionType = "fr"
+	RegionJP      RegionType = "jp"
+	RegionXX      RegionType = "xx"
+)
+
+// LangType represents the different language types that sources may provide.
+type LangType string
+
+// Lanuage types for Datasource options. Not all types are valid for all sources.
+const (
+	LangEN LangType = "en"
+	LangFR LangType = "fr"
+	LangES LangType = "es"
+	LangPT LangType = "pt"
+	LangDE LangType = "de"
 )
 
 // Game is the standard Game that all sources will return.
@@ -95,7 +122,7 @@ type HashMap struct {
 }
 
 // GetID returns the id for the given hash.
-func (hm *HashMap) GetID(s string) (string, bool) {
+func (hm *HashMap) ID(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[0] == "" {
 		return "", false
@@ -104,12 +131,24 @@ func (hm *HashMap) GetID(s string) (string, bool) {
 }
 
 // GetName returns the no-intro name for the given hash.
-func (hm *HashMap) GetName(s string) (string, bool) {
+func (hm *HashMap) Name(s string) (string, bool) {
 	d, ok := hm.data[s]
 	if !ok || d[1] == "" {
 		return "", false
 	}
 	return d[1], true
+}
+
+func (hm *HashMap) System(s string) (int, bool) {
+	d, ok := hm.data[s]
+	if !ok || d[2] == "" {
+		return 0, false
+	}
+	i, err := strconv.Atoi(d[2])
+	if err != nil {
+		return 0, false
+	}
+	return i, true
 }
 
 // DefaultCachePath returns the path used for all cached data.
@@ -217,7 +256,7 @@ func FileHashMap(p string) (*HashMap, error) {
 	}
 	ret := &HashMap{data: make(map[string][]string)}
 	for _, v := range r {
-		ret.data[strings.ToLower(v[0])] = []string{v[1], v[3]}
+		ret.data[strings.ToLower(v[0])] = []string{v[1], v[3], v[2]}
 	}
 	return ret, nil
 }

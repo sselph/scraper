@@ -21,7 +21,7 @@ func (s *ScummVM) GetID(p string) (string, error) {
 	b := filepath.Base(p)
 	svm := b[:len(b)-len(filepath.Ext(b))]
 	gameID := strings.Split(svm, "-")[0]
-	id, ok := s.HM.GetID(gameID)
+	id, ok := s.HM.ID(gameID)
 	if !ok {
 		return "", ErrNotFound
 	}
@@ -33,7 +33,7 @@ func (s *ScummVM) GetName(p string) string {
 	b := filepath.Base(p)
 	svm := b[:len(b)-len(filepath.Ext(b))]
 	gameID := strings.Split(svm, "-")[0]
-	n, ok := s.HM.GetName(gameID)
+	n, ok := s.HM.Name(gameID)
 	if !ok {
 		return ""
 	}

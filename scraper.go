@@ -7,12 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/kr/fs"
-	"github.com/mitchellh/go-homedir"
-	"github.com/sselph/scraper/ds"
-	"github.com/sselph/scraper/gdb"
-	"github.com/sselph/scraper/rom"
-	rh "github.com/sselph/scraper/rom/hash"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,6 +17,15 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/kr/fs"
+	"github.com/mitchellh/go-homedir"
+	"github.com/sselph/scraper/ds"
+	"github.com/sselph/scraper/gdb"
+	"github.com/sselph/scraper/rom"
+	"github.com/sselph/scraper/ss"
+
+	rh "github.com/sselph/scraper/rom/hash"
 )
 
 var hashFile = flag.String("hash_file", "", "The `file` containing hash information.")
@@ -43,6 +46,9 @@ var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
 var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
 var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
+var useSS = flag.Bool("use_ss", false, "Use the ScreenScraper.fr as a datasource.")
+var region = flag.String("region", "us,eu,jp,fr,xx", "The order to choose for region if there is more than one for a value. (us, eu, jp, fr, xx)")
+var lang = flag.String("lang", "en", "The order to choose for language if there is more than one for a value. (en, fr, es, de, pt)")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
@@ -52,7 +58,8 @@ var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefe
 var stripUnicode = flag.Bool("strip_unicode", true, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
-var gdbImg = flag.String("gdb_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo.")
+var gdbImg = flag.String("gdb_img", "", "Deprecated, see console_img. This will be removed soon.")
+var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart.")
 var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to write the images.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
@@ -506,6 +513,10 @@ func main() {
 		fmt.Println(versionStr)
 		return
 	}
+	if *gdbImg != "" {
+		log.Println("DEPRECATED: -gdb_img has been deprecated, use -console_img")
+		*consoleImg = *gdbImg
+	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
@@ -527,13 +538,21 @@ func main() {
 		ImgFormat:  *imgFormat,
 		ImgWidth:   *maxWidth,
 	}
-	var arcadeImg []ds.ImgType
-	var consoleImg []ds.ImgType
+	var aImg []ds.ImgType
+	var cImg []ds.ImgType
+	var ssRegions []ds.RegionType
+	var ssLangs []ds.LangType
 	for _, t := range strings.Split(*mameImg, ",") {
-		arcadeImg = append(arcadeImg, ds.ImgType(t))
+		aImg = append(aImg, ds.ImgType(t))
 	}
 	for _, t := range strings.Split(*gdbImg, ",") {
-		consoleImg = append(consoleImg, ds.ImgType(t))
+		cImg = append(cImg, ds.ImgType(t))
+	}
+	for _, r := range strings.Split(*region, ",") {
+		ssRegions = append(ssRegions, ds.RegionType(r))
+	}
+	for _, l := range strings.Split(*lang, ",") {
+		ssLangs = append(ssLangs, ds.LangType(l))
 	}
 	gameOpts := &rom.GameOpts{
 		AddNotFound:    *addNotFound,
@@ -550,7 +569,7 @@ func main() {
 		*useOVGDB = false
 	}
 	var hasher *ds.Hasher
-	if *useGDB || *useOVGDB {
+	if *useGDB || *useOVGDB || *useSS {
 		var err error
 		hasher, err = ds.NewHasher(sha1.New, *workers)
 		if err != nil {
@@ -579,6 +598,18 @@ func main() {
 		}
 		consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
 	}
+	if *useSS {
+		dev := ss.DevInfo{ID: "sselph", Password: "ROMHasher20160916", Name: "sselph/scraper"}
+		ssDS := &ds.SS{
+			HM:     hm,
+			Hasher: hasher,
+			Dev:    dev,
+			Width:  int(*maxWidth),
+			Region: ssRegions,
+			Lang:   ssLangs,
+		}
+		consoleSources = append(consoleSources, ssDS)
+	}
 	if *useOVGDB {
 		o, err := ds.NewOVGDB(hasher)
 		if err != nil {
@@ -605,10 +636,10 @@ func main() {
 		var sources []ds.DS
 		if *mame {
 			sources = arcadeSources
-			xmlOpts.ImgPriority = arcadeImg
+			xmlOpts.ImgPriority = aImg
 		} else {
 			sources = consoleSources
-			xmlOpts.ImgPriority = consoleImg
+			xmlOpts.ImgPriority = cImg
 		}
 		err := scrape(sources, xmlOpts, gameOpts)
 		if err != nil {
@@ -638,10 +669,10 @@ func main() {
 			switch s.Platform {
 			case "arcade", "neogeo":
 				sources = arcadeSources
-				xmlOpts.ImgPriority = arcadeImg
+				xmlOpts.ImgPriority = aImg
 			default:
 				sources = consoleSources
-				xmlOpts.ImgPriority = consoleImg
+				xmlOpts.ImgPriority = cImg
 			}
 			err := scrape(sources, xmlOpts, gameOpts)
 			if err != nil {
