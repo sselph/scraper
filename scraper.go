@@ -228,19 +228,24 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		}
 	}
 
+	var filterGL []*rom.GameXML
 	for _, x := range gl.GameList {
-		switch {
-		case *appendOut:
 			p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
 			if err != nil {
 				log.Printf("Can't find original path: %s", x.Path)
 			}
 			f := filepath.Join(xmlOpts.RomDir, p)
+		if exists(f) {
+			filterGL = append(filterGL, x)
+		}
+		switch {
+		case *appendOut:
 			existing[f] = struct{}{}
 		case *refreshOut:
 			existing[x.Path] = struct{}{}
 		}
 	}
+	gl.GameList = filterGL
 
 	var wg sync.WaitGroup
 	results := make(chan result, *workers)
@@ -297,6 +302,9 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 					if g.Path != r.XML.Path {
 						continue
 					}
+					r.XML.Favorite = g.Favorite
+					r.XML.LastPlayed = g.LastPlayed
+					r.XML.PlayCount = g.PlayCount
 					copy(gl.GameList[i:], gl.GameList[i+1:])
 					gl.GameList = gl.GameList[:len(gl.GameList)-1]
 				}
