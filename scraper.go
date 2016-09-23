@@ -553,7 +553,7 @@ func main() {
 	for _, t := range strings.Split(*mameImg, ",") {
 		aImg = append(aImg, ds.ImgType(t))
 	}
-	for _, t := range strings.Split(*gdbImg, ",") {
+	for _, t := range strings.Split(*consoleImg, ",") {
 		cImg = append(cImg, ds.ImgType(t))
 	}
 	for _, r := range strings.Split(*region, ",") {
