@@ -129,6 +129,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 				continue
 			}
 			res.XML = xml
+			res.Err = err
 			break
 		}
 		results <- res
