@@ -286,7 +286,11 @@ func getDecoder(ext string) (decoder, bool) {
 	switch strings.ToLower(ext) {
 	case ".bin", ".a26", ".a52", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".32x", ".gg",
 		".pce", ".sms", ".col", ".ngp", ".ngc", ".sg", ".int", ".vb", ".vec", ".gam", ".j64",
-		".jag", ".mgw", ".nds", ".fds":
+		".jag", ".mgw", ".nds", ".fds", ".a1", ".5e", ".610", ".6b",
+		".6d", ".u98", ".10b", ".109", ".e", ".6f", ".02", ".k17",
+		".16k", ".a11", ".ic41", ".ic55", ".35a", ".52", ".hj7",
+		".9m", ".snd", ".10a", ".10c", ".ic21", ".7f", ".105", ".6h",
+		".u19" :
 		return noop, true
 	case ".a78":
 		return decodeA78, true
