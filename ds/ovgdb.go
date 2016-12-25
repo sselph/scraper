@@ -123,6 +123,10 @@ func updateDB(version, p string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("got %v response", resp.Status)
 	}
+	if version != "" && resp.StatusCode == http.StatusTooManyRequests {
+		log.Printf("WARN: Using cached OpenVGDB. Server over quota.")
+		return nil
+	}
 	dbp := path.Join(p, dbName)
 	err = os.RemoveAll(dbp)
 	if err != nil {
