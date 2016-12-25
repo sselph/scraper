@@ -508,7 +508,7 @@ func getSystems() ([]System, error) {
 	var out []System
 	prefix := string([]rune{'~', filepath.Separator})
 	for _, s := range v.Systems {
-		if s.Path[:2] == prefix {
+		if len(s.Path) >= 2 && s.Path[:2] == prefix {
 			s.Path = filepath.Join(hd, s.Path[2:])
 		}
 		out = append(out, s)
