@@ -49,7 +49,7 @@ type GameNames struct {
 
 // GameDesc is the desc in many languages.
 type GameDesc struct {
-	EN string `xml:"synopsis_us"`
+	EN string `xml:"synopsis_en"`
 	FR string `xml:"synopsis_fr"`
 	DE string `xml:"synopsis_de"`
 	ES string `xml:"synopsis_es"`
@@ -58,7 +58,7 @@ type GameDesc struct {
 
 // GameGenre is the genre in many languages.
 type GameGenre struct {
-	EN []string `xml:"genres_us>genre_us"`
+	EN []string `xml:"genres_en>genre_en"`
 	FR []string `xml:"genres_fr>genre_fr"`
 	DE []string `xml:"genres_de>genre_de"`
 	ES []string `xml:"genres_es>genre_es"`
