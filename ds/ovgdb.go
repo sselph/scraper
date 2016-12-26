@@ -123,7 +123,7 @@ func updateDB(version, p string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("got %v response", resp.Status)
 	}
-	if version != "" && resp.StatusCode == http.StatusTooManyRequests {
+	if version != "" && resp.StatusCode == 429 {
 		log.Printf("WARN: Using cached OpenVGDB. Server over quota.")
 		return nil
 	}

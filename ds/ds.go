@@ -188,7 +188,7 @@ func updateHash(version, p string) error {
 		log.Printf("INFO: hash.csv %s up to date.", version)
 		return nil
 	}
-	if version != "" && resp.StatusCode == http.StatusTooManyRequests {
+	if version != "" && resp.StatusCode == 429 {
 		log.Printf("WARN: Using cached hash.csv. Server over quota.")
 		return nil
 	}
