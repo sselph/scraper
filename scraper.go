@@ -608,7 +608,11 @@ func main() {
 		consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
 	}
 	if *useSS {
-		dev := ss.DevInfo{ID: "sselph", Password: "ROMHasher20160916", Name: "sselph/scraper"}
+		dev, err := ss.DeobfuscateDevInfo()
+		if err != nil {
+			fmt.Printf("Can't access SS dev information: %q", err)
+			return
+		}
 		ssDS := &ds.SS{
 			HM:     hm,
 			Hasher: hasher,
