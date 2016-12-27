@@ -288,7 +288,7 @@ func (s *SS) GetGame(id string) (*Game, error) {
 	if err == nil {
 		ret.Players = p
 	}
-	if ret.Overview == "" || ret.ReleaseDate == "" || ret.Developer == "" || ret.Publisher == "" || ret.Images[ImgBoxart] == "" || ret.Images[ImgScreen] == "" {
+	if ret.Overview == "" || (ret.ReleaseDate == "" && ret.Developer == "" && ret.Publisher == "" && ret.Images[ImgBoxart] == "" && ret.Images[ImgScreen] == "") {
 		return nil, ErrNotFound
 	}
 	return ret, nil
