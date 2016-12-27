@@ -20,11 +20,11 @@ I don't accept donations but feel free to donate to:
 Installation
 ------------
 
-Make sure you have go version 1.2 or later installed.
+Make sure you have go version 1.3.3 or later installed.
 
 ```bash
 $ go version
-go version go1.2.2 linux/amd64
+go version go1.3.3 linux/amd64
 ```
 
 Fetch and build.
