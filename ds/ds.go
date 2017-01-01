@@ -98,8 +98,6 @@ type DS interface {
 	GetName(string) string
 	// GetGame takes an id and returns the Game.
 	GetGame(string) (*Game, error)
-	// GetID takes the path of a ROM and returns the id to use in GetGame.
-	GetID(string) (string, error)
 }
 
 // mkDir checks if directory exists and if it doesn't create it.
@@ -123,6 +121,9 @@ type HashMap struct {
 
 // GetID returns the id for the given hash.
 func (hm *HashMap) ID(s string) (string, bool) {
+	if hm == nil {
+		return "", false
+	}
 	d, ok := hm.data[s]
 	if !ok || d[0] == "" {
 		return "", false
@@ -132,6 +133,9 @@ func (hm *HashMap) ID(s string) (string, bool) {
 
 // GetName returns the no-intro name for the given hash.
 func (hm *HashMap) Name(s string) (string, bool) {
+	if hm == nil {
+		return "", false
+	}
 	d, ok := hm.data[s]
 	if !ok || d[1] == "" {
 		return "", false
@@ -140,6 +144,9 @@ func (hm *HashMap) Name(s string) (string, bool) {
 }
 
 func (hm *HashMap) System(s string) (int, bool) {
+	if hm == nil {
+		return 0, false
+	}
 	d, ok := hm.data[s]
 	if !ok || d[2] == "" {
 		return 0, false

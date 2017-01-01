@@ -19,8 +19,8 @@ type SS struct {
 	Width  int
 }
 
-// GetID implements DS
-func (s *SS) GetID(p string) (string, error) {
+// getID gets the ID from the path.
+func (s *SS) getID(p string) (string, error) {
 	return s.Hasher.Hash(p)
 }
 
@@ -239,7 +239,11 @@ func romRegion(n string) RegionType {
 }
 
 // GetGame implements DS
-func (s *SS) GetGame(id string) (*Game, error) {
+func (s *SS) GetGame(path string) (*Game, error) {
+	id, err := s.getID(path)
+	if err != nil {
+		return nil, err
+	}
 	req := ss.GameInfoReq{SHA1: id}
 	resp, err := ss.GameInfo(s.Dev, s.User, req)
 	if err != nil {

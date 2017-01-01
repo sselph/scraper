@@ -14,7 +14,7 @@ type Daphne struct {
 }
 
 // GetID implements DS.
-func (d *Daphne) GetID(p string) (string, error) {
+func (d *Daphne) getID(p string) (string, error) {
 	if filepath.Ext(p) != ".daphne" {
 		return "", ErrNotFound
 	}
@@ -45,7 +45,11 @@ func (d *Daphne) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (d *Daphne) GetGame(id string) (*Game, error) {
+func (d *Daphne) GetGame(p string) (*Game, error) {
+	id, err := d.getID(p)
+	if err != nil {
+		return nil, err
+	}
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
 	if err != nil {

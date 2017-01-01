@@ -205,7 +205,6 @@ func (r *ROM) GetGame(data []ds.DS, opts *GameOpts) error {
 		opts = &GameOpts{}
 	}
 	var err error
-	var id string
 	var prettyName string
 	var game *ds.Game
 	files := []string{r.Path}
@@ -216,11 +215,7 @@ Loop:
 	for _, file := range files {
 		for _, source := range data {
 			prettyName = source.GetName(file)
-			id, err = source.GetID(file)
-			if err != nil {
-				continue
-			}
-			game, err = source.GetGame(id)
+			game, err = source.GetGame(file)
 			if err != nil {
 				continue
 			}

@@ -12,8 +12,8 @@ type NeoGeo struct {
 	HM *HashMap
 }
 
-// GetID implements DS.
-func (n *NeoGeo) GetID(p string) (string, error) {
+// getID gets the ID from the path.
+func (n *NeoGeo) getID(p string) (string, error) {
 	if filepath.Ext(p) == ".7z" {
 		p = p[:len(p)-3] + ".zip"
 	}
@@ -39,7 +39,11 @@ func (n *NeoGeo) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (n *NeoGeo) GetGame(id string) (*Game, error) {
+func (n *NeoGeo) GetGame(p string) (*Game, error) {
+	id, err := n.getID(p)
+	if err != nil {
+		return nil, err
+	}
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
 	if err != nil {

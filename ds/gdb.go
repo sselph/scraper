@@ -42,8 +42,8 @@ func (g *GDB) Hash(p string) (string, error) {
 	return g.Hasher.Hash(p)
 }
 
-// GetID implements DS
-func (g *GDB) GetID(p string) (string, error) {
+// getID gets the ID from the path.
+func (g *GDB) getID(p string) (string, error) {
 	h, err := g.Hasher.Hash(p)
 	if err != nil {
 		return "", err
@@ -69,7 +69,11 @@ func (g *GDB) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (g *GDB) GetGame(id string) (*Game, error) {
+func (g *GDB) GetGame(p string) (*Game, error) {
+	id, err := g.getID(p)
+	if err != nil {
+		return nil, err
+	}
 	req := gdb.GGReq{ID: id}
 	resp, err := gdb.GetGame(req)
 	if err != nil {

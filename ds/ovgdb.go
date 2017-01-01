@@ -65,8 +65,8 @@ func (o *OVGDB) GetName(p string) string {
 	return string(n)
 }
 
-// GetID implements DS.
-func (o *OVGDB) GetID(p string) (string, error) {
+// getID gets the ID from the path.
+func (o *OVGDB) getID(p string) (string, error) {
 	h, err := o.Hasher.Hash(p)
 	if err != nil {
 		return "", err
@@ -88,7 +88,11 @@ func (o *OVGDB) GetID(p string) (string, error) {
 }
 
 // GetGame implements DS.
-func (o *OVGDB) GetGame(id string) (*Game, error) {
+func (o *OVGDB) GetGame(p string) (*Game, error) {
+	id, err := o.getID(p)
+	if err != nil {
+		return nil, err
+	}
 	g, err := o.db.Get([]byte(id), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
