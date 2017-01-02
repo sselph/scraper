@@ -68,6 +68,8 @@ var refreshOut = flag.Bool("refresh", false, "Information will be attempted to b
 var extraExt = flag.String("extra_ext", "", "Comma separated list of extensions to also include in the scraper.")
 var missing = flag.String("missing", "", "The `file` where information about ROMs that weren't scraped is added.")
 var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
+var ssUser = flag.String("ss_user", "", "The `username` for registered ScreenScraper users.")
+var ssPassword = flag.String("ss_password", "", "The `password` for registered ScreenScraper users.")
 
 var errUserCanceled = errors.New("user canceled")
 
@@ -618,6 +620,7 @@ func main() {
 			HM:     hm,
 			Hasher: hasher,
 			Dev:    dev,
+			User:   ss.UserInfo{*ssUser, *ssPassword},
 			Width:  int(*maxWidth),
 			Region: ssRegions,
 			Lang:   ssLangs,
@@ -642,6 +645,7 @@ func main() {
 			case "ss":
 				ssMDS := &ds.SSMAME{
 					Dev:    dev,
+					User:   ss.UserInfo{*ssUser, *ssPassword},
 					Width:  int(*maxWidth),
 					Region: ssRegions,
 					Lang:   ssLangs,

@@ -21,7 +21,7 @@ import (
 
 const (
 	baseURL = "http://mamedb.blu-ferret.co.uk"
-	path = baseURL + "/game/"
+	path    = baseURL + "/game/"
 )
 
 var (
