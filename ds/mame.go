@@ -26,8 +26,8 @@ type MAME struct {
 	db *leveldb.DB
 }
 
-// GetID implements DS.
-func (m *MAME) GetID(p string) (string, error) {
+// getID gets the ID for the game..
+func (m *MAME) getID(p string) (string, error) {
 	b := filepath.Base(p)
 	id := b[:len(b)-len(filepath.Ext(b))]
 	return id, nil
@@ -44,7 +44,11 @@ func (m *MAME) Close() error {
 }
 
 // GetGame implements DS.
-func (m *MAME) GetGame(id string) (*Game, error) {
+func (m *MAME) GetGame(p string) (*Game, error) {
+	id, err := m.getID(p)
+	if err != nil {
+		return nil, err
+	}
 	g, err := mamedb.GetGame(id)
 	if err != nil {
 		if err == mamedb.ErrNotFound {

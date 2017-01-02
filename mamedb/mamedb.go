@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	path = "http://mamedb.blu-ferret.co.uk/game/"
+	baseURL = "http://mamedb.blu-ferret.co.uk"
+	path = baseURL + "/game/"
 )
 
 var (
@@ -58,7 +59,7 @@ type Game struct {
 // GetGame gets a game from mamedb.
 func GetGame(name string) (*Game, error) {
 	var g Game
-	g.Source = "mamedb.com"
+	g.Source = "mamedb.blu-ferret.co.uk"
 	g.ID = name
 	resp, err := http.Get(path + name)
 	if err != nil {
@@ -121,19 +122,19 @@ func GetGame(name string) (*Game, error) {
 	}
 	sm := snapRE.FindSubmatch(body)
 	if sm != nil {
-		g.Snap = fmt.Sprintf("http://www.mamedb.com/snap/%s.png", string(sm[1]))
+		g.Snap = fmt.Sprintf("%s/snap/%s.png", baseURL, string(sm[1]))
 	}
 	mm := marqueeRE.FindSubmatch(body)
 	if mm != nil {
-		g.Marquee = fmt.Sprintf("http://mamedb.com/marquees/%s.png", string(mm[1]))
+		g.Marquee = fmt.Sprintf("%s/marquees/%s.png", baseURL, string(mm[1]))
 	}
 	tim := titleImgRE.FindSubmatch(body)
 	if tim != nil {
-		g.Title = fmt.Sprintf("http://mamedb.com/titles/%s.png", string(tim[1]))
+		g.Title = fmt.Sprintf("%s/titles/%s.png", baseURL, string(tim[1]))
 	}
 	cm := cabinetRE.FindSubmatch(body)
 	if cm != nil {
-		g.Cabinet = fmt.Sprintf("http://mamedb.com/cabinets/%s.png", string(cm[1]))
+		g.Cabinet = fmt.Sprintf("%s/cabinets/%s.png", baseURL, string(cm[1]))
 	}
 	return &g, nil
 }
