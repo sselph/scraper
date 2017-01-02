@@ -55,6 +55,7 @@ var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are 
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
+var mameSrcs = flag.String("mame_src", "mamedb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
@@ -231,11 +232,11 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 
 	var filterGL []*rom.GameXML
 	for _, x := range gl.GameList {
-			p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
-			if err != nil {
-				log.Printf("Can't find original path: %s", x.Path)
-			}
-			f := filepath.Join(xmlOpts.RomDir, p)
+		p, err := filepath.Rel(xmlOpts.RomXMLDir, x.Path)
+		if err != nil {
+			log.Printf("Can't find original path: %s", x.Path)
+		}
+		f := filepath.Join(xmlOpts.RomDir, p)
 		if exists(f) {
 			filterGL = append(filterGL, x)
 		}
@@ -607,12 +608,12 @@ func main() {
 		}
 		consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
 	}
+	dev, err := ss.DeobfuscateDevInfo()
+	if err != nil {
+		fmt.Printf("Can't access SS dev information: %q", err)
+		return
+	}
 	if *useSS {
-		dev, err := ss.DeobfuscateDevInfo()
-		if err != nil {
-			fmt.Printf("Can't access SS dev information: %q", err)
-			return
-		}
 		ssDS := &ds.SS{
 			HM:     hm,
 			Hasher: hasher,
@@ -636,15 +637,33 @@ func main() {
 	consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 	consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
 	if *mame || *scrapeAll {
-		mds, err := ds.NewMAME("")
-		if err != nil {
-			fmt.Println(err)
-			return
+		for _, src := range strings.Split(*mameSrcs, ",") {
+			switch src {
+			case "ss":
+				ssMDS := &ds.SSMAME{
+					Dev:    dev,
+					Width:  int(*maxWidth),
+					Region: ssRegions,
+					Lang:   ssLangs,
+				}
+				arcadeSources = append(arcadeSources, ssMDS)
+			case "mamedb":
+				mds, err := ds.NewMAME("")
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				defer mds.Close()
+				arcadeSources = append(arcadeSources, mds)
+			case "gdb":
+				arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+			default:
+				fmt.Printf("Invalid MAME source %q\n", src)
+				return
+			}
 		}
-		defer mds.Close()
-		arcadeSources = append(arcadeSources, mds)
 	}
-	arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+
 	if !*scrapeAll {
 		var sources []ds.DS
 		if *mame {

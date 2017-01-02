@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	path = "http://www.mamedb.com/game/"
+	path = "http://mamedb.blu-ferret.co.uk/game/"
 )
 
 var (

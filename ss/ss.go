@@ -33,13 +33,14 @@ type UserInfo struct {
 
 // GameInfoReq is the information we use in the GameInfo command.
 type GameInfoReq struct {
+	Name    string
 	SHA1    string
 	RomType string
 }
 
 // GameNames is the name in many languages.
 type GameNames struct {
-	Original string `xml:"nom_origine"`
+	Original string `xml:"nom_ss"`
 	EN       string `xml:"nom_us"`
 	FR       string `xml:"nom_fr"`
 	DE       string `xml:"nom_de"`
@@ -67,17 +68,19 @@ type GameGenre struct {
 
 // GameMedia is the media for many regions.
 type GameMedia struct {
-	ScreenShot string `xml:"media_screenshot"`
-	BoxUS      string `xml:"media_boxs>media_boxs2d>media_box2d_us"`
-	BoxFR      string `xml:"media_boxs>media_boxs2d>media_box2d_fr"`
-	BoxEU      string `xml:"media_boxs>media_boxs2d>media_box2d_eu"`
-	BoxJP      string `xml:"media_boxs>media_boxs2d>media_box2d_jp"`
-	BoxXX      string `xml:"media_boxs>media_boxs2d>media_box2d_xx"`
-	Box3DUS    string `xml:"media_boxs>media_boxs3d>media_box3d_us"`
-	Box3DFR    string `xml:"media_boxs>media_boxs3d>media_box3d_fr"`
-	Box3DEU    string `xml:"media_boxs>media_boxs3d>media_box3d_eu"`
-	Box3DJP    string `xml:"media_boxs>media_boxs3d>media_box3d_jp"`
-	Box3DXX    string `xml:"media_boxs>media_boxs3d>media_box3d_xx"`
+	ScreenShot    string `xml:"media_screenshot"`
+	ScreenMarquee string `xml:"media_screenmarquee"`
+	Marquee       string `xml:"media_marquee"`
+	BoxUS         string `xml:"media_boxs>media_boxs2d>media_box2d_us"`
+	BoxFR         string `xml:"media_boxs>media_boxs2d>media_box2d_fr"`
+	BoxEU         string `xml:"media_boxs>media_boxs2d>media_box2d_eu"`
+	BoxJP         string `xml:"media_boxs>media_boxs2d>media_box2d_jp"`
+	BoxXX         string `xml:"media_boxs>media_boxs2d>media_box2d_xx"`
+	Box3DUS       string `xml:"media_boxs>media_boxs3d>media_box3d_us"`
+	Box3DFR       string `xml:"media_boxs>media_boxs3d>media_box3d_fr"`
+	Box3DEU       string `xml:"media_boxs>media_boxs3d>media_box3d_eu"`
+	Box3DJP       string `xml:"media_boxs>media_boxs3d>media_box3d_jp"`
+	Box3DXX       string `xml:"media_boxs>media_boxs3d>media_box3d_xx"`
 }
 
 // GameDates is the date for many regions.
@@ -133,6 +136,9 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 		q.Set("romtype", "rom")
 	} else {
 		q.Set("romtype", req.RomType)
+	}
+	if req.Name != "" {
+		q.Set("romnom", req.Name)
 	}
 	u.RawQuery = q.Encode()
 	resp, err := http.Get(u.String())
