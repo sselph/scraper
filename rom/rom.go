@@ -3,6 +3,7 @@ package rom
 import (
 	"bufio"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -21,6 +22,7 @@ import (
 )
 
 var lock chan struct{}
+var errNotFound = errors.New("not found")
 
 func init() {
 	SetMaxImg(runtime.NumCPU())
@@ -314,6 +316,12 @@ func getImage(url string, p string, w uint) error {
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode == http.StatusNotFound {
+		return errNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v from $s", resp.StatusCode, url)
+	}
 	defer resp.Body.Close()
 	<-lock
 	defer func() {
@@ -391,25 +399,26 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 	if opts.NoDownload {
 		return gxml, nil
 	}
-	var imgURL string
-	var ok bool
 	for _, it := range opts.ImgPriority {
+		var imgURL string
+		var ok bool
 		if opts.ThumbOnly {
-			if imgURL, ok = r.Game.Thumbs[it]; ok {
-				break
-			}
+			imgURL, ok = r.Game.Thumbs[it]
 		} else {
-			if imgURL, ok = r.Game.Images[it]; ok {
-				break
+			imgURL, ok = r.Game.Images[it]
+		}
+		if ok {
+			err := getImage(imgURL, imgPath, opts.ImgWidth)
+			if err == errNotFound {
+				continue
 			}
+			if err != nil {
+				return nil, err
+			}
+			gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+			break
 		}
-	}
-	if imgURL != "" {
-		err := getImage(imgURL, imgPath, opts.ImgWidth)
-		if err != nil {
-			return nil, err
-		}
-		gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+
 	}
 	return gxml, nil
 }
