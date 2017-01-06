@@ -17,6 +17,7 @@ type SS struct {
 	Lang   []LangType
 	Region []RegionType
 	Width  int
+	Height int
 }
 
 // getID gets the ID from the path.
@@ -38,28 +39,28 @@ func (s *SS) GetName(p string) string {
 }
 
 // ssBoxURL gets the URL for BoxArt for the preferred region.
-func ssBoxURL(media ss.GameMedia, regions []RegionType, width int) string {
+func ssBoxURL(media ss.GameMedia, regions []RegionType, width, height int) string {
 	for _, r := range regions {
 		switch r {
 		case RegionUS:
 			if media.BoxUS != "" {
-				return ssImgURL(media.BoxUS, width)
+				return ssImgURL(media.BoxUS, width, height)
 			}
 		case RegionEU:
 			if media.BoxEU != "" {
-				return ssImgURL(media.BoxEU, width)
+				return ssImgURL(media.BoxEU, width, height)
 			}
 		case RegionFR:
 			if media.BoxFR != "" {
-				return ssImgURL(media.BoxFR, width)
+				return ssImgURL(media.BoxFR, width, height)
 			}
 		case RegionJP:
 			if media.BoxJP != "" {
-				return ssImgURL(media.BoxJP, width)
+				return ssImgURL(media.BoxJP, width, height)
 			}
 		case RegionXX:
 			if media.BoxXX != "" {
-				return ssImgURL(media.BoxXX, width)
+				return ssImgURL(media.BoxXX, width, height)
 			}
 		}
 	}
@@ -67,28 +68,28 @@ func ssBoxURL(media ss.GameMedia, regions []RegionType, width int) string {
 }
 
 // ss3DBoxURL gets the URL for 3D-BoxArt for the preferred region.
-func ss3DBoxURL(media ss.GameMedia, regions []RegionType, width int) string {
+func ss3DBoxURL(media ss.GameMedia, regions []RegionType, width, height int) string {
 	for _, r := range regions {
 		switch r {
 		case RegionUS:
 			if media.Box3DUS != "" {
-				return ssImgURL(media.Box3DUS, width)
+				return ssImgURL(media.Box3DUS, width, height)
 			}
 		case RegionEU:
 			if media.Box3DEU != "" {
-				return ssImgURL(media.Box3DEU, width)
+				return ssImgURL(media.Box3DEU, width, height)
 			}
 		case RegionFR:
 			if media.Box3DFR != "" {
-				return ssImgURL(media.Box3DFR, width)
+				return ssImgURL(media.Box3DFR, width, height)
 			}
 		case RegionJP:
 			if media.Box3DJP != "" {
-				return ssImgURL(media.Box3DJP, width)
+				return ssImgURL(media.Box3DJP, width, height)
 			}
 		case RegionXX:
 			if media.Box3DXX != "" {
-				return ssImgURL(media.Box3DXX, width)
+				return ssImgURL(media.Box3DXX, width, height)
 			}
 		}
 	}
@@ -267,13 +268,16 @@ func (s *SS) GetGame(path string) (*Game, error) {
 
 	ret := NewGame()
 	if game.Media.ScreenShot != "" {
-		ret.Images[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width)
+		ret.Images[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
+		ret.Thumbs[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
 	}
-	if imgURL := ssBoxURL(game.Media, regions, s.Width); imgURL != "" {
+	if imgURL := ssBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
 		ret.Images[ImgBoxart] = imgURL
+		ret.Thumbs[ImgBoxart] = imgURL
 	}
-	if imgURL := ss3DBoxURL(game.Media, regions, s.Width); imgURL != "" {
+	if imgURL := ss3DBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
 		ret.Images[ImgBoxart3D] = imgURL
+		ret.Thumbs[ImgBoxart3D] = imgURL
 	}
 	ret.ID = strconv.Itoa(game.ID)
 	ret.Source = "screenscraper.fr"
@@ -302,8 +306,8 @@ func (s *SS) GetGame(path string) (*Game, error) {
 }
 
 // ssImgURL parses the URL and adds the maxwidth.
-func ssImgURL(img string, width int) string {
-	if width <= 0 {
+func ssImgURL(img string, width int, height int) string {
+	if width <= 0 && height <= 0 {
 		return img
 	}
 	u, err := url.Parse(img)
@@ -311,7 +315,12 @@ func ssImgURL(img string, width int) string {
 		return img
 	}
 	v := u.Query()
-	v.Set("maxwidth", strconv.Itoa(width))
+	if width > 0 {
+		v.Set("maxwidth", strconv.Itoa(width))
+	}
+	if height > 0 {
+		v.Set("maxheight", strconv.Itoa(height))
+	}
 	u.RawQuery = v.Encode()
 	return u.String()
 }

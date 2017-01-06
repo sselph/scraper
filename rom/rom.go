@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -75,6 +76,8 @@ type XMLOpts struct {
 	ImgFormat string
 	// ImgWidth is the max width of images. Anything larger will be resized.
 	ImgWidth uint
+	// ImgHeight is the max height of images. Anything larger will be resized.
+	ImgHeight uint
 }
 
 // stripChars strips out unicode and converts "fancy" quotes to normal quotes.
@@ -303,7 +306,13 @@ func mkDir(d string) error {
 }
 
 // getImage gets the image, resizes it and saves it to specified path.
-func getImage(url string, p string, w uint) error {
+func getImage(url string, p string, w uint, h uint) error {
+	if w == 0 {
+		w = math.MaxUint32
+	}
+	if h == 0 {
+		h = math.MaxUint32
+	}
 	dir := filepath.Dir(p)
 	if _, ok := imgDirs[dir]; !ok {
 		err := mkDir(dir)
@@ -331,9 +340,7 @@ func getImage(url string, p string, w uint) error {
 	if err != nil {
 		return err
 	}
-	if w > 0 && uint(img.Bounds().Dx()) > w {
-		img = resize.Resize(w, 0, img, resize.Bilinear)
-	}
+	img = resize.Thumbnail(w, h, img, resize.Bilinear)
 	out, err := os.Create(p)
 	if err != nil {
 		return err
@@ -408,7 +415,7 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 			imgURL, ok = r.Game.Images[it]
 		}
 		if ok {
-			err := getImage(imgURL, imgPath, opts.ImgWidth)
+			err := getImage(imgURL, imgPath, opts.ImgWidth, opts.ImgHeight)
 			if err == errNotFound {
 				continue
 			}

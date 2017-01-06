@@ -48,6 +48,7 @@ var imageSuffix = flag.String("image_suffix", "-image", "The `suffix` added afte
 var thumbSuffix = flag.String("thumb_suffix", "-thumb", "The `suffix` added after rom name when creating thumb files.")
 var romPath = flag.String("rom_path", ".", "The `path` to use for roms in gamelist.xml.")
 var maxWidth = flag.Uint("max_width", 400, "The max `width` of images. Larger images will be resized.")
+var maxHeight = flag.Uint("max_height", 400, "The max `height` of images. Larger images will be resized.")
 var workers = flag.Int("workers", 1, "Use `N` worker threads to process roms.")
 var imgWorkers = flag.Int("img_workers", 0, "Use `N` worker threads to process images. If 0, then use the same value as workers.")
 var retries = flag.Int("retries", 2, "Retry a rom `N` times on an error.")
@@ -558,6 +559,7 @@ func main() {
 		NoDownload: !*downloadImages,
 		ImgFormat:  *imgFormat,
 		ImgWidth:   *maxWidth,
+		ImgHeight:  *maxHeight,
 	}
 	var aImg []ds.ImgType
 	var cImg []ds.ImgType
@@ -681,6 +683,7 @@ func main() {
 				Dev:    dev,
 				User:   ss.UserInfo{*ssUser, *ssPassword},
 				Width:  int(*maxWidth),
+				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
 			}
@@ -706,6 +709,7 @@ func main() {
 				Dev:    dev,
 				User:   ss.UserInfo{*ssUser, *ssPassword},
 				Width:  int(*maxWidth),
+				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
 			}

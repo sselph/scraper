@@ -15,6 +15,7 @@ type SSMAME struct {
 	Lang   []LangType
 	Region []RegionType
 	Width  int
+	Height int
 }
 
 // GetName implements DS
@@ -44,19 +45,24 @@ func (s *SSMAME) GetGame(path string) (*Game, error) {
 
 	ret := NewGame()
 	if game.Media.ScreenShot != "" {
-		ret.Images[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width)
+		ret.Images[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
+		ret.Thumbs[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
 	}
 	if game.Media.ScreenMarquee != "" {
-		ret.Images[ImgTitle] = ssImgURL(game.Media.ScreenMarquee, s.Width)
+		ret.Images[ImgTitle] = ssImgURL(game.Media.ScreenMarquee, s.Width, s.Height)
+		ret.Thumbs[ImgTitle] = ssImgURL(game.Media.ScreenMarquee, s.Width, s.Height)
 	}
 	if game.Media.Marquee != "" {
-		ret.Images[ImgMarquee] = ssImgURL(game.Media.Marquee, s.Width)
+		ret.Images[ImgMarquee] = ssImgURL(game.Media.Marquee, s.Width, s.Height)
+		ret.Thumbs[ImgMarquee] = ssImgURL(game.Media.Marquee, s.Width, s.Height)
 	}
-	if imgURL := ssBoxURL(game.Media, regions, s.Width); imgURL != "" {
+	if imgURL := ssBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
 		ret.Images[ImgBoxart] = imgURL
+		ret.Thumbs[ImgBoxart] = imgURL
 	}
-	if imgURL := ss3DBoxURL(game.Media, regions, s.Width); imgURL != "" {
+	if imgURL := ss3DBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
 		ret.Images[ImgBoxart3D] = imgURL
+		ret.Thumbs[ImgBoxart3D] = imgURL
 	}
 	ret.ID = strconv.Itoa(game.ID)
 	ret.Source = "screenscraper.fr"
