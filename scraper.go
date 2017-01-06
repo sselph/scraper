@@ -28,6 +28,17 @@ import (
 	rh "github.com/sselph/scraper/rom/hash"
 )
 
+var useGDB optBool
+var useOVGDB optBool
+var useSS optBool
+
+func init() {
+	useGDB.v = true
+	flag.Var(&useGDB, "use_gdb", "DEPRECATED, see -console_src : use the theGamesDB as a datasource.")
+	flag.Var(&useOVGDB, "use_ovgdb", "DEPRECATED, see -console_src : use the OpenVGDB as a datasource.")
+	flag.Var(&useSS, "use_ss", "DEPRECATED, see -console_src : use the ScreenScraper.fr as a datasource.")
+}
+
 var hashFile = flag.String("hash_file", "", "The `file` containing hash information.")
 var romDir = flag.String("rom_dir", ".", "The `directory` containing the roms file to process.")
 var outputFile = flag.String("output_file", "gamelist.xml", "The XML `file` to output to.")
@@ -44,9 +55,6 @@ var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both 
 var noThumb = flag.Bool("no_thumb", false, "Don't add thumbnails to the gamelist.")
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
-var useGDB = flag.Bool("use_gdb", true, "Use the hash.csv and theGamesDB metadata.")
-var useOVGDB = flag.Bool("use_ovgdb", false, "Use the OpenVGDB if the hash isn't in hash.csv.")
-var useSS = flag.Bool("use_ss", false, "Use the ScreenScraper.fr as a datasource.")
 var region = flag.String("region", "us,eu,jp,fr,xx", "The order to choose for region if there is more than one for a value. (us, eu, jp, fr, xx)")
 var lang = flag.String("lang", "en", "The order to choose for language if there is more than one for a value. (en, fr, es, de, pt)")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
@@ -56,6 +64,7 @@ var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet.")
 var mameSrcs = flag.String("mame_src", "mamedb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
+var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to prefer console sources, ss=screenscraper, ovgdb=OpenVGDB, gdb=theGamesDB")
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
@@ -576,95 +585,144 @@ func main() {
 
 	var arcadeSources []ds.DS
 	var consoleSources []ds.DS
-	if *mame && !*scrapeAll {
-		*useGDB = false
-		*useOVGDB = false
+
+	if useGDB.set || useOVGDB.set || useSS.set {
+		log.Println("DEPRECATED: -use_* has been deprecated, use -console_src")
+		var v []string
+		if useGDB.v {
+			v = append(v, "gdb")
+		}
+		if useOVGDB.v {
+			v = append(v, "ovgdb")
+		}
+		if useSS.v {
+			v = append(v, "ss")
+		}
+		*consoleSrcs = strings.Join(v, ",")
 	}
+
+	if !*scrapeAll {
+		if *mame {
+			*consoleSrcs = ""
+		} else {
+			*mameSrcs = ""
+		}
+	}
+
+	log.Printf("arcade  srcs: %v", *mameSrcs)
+	log.Printf("console srcs: %v", *consoleSrcs)
+
+	var needHM, needHasher bool
+	cSrcNames := strings.Split(*consoleSrcs, ",")
+	aSrcNames := strings.Split(*mameSrcs, ",")
+	for _, s := range cSrcNames {
+		switch s {
+		case "gdb", "ss":
+			needHM = true
+			needHasher = true
+		case "ovgdb":
+			needHasher = true
+		}
+	}
+	for _, s := range aSrcNames {
+		switch s {
+		case "gdb":
+			needHM = true
+		}
+	}
+
 	var hasher *ds.Hasher
-	if *useGDB || *useOVGDB || *useSS {
-		var err error
+	var err error
+	if needHasher {
 		hasher, err = ds.NewHasher(sha1.New, *workers)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 	}
+
 	var hm *ds.HashMap
-	var err error
-	if *hashFile != "" {
-		hm, err = ds.FileHashMap(*hashFile)
-	} else {
-		hm, err = ds.CachedHashMap("")
-	}
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if *useGDB {
-		if !*skipCheck {
-			ok := gdb.IsUp()
-			if !ok {
-				fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
-				return
-			}
+	if needHM {
+		if *hashFile != "" {
+			hm, err = ds.FileHashMap(*hashFile)
+		} else {
+			hm, err = ds.CachedHashMap("")
 		}
-		consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 	}
+
 	dev, err := ss.DeobfuscateDevInfo()
 	if err != nil {
 		fmt.Printf("Can't access SS dev information: %q", err)
 		return
 	}
-	if *useSS {
-		ssDS := &ds.SS{
-			HM:     hm,
-			Hasher: hasher,
-			Dev:    dev,
-			User:   ss.UserInfo{*ssUser, *ssPassword},
-			Width:  int(*maxWidth),
-			Region: ssRegions,
-			Lang:   ssLangs,
-		}
-		consoleSources = append(consoleSources, ssDS)
-	}
-	if *useOVGDB {
-		o, err := ds.NewOVGDB(hasher)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		defer o.Close()
-		consoleSources = append(consoleSources, o)
-	}
-	consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
-	consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
-	consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
-	if *mame || *scrapeAll {
-		for _, src := range strings.Split(*mameSrcs, ",") {
-			switch src {
-			case "ss":
-				ssMDS := &ds.SSMAME{
-					Dev:    dev,
-					User:   ss.UserInfo{*ssUser, *ssPassword},
-					Width:  int(*maxWidth),
-					Region: ssRegions,
-					Lang:   ssLangs,
-				}
-				arcadeSources = append(arcadeSources, ssMDS)
-			case "mamedb":
-				mds, err := ds.NewMAME("")
-				if err != nil {
-					fmt.Println(err)
+
+	for _, src := range cSrcNames {
+		switch src {
+		case "":
+		case "gdb":
+			if !*skipCheck {
+				if ok := gdb.IsUp(); !ok {
+					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 					return
 				}
-				defer mds.Close()
-				arcadeSources = append(arcadeSources, mds)
-			case "gdb":
-				arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
-			default:
-				fmt.Printf("Invalid MAME source %q\n", src)
+			}
+			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
+			consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
+			consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
+			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
+		case "ss":
+			ssDS := &ds.SS{
+				HM:     hm,
+				Hasher: hasher,
+				Dev:    dev,
+				User:   ss.UserInfo{*ssUser, *ssPassword},
+				Width:  int(*maxWidth),
+				Region: ssRegions,
+				Lang:   ssLangs,
+			}
+			consoleSources = append(consoleSources, ssDS)
+		case "ovgdb":
+			o, err := ds.NewOVGDB(hasher)
+			if err != nil {
+				fmt.Println(err)
 				return
 			}
+			defer o.Close()
+			consoleSources = append(consoleSources, o)
+		default:
+			fmt.Printf("unknown console source :%q", src)
+			return
+		}
+	}
+	for _, src := range aSrcNames {
+		switch src {
+		case "":
+		case "ss":
+			ssMDS := &ds.SSMAME{
+				Dev:    dev,
+				User:   ss.UserInfo{*ssUser, *ssPassword},
+				Width:  int(*maxWidth),
+				Region: ssRegions,
+				Lang:   ssLangs,
+			}
+			arcadeSources = append(arcadeSources, ssMDS)
+		case "mamedb":
+			mds, err := ds.NewMAME("")
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			defer mds.Close()
+			arcadeSources = append(arcadeSources, mds)
+		case "gdb":
+			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+		default:
+			fmt.Printf("Invalid MAME source %q\n", src)
+			return
 		}
 	}
 
