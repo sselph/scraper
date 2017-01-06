@@ -279,7 +279,10 @@ func (s *SS) GetGame(path string) (*Game, error) {
 	ret.Source = "screenscraper.fr"
 	ret.GameTitle = game.Names.Original
 	ret.Overview = ssDesc(game.Desc, s.Lang)
-	ret.Rating = game.Rating / 20.0
+	game.Rating = strings.TrimSuffix(game.Rating, "/20")
+	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
+		ret.Rating = r / 20.0
+	}
 	ret.Developer = game.Developer
 	ret.Publisher = game.Publisher
 	ret.Genre = ssGenre(game.Genre, s.Lang)

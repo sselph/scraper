@@ -101,7 +101,7 @@ type Game struct {
 	Publisher string    `xml:"editeur"`
 	Developer string    `xml:"developpeur"`
 	Players   string    `xml:"joueurs"`
-	Rating    float64   `xml:"note"`
+	Rating    string    `xml:"note"`
 	Desc      GameDesc  `xml:"synopsis"`
 	Genre     GameGenre `xml:"genres"`
 	Media     GameMedia `xml:"medias"`
