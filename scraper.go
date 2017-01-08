@@ -139,10 +139,10 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 			xml, err := r.XML(xmlOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
+				res.Err = err
 				continue
 			}
 			res.XML = xml
-			res.Err = err
 			break
 		}
 		results <- res
