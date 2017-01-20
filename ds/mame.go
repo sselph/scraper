@@ -161,7 +161,7 @@ func updateMAMEDB(version, p string) error {
 	return nil
 }
 
-func getMAMEDB(p string) (*leveldb.DB, error) {
+func getMAMEDB(p string, u bool) (*leveldb.DB, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -183,9 +183,11 @@ func getMAMEDB(p string) (*leveldb.DB, error) {
 		}
 		version = strings.Trim(string(b[:]), "\n\r")
 	}
-	err = updateMAMEDB(version, p)
-	if err != nil {
-		return nil, err
+	if !exists(fp) || u {
+		err = updateMAMEDB(version, p)
+		if err != nil {
+			return nil, err
+		}
 	}
 	db, err := leveldb.OpenFile(fp, nil)
 	if err != nil {
@@ -195,8 +197,8 @@ func getMAMEDB(p string) (*leveldb.DB, error) {
 }
 
 // NewMAME returns a new MAME. MAME should be closed when not needed.
-func NewMAME(p string) (*MAME, error) {
-	db, err := getMAMEDB(p)
+func NewMAME(p string, u bool) (*MAME, error) {
+	db, err := getMAMEDB(p, u)
 	if err != nil {
 		return nil, err
 	}

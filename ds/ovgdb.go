@@ -178,7 +178,7 @@ func updateDB(version, p string) error {
 	return nil
 }
 
-func getDB(p string) (*leveldb.DB, error) {
+func getDB(p string, u bool) (*leveldb.DB, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -200,9 +200,11 @@ func getDB(p string) (*leveldb.DB, error) {
 		}
 		version = strings.Trim(string(b[:]), "\n\r")
 	}
-	err = updateDB(version, p)
-	if err != nil {
-		return nil, err
+	if !exists(fp) || u {
+		err = updateDB(version, p)
+		if err != nil {
+			return nil, err
+		}
 	}
 	db, err := leveldb.OpenFile(fp, nil)
 	if err != nil {
@@ -212,8 +214,8 @@ func getDB(p string) (*leveldb.DB, error) {
 }
 
 // NewOVGDB returns a new OVGDB. OVGDB should be closed when not needed.
-func NewOVGDB(h *Hasher) (*OVGDB, error) {
-	db, err := getDB("")
+func NewOVGDB(h *Hasher, u bool) (*OVGDB, error) {
+	db, err := getDB("", u)
 	if err != nil {
 		return nil, err
 	}

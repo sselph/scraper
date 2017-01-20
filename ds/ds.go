@@ -230,7 +230,7 @@ func exists(s string) bool {
 }
 
 // CachedHashMap gets the mapping of hashes to IDs.
-func CachedHashMap(p string) (*HashMap, error) {
+func CachedHashMap(p string, u bool) (*HashMap, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -239,6 +239,9 @@ func CachedHashMap(p string) (*HashMap, error) {
 		}
 	}
 	fp := filepath.Join(p, hashName)
+	if exists(fp) && !u {
+		return FileHashMap(fp)
+	}
 	mp := filepath.Join(p, hashMeta)
 	var version string
 	if exists(fp) && exists(mp) {

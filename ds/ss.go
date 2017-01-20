@@ -136,6 +136,7 @@ func ssFlyerURL(media ss.GameMedia, regions []RegionType, width, height int) str
 	}
 	return ""
 }
+
 // ssDate gets the date for the preferred region.
 func ssDate(dates ss.GameDates, regions []RegionType) string {
 	for _, r := range regions {

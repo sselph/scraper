@@ -80,6 +80,7 @@ var missing = flag.String("missing", "", "The `file` where information about ROM
 var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
 var ssUser = flag.String("ss_user", "", "The `username` for registered ScreenScraper users.")
 var ssPassword = flag.String("ss_password", "", "The `password` for registered ScreenScraper users.")
+var updateCache = flag.Bool("update_cache", true, "If false, don't check for updates on locally cached files.")
 
 var errUserCanceled = errors.New("user canceled")
 
@@ -648,7 +649,7 @@ func main() {
 		if *hashFile != "" {
 			hm, err = ds.FileHashMap(*hashFile)
 		} else {
-			hm, err = ds.CachedHashMap("")
+			hm, err = ds.CachedHashMap("", *updateCache)
 		}
 		if err != nil {
 			fmt.Println(err)
@@ -689,7 +690,7 @@ func main() {
 			}
 			consoleSources = append(consoleSources, ssDS)
 		case "ovgdb":
-			o, err := ds.NewOVGDB(hasher)
+			o, err := ds.NewOVGDB(hasher, *updateCache)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -715,7 +716,7 @@ func main() {
 			}
 			arcadeSources = append(arcadeSources, ssMDS)
 		case "mamedb":
-			mds, err := ds.NewMAME("")
+			mds, err := ds.NewMAME("", *updateCache)
 			if err != nil {
 				fmt.Println(err)
 				return

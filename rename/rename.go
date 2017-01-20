@@ -63,7 +63,7 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	hm, err := ds.CachedHashMap("")
+	hm, err := ds.CachedHashMap("", true)
 	if err != nil {
 		fmt.Println(err)
 		return
