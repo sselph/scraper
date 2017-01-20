@@ -104,6 +104,38 @@ func ss3DBoxURL(media ss.GameMedia, regions []RegionType, width, height int) str
 	return ""
 }
 
+// ssFlyerURL gets the URL for Flyer for the preferred region.
+func ssFlyerURL(media ss.GameMedia, regions []RegionType, width, height int) string {
+	for _, r := range regions {
+		switch r {
+		case RegionUS:
+			if media.FlyerUS != "" {
+				return ssImgURL(media.FlyerUS, width, height)
+			}
+		case RegionWOR:
+			if media.FlyerWOR != "" {
+				return ssImgURL(media.FlyerWOR, width, height)
+			}
+		case RegionEU:
+			if media.FlyerEU != "" {
+				return ssImgURL(media.FlyerEU, width, height)
+			}
+		case RegionFR:
+			if media.FlyerFR != "" {
+				return ssImgURL(media.FlyerFR, width, height)
+			}
+		case RegionJP:
+			if media.FlyerJP != "" {
+				return ssImgURL(media.FlyerJP, width, height)
+			}
+		case RegionXX:
+			if media.FlyerXX != "" {
+				return ssImgURL(media.FlyerXX, width, height)
+			}
+		}
+	}
+	return ""
+}
 // ssDate gets the date for the preferred region.
 func ssDate(dates ss.GameDates, regions []RegionType) string {
 	for _, r := range regions {

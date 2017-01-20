@@ -83,6 +83,12 @@ type GameMedia struct {
 	Box3DEU       string `xml:"media_boxs>media_boxs3d>media_box3d_eu"`
 	Box3DJP       string `xml:"media_boxs>media_boxs3d>media_box3d_jp"`
 	Box3DXX       string `xml:"media_boxs>media_boxs3d>media_box3d_xx"`
+	FlyerUS       string `xml:"media_flyers>media_flyer_us"`
+	FlyerWOR      string `xml:"media_flyers>media_flyer_wor"`
+	FlyerFR       string `xml:"media_flyers>media_flyer_fr"`
+	FlyerEU       string `xml:"media_flyers>media_flyer_eu"`
+	FlyerJP       string `xml:"media_flyers>media_flyer_jp"`
+	FlyerXX       string `xml:"media_flyers>media_flyer_xx"`
 }
 
 // GameDates is the date for many regions.

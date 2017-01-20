@@ -64,6 +64,10 @@ func (s *SSMAME) GetGame(path string) (*Game, error) {
 		ret.Images[ImgBoxart3D] = imgURL
 		ret.Thumbs[ImgBoxart3D] = imgURL
 	}
+	if imgURL := ssFlyerURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
+		ret.Images[ImgFlyer] = imgURL
+		ret.Thumbs[ImgFlyer] = imgURL
+	}
 	ret.ID = strconv.Itoa(game.ID)
 	ret.Source = "screenscraper.fr"
 	ret.GameTitle = game.Names.Original

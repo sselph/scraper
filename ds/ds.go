@@ -40,6 +40,7 @@ const (
 	ImgTitle    ImgType = "t"
 	ImgMarquee  ImgType = "m"
 	ImgCabinet  ImgType = "c"
+	ImgFlyer    ImgType = "fly"
 )
 
 // RegionType represents the different region types that sources may provide.
