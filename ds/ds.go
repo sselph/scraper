@@ -49,6 +49,7 @@ type RegionType string
 const (
 	RegionUnknown RegionType = ""
 	RegionUS      RegionType = "us"
+	RegionWOR     RegionType = "wor"
 	RegionEU      RegionType = "eu"
 	RegionFR      RegionType = "fr"
 	RegionJP      RegionType = "jp"

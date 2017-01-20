@@ -72,11 +72,13 @@ type GameMedia struct {
 	ScreenMarquee string `xml:"media_screenmarquee"`
 	Marquee       string `xml:"media_marquee"`
 	BoxUS         string `xml:"media_boxs>media_boxs2d>media_box2d_us"`
+	BoxWOR        string `xml:"media_boxs>media_boxs2d>media_box2d_wor"`
 	BoxFR         string `xml:"media_boxs>media_boxs2d>media_box2d_fr"`
 	BoxEU         string `xml:"media_boxs>media_boxs2d>media_box2d_eu"`
 	BoxJP         string `xml:"media_boxs>media_boxs2d>media_box2d_jp"`
 	BoxXX         string `xml:"media_boxs>media_boxs2d>media_box2d_xx"`
 	Box3DUS       string `xml:"media_boxs>media_boxs3d>media_box3d_us"`
+	Box3DWOR      string `xml:"media_boxs>media_boxs3d>media_box3d_wor"`
 	Box3DFR       string `xml:"media_boxs>media_boxs3d>media_box3d_fr"`
 	Box3DEU       string `xml:"media_boxs>media_boxs3d>media_box3d_eu"`
 	Box3DJP       string `xml:"media_boxs>media_boxs3d>media_box3d_jp"`
@@ -85,11 +87,12 @@ type GameMedia struct {
 
 // GameDates is the date for many regions.
 type GameDates struct {
-	US string `xml:"date_us"`
-	FR string `xml:"date_fr"`
-	EU string `xml:"date_eu"`
-	JP string `xml:"date_jp"`
-	XX string `xml:"date_xx"`
+	US  string `xml:"date_us"`
+	WOR string `xml:"date_wor"`
+	FR  string `xml:"date_fr"`
+	EU  string `xml:"date_eu"`
+	JP  string `xml:"date_jp"`
+	XX  string `xml:"date_xx"`
 }
 
 // Game represents a game in SS.

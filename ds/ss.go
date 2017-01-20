@@ -46,6 +46,10 @@ func ssBoxURL(media ss.GameMedia, regions []RegionType, width, height int) strin
 			if media.BoxUS != "" {
 				return ssImgURL(media.BoxUS, width, height)
 			}
+		case RegionWOR:
+			if media.BoxWOR != "" {
+				return ssImgURL(media.BoxWOR, width, height)
+			}
 		case RegionEU:
 			if media.BoxEU != "" {
 				return ssImgURL(media.BoxEU, width, height)
@@ -75,6 +79,10 @@ func ss3DBoxURL(media ss.GameMedia, regions []RegionType, width, height int) str
 			if media.Box3DUS != "" {
 				return ssImgURL(media.Box3DUS, width, height)
 			}
+		case RegionWOR:
+			if media.Box3DWOR != "" {
+				return ssImgURL(media.Box3DWOR, width, height)
+			}
 		case RegionEU:
 			if media.Box3DEU != "" {
 				return ssImgURL(media.Box3DEU, width, height)
@@ -103,6 +111,10 @@ func ssDate(dates ss.GameDates, regions []RegionType) string {
 		case RegionUS:
 			if dates.US != "" {
 				return toXMLDate(dates.US)
+			}
+		case RegionWOR:
+			if dates.WOR != "" {
+				return toXMLDate(dates.WOR)
 			}
 		case RegionEU:
 			if dates.EU != "" {
@@ -233,7 +245,7 @@ func romRegion(n string) RegionType {
 		case "(France)":
 			return RegionFR
 		case "(World)":
-			return RegionUnknown
+			return RegionWOR
 		}
 		n = n[s+e+1:]
 	}
