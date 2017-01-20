@@ -143,6 +143,11 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	u.RawQuery = q.Encode()
 	resp, err := http.Get(u.String())
 	if err != nil {
+		v := u.Query()
+		v.Set("devid", "xxx")
+		v.Set("devpassword", "yyy")
+		v.Set("softname", "zzz")
+		u.RawQuery = v.Encode()
 		return nil, fmt.Errorf("getting game url:%s, error:%s", u, err)
 	}
 	defer resp.Body.Close()
