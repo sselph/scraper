@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 const (
@@ -40,8 +41,8 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 	g.ReleaseDate = s[6]
 	g.Source = s[7]
 	if s[8] != "" {
-		g.Images[ImgBoxart] = s[8]
-		g.Thumbs[ImgBoxart] = s[8]
+		g.Images[ImgBoxart] = HTTPImage{s[8]}
+		g.Thumbs[ImgBoxart] = HTTPImage{s[8]}
 	}
 	return g, nil
 }

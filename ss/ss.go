@@ -2,17 +2,31 @@ package ss
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"strings"
+)
+
+// JSON field prefixes.
+const (
+	pre2D       = "media_box2d_"
+	pre3D       = "media_box3d_"
+	preFlyer    = "media_flyer_"
+	preDate     = "date_"
+	preGenre    = "genres_"
+	preSynopsis = "synopsis_"
 )
 
 const (
 	baseURL      = "http://www.screenscraper.fr/"
 	gameInfoPath = "api/jeuInfos.php"
+	userInfoPath = "api/ssuserInfos.php"
 )
 
 // ErrNotFound is the error returned when a ROM isn't found.
@@ -31,6 +45,18 @@ type UserInfo struct {
 	Password string
 }
 
+type UserInfoResp struct {
+	ID string `xml:"ssuser>id"`
+	Level int `xml:"ssuser>niveau"`
+	Contribution int `xml:"ssuser>contribution"`
+	UploadedSystems int `xml:"ssuser>uploadsysteme"`
+	UploadedInfo int `xml:"ssuser>uploadinfos"`
+	ROMsAssociated int `xml:"ssuser>romasso"`
+	UpdatedMedia int `xml:"ssuser>uploadmedia"`
+	FavoriteRegion string `xml:"ssuser>favregion"`
+	MaxThreads int `xml:"ssuser>maxthreads"`
+}
+
 // GameInfoReq is the information we use in the GameInfo command.
 type GameInfoReq struct {
 	Name    string
@@ -38,88 +64,192 @@ type GameInfoReq struct {
 	RomType string
 }
 
-// GameNames is the name in many languages.
-type GameNames struct {
-	Original string `xml:"nom_ss"`
-	EN       string `xml:"nom_us"`
-	FR       string `xml:"nom_fr"`
-	DE       string `xml:"nom_de"`
-	ES       string `xml:"nom_es"`
-	PT       string `xml:"nom_pt"`
+type BoxArt struct {
+	Box2D map[string]string `json:"media_boxs2d"`
+	Box3D map[string]string `json:"media_boxs3d"`
 }
 
-// GameDesc is the desc in many languages.
-type GameDesc struct {
-	EN string `xml:"synopsis_en"`
-	FR string `xml:"synopsis_fr"`
-	DE string `xml:"synopsis_de"`
-	ES string `xml:"synopsis_es"`
-	PT string `xml:"synopsis_pt"`
+type Media struct {
+	Screenshot    string            `json:"media_screenshot"`
+	ScreenMarquee string            `json:"media_screenmarquee"`
+	Marquee       string            `json:"media_marquee"`
+	Video         string            `json:"media_video"`
+	Flyers        map[string]string `json:"media_flyers"`
+	BoxArt        BoxArt            `json:"media_boxs"`
 }
 
-// GameGenre is the genre in many languages.
-type GameGenre struct {
-	EN []string `xml:"genres_en>genre_en"`
-	FR []string `xml:"genres_fr>genre_fr"`
-	DE []string `xml:"genres_de>genre_de"`
-	ES []string `xml:"genres_es>genre_es"`
-	PT []string `xml:"genres_pt>genre_pt"`
+func getPrefix(m map[string]string, pre string) (string, bool) {
+	for k, v := range m {
+		if strings.HasPrefix(k, pre) {
+			return v, true
+		}
+	}
+	return "", false
 }
 
-// GameMedia is the media for many regions.
-type GameMedia struct {
-	ScreenShot    string `xml:"media_screenshot"`
-	ScreenMarquee string `xml:"media_screenmarquee"`
-	Marquee       string `xml:"media_marquee"`
-	BoxUS         string `xml:"media_boxs>media_boxs2d>media_box2d_us"`
-	BoxWOR        string `xml:"media_boxs>media_boxs2d>media_box2d_wor"`
-	BoxFR         string `xml:"media_boxs>media_boxs2d>media_box2d_fr"`
-	BoxEU         string `xml:"media_boxs>media_boxs2d>media_box2d_eu"`
-	BoxJP         string `xml:"media_boxs>media_boxs2d>media_box2d_jp"`
-	BoxXX         string `xml:"media_boxs>media_boxs2d>media_box2d_xx"`
-	Box3DUS       string `xml:"media_boxs>media_boxs3d>media_box3d_us"`
-	Box3DWOR      string `xml:"media_boxs>media_boxs3d>media_box3d_wor"`
-	Box3DFR       string `xml:"media_boxs>media_boxs3d>media_box3d_fr"`
-	Box3DEU       string `xml:"media_boxs>media_boxs3d>media_box3d_eu"`
-	Box3DJP       string `xml:"media_boxs>media_boxs3d>media_box3d_jp"`
-	Box3DXX       string `xml:"media_boxs>media_boxs3d>media_box3d_xx"`
-	FlyerUS       string `xml:"media_flyers>media_flyer_us"`
-	FlyerWOR      string `xml:"media_flyers>media_flyer_wor"`
-	FlyerFR       string `xml:"media_flyers>media_flyer_fr"`
-	FlyerEU       string `xml:"media_flyers>media_flyer_eu"`
-	FlyerJP       string `xml:"media_flyers>media_flyer_jp"`
-	FlyerXX       string `xml:"media_flyers>media_flyer_xx"`
+func getSuffix(m map[string]string, pre string, suf []string) (string, bool) {
+	if m == nil {
+		return "", false
+	}
+	for _, x := range suf {
+		if i, ok := m[pre+x]; ok {
+			return i, true
+		}
+		if x == "xx" {
+			if i, ok := getPrefix(m, pre); ok {
+				return i, true
+			}
+		}
+	}
+	return "", false
 }
 
-// GameDates is the date for many regions.
-type GameDates struct {
-	US  string `xml:"date_us"`
-	WOR string `xml:"date_wor"`
-	FR  string `xml:"date_fr"`
-	EU  string `xml:"date_eu"`
-	JP  string `xml:"date_jp"`
-	XX  string `xml:"date_xx"`
+func (m Media) Box2D(r []string) (string, bool) {
+	return getSuffix(m.BoxArt.Box2D, pre2D, r)
 }
 
-// Game represents a game in SS.
+func (m Media) Box3D(r []string) (string, bool) {
+	return getSuffix(m.BoxArt.Box3D, pre3D, r)
+}
+
+func (m Media) Flyer(r []string) (string, bool) {
+	return getSuffix(m.Flyers, preFlyer, r)
+}
+
+type ROM struct {
+	FileName   string `json:"romfilename"`
+	SHA1       string `json:"romsha1"`
+	RegionsRaw string `json:"romregions"`
+}
+
+func (r ROM) Regions() []string {
+	var x []string
+	for _, p := range strings.Split(r.RegionsRaw, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		x = append(x, p)
+	}
+	return x
+}
+
 type Game struct {
-	ID        int       `xml:"id"`
-	Name      string    `xml:"nom"`
-	Names     GameNames `xml:"noms"`
-	Region    string    `xml:"region"`
-	Publisher string    `xml:"editeur"`
-	Developer string    `xml:"developpeur"`
-	Players   string    `xml:"joueurs"`
-	Rating    string    `xml:"note"`
-	Desc      GameDesc  `xml:"synopsis"`
-	Genre     GameGenre `xml:"genres"`
-	Media     GameMedia `xml:"medias"`
-	Dates     GameDates `xml:"dates"`
+	Synopsis  map[string]string   `json:"synopsis"`
+	ID        string              `json:"id"`
+	Name      string              `json:"nom"`
+	Names     map[string]string   `json:"noms"`
+	Regions   []string            `json:"regionshortnames"`
+	Publisher string              `json:"editeur"`
+	Developer string              `json:"developpeur"`
+	Players   string              `json:"joueurs"`
+	Rating    string              `json:"note"`
+	Dates     map[string]string   `json:"dates"`
+	Genres    map[string][]string `json:"genres:`
+	Media     Media               `json:"medias"`
+	ROMs      []ROM               `json:"roms"`
 }
 
-// GameInfoResp is the response from GameInfo.
+func (g Game) Date(r []string) (string, bool) {
+	return getSuffix(g.Dates, preDate, r)
+}
+
+func (g Game) Genre(l []string) (string, bool) {
+	genres := make(map[string]string)
+	for k, v := range g.Genres {
+		genres[k] = strings.Join(v, " / ")
+	}
+	return getSuffix(genres, preGenre, l)
+}
+
+func (g Game) Desc(l []string) (string, bool) {
+	return getSuffix(g.Synopsis, preSynopsis, l)
+}
+
+func (g Game) ROM(req GameInfoReq) ROM {
+	for _, x := range g.ROMs {
+		if x.SHA1 == req.SHA1 {
+			return x
+		}
+	}
+	for _, x := range g.ROMs {
+		if x.FileName == req.Name {
+			return x
+		}
+	}
+	return ROM{}
+}
+
+type Response struct {
+	Game Game `json:"jeu"`
+}
+
 type GameInfoResp struct {
-	Game Game `xml:"jeu"`
+	Response Response `json:"response"`
+}
+
+func SanitizeURL(s string) string {
+	u, err := url.Parse(s)
+	if err != nil {
+		return s
+	}
+	v := u.Query()
+	v.Set("devid", "xxx")
+	v.Set("devpassword", "yyy")
+	v.Set("softname", "zzz")
+	v.Del("ssid")
+	v.Del("sspassword")
+	u.RawQuery = v.Encode()
+	return u.String()
+}
+
+func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
+	u, err := url.Parse(baseURL)
+	u.Path = userInfoPath
+	q := url.Values{}
+	q.Set("output", "xml")
+	q.Set("devid", dev.ID)
+	q.Set("devpassword", dev.Password)
+	if dev.Name != "" {
+		q.Set("softname", dev.Name)
+	}
+	q.Set("ssid", user.ID)
+	q.Set("sspassword", user.Password)
+	u.RawQuery = q.Encode()
+	resp, err := http.Get(u.String())
+	if err != nil {
+		v := u.Query()
+		v.Set("devid", "xxx")
+		v.Set("devpassword", "yyy")
+		v.Set("softname", "zzz")
+		u.RawQuery = v.Encode()
+		return nil, fmt.Errorf("getting game url:%s, error:%s", u, err)
+	}
+	defer resp.Body.Close()
+	r := &UserInfoResp{}
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if err := xml.Unmarshal(b, r); err != nil {
+		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
+	}
+	return r, nil
+}
+
+func Threads(dev DevInfo, user UserInfo) int {
+	if user.ID == "" || user.Password == "" {
+		return 1
+	}
+	i, err := User(dev, user)
+	if err != nil {
+		log.Print("error getting allowed threads defaulting to 1")
+		return 1
+	}
+	if i.MaxThreads < 1 {
+		return 1
+	}
+	return i.MaxThreads
 }
 
 // GameInfo is the call to get game info.
@@ -127,6 +257,7 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	u, err := url.Parse(baseURL)
 	u.Path = gameInfoPath
 	q := url.Values{}
+	q.Set("output", "json")
 	q.Set("devid", dev.ID)
 	q.Set("devpassword", dev.Password)
 	if dev.Name != "" {
@@ -152,12 +283,11 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	u.RawQuery = q.Encode()
 	resp, err := http.Get(u.String())
 	if err != nil {
-		v := u.Query()
-		v.Set("devid", "xxx")
-		v.Set("devpassword", "yyy")
-		v.Set("softname", "zzz")
-		u.RawQuery = v.Encode()
-		return nil, fmt.Errorf("getting game url:%s, error:%s", u, err)
+		if uerr, ok := err.(*url.Error); ok {
+			uerr.URL = SanitizeURL(uerr.URL)
+			return nil, uerr
+		}
+		return nil, err
 	}
 	defer resp.Body.Close()
 	r := &GameInfoResp{}
@@ -168,8 +298,14 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	if bytes.HasPrefix(b, []byte("Erreur : Rom/Iso/Dossier non trouv")) {
 		return nil, ErrNotFound
 	}
-	if err := xml.Unmarshal(b, r); err != nil {
-		return nil, err
+	if err := json.Unmarshal(b, r); err != nil {
+		if err.Error() == "invalid character 'm' looking for beginning of value" {
+			return nil, fmt.Errorf("ss: cannot parse response(%s): %q", string(b), err)
+		}
+		if err.Error() == "invalid character 'A' looking for beginning of value" {
+			return nil, fmt.Errorf("ss: cannot parse response(%s): %q", string(b), err)
+		}
+		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
 	}
 	return r, nil
 }

@@ -56,7 +56,7 @@ var thumbOnly = flag.Bool("thumb_only", false, "Download the thumbnail for both 
 var noThumb = flag.Bool("no_thumb", false, "Don't add thumbnails to the gamelist.")
 var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net is up.")
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
-var region = flag.String("region", "us,wor,eu,jp,fr,xx", "The order to choose for region if there is more than one for a value. (us, wor, eu, jp, fr, xx)")
+var region = flag.String("region", "us,wor,eu,jp,fr,xx", "The order to choose for region if there is more than one for a value. xx is a special region that will choose any region.")
 var lang = flag.String("lang", "en", "The order to choose for language if there is more than one for a value. (en, fr, es, de, pt)")
 var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
@@ -564,8 +564,8 @@ func main() {
 	}
 	var aImg []ds.ImgType
 	var cImg []ds.ImgType
-	var ssRegions []ds.RegionType
-	var ssLangs []ds.LangType
+	var ssRegions []string
+	var ssLangs []string
 	for _, t := range strings.Split(*mameImg, ",") {
 		aImg = append(aImg, ds.ImgType(t))
 	}
@@ -573,10 +573,14 @@ func main() {
 		cImg = append(cImg, ds.ImgType(t))
 	}
 	for _, r := range strings.Split(*region, ",") {
-		ssRegions = append(ssRegions, ds.RegionType(r))
+		if r != "" {
+			ssRegions = append(ssRegions, r)
+		}
 	}
 	for _, l := range strings.Split(*lang, ",") {
-		ssLangs = append(ssLangs, ds.LangType(l))
+		if l != "" {
+			ssLangs = append(ssLangs, l)
+		}
 	}
 	gameOpts := &rom.GameOpts{
 		AddNotFound:    *addNotFound,
@@ -678,6 +682,11 @@ func main() {
 			consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
 		case "ss":
+			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
+			limit := make(chan struct{}, t)
+			for i := 0; i < t; i++ {
+				limit<-struct{}{}
+			}
 			ssDS := &ds.SS{
 				HM:     hm,
 				Hasher: hasher,
@@ -687,6 +696,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
+				Limit: limit,
 			}
 			consoleSources = append(consoleSources, ssDS)
 		case "ovgdb":
@@ -706,6 +716,11 @@ func main() {
 		switch src {
 		case "":
 		case "ss":
+			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
+			limit := make(chan struct{}, t)
+			for i := 0; i < t; i++ {
+				limit<-struct{}{}
+			}
 			ssMDS := &ds.SSMAME{
 				Dev:    dev,
 				User:   ss.UserInfo{*ssUser, *ssPassword},
@@ -713,6 +728,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
+				Limit: limit,
 			}
 			arcadeSources = append(arcadeSources, ssMDS)
 		case "mamedb":

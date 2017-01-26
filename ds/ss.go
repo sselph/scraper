@@ -1,12 +1,31 @@
 package ds
 
 import (
+	"fmt"
+	"image"
+	"image/jpeg"
+	"io"
+	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sselph/scraper/ss"
 )
+
+func ssXMLDate(d string) string {
+	switch len(d) {
+	case 10:
+		t, _ := time.Parse("2006-01-02", d)
+		return t.Format("20060102T000000")
+	case 4:
+		return fmt.Sprintf("%s0101T000000", d)
+	}
+	return ""
+}
 
 // SS is the source for ScreenScraper
 type SS struct {
@@ -14,10 +33,88 @@ type SS struct {
 	Hasher *Hasher
 	Dev    ss.DevInfo
 	User   ss.UserInfo
-	Lang   []LangType
-	Region []RegionType
+	Lang   []string
+	Region []string
 	Width  int
 	Height int
+	Limit  chan struct{}
+}
+
+type HTTPImageSS struct {
+	URL   string
+	Limit chan struct{}
+}
+
+func (i HTTPImageSS) fetch(width, height uint) (io.ReadCloser, error) {
+	u := ssImgURL(i.URL, int(width), int(height))
+	resp, err := http.Get(u)
+	if err != nil {
+		if uerr, ok := err.(*url.Error); ok {
+			uerr.URL = ss.SanitizeURL(uerr.URL)
+			return nil, uerr
+		}
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrImgNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v from $s", resp.StatusCode, ss.SanitizeURL(u))
+	}
+	return resp.Body, nil
+}
+
+func (i HTTPImageSS) Get(width, height uint) (image.Image, error) {
+	if i.Limit != nil {
+		<-i.Limit
+		defer func() {
+			i.Limit <- struct{}{}
+		}()
+	}
+	b, err := i.fetch(width, height)
+	if err != nil {
+		return nil, err
+	}
+	defer b.Close()
+	img, _, err := image.Decode(b)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
+}
+
+func (i HTTPImageSS) Save(p string, width, height uint) error {
+	if i.Limit != nil {
+		<-i.Limit
+		defer func() {
+			i.Limit <- struct{}{}
+		}()
+	}
+	b, err := i.fetch(width, height)
+	if err != nil {
+		return err
+	}
+	defer b.Close()
+	out, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	e := filepath.Ext(p)
+	switch e {
+	case ".jpg":
+		img, _, err := image.Decode(b)
+		if err != nil {
+			return nil
+		}
+		return jpeg.Encode(out, img, nil)
+	case ".png":
+		_, err := io.Copy(out, b)
+		return err
+	default:
+		return fmt.Errorf("Invalid image type.")
+	}
+	return nil
 }
 
 // getID gets the ID from the path.
@@ -38,254 +135,14 @@ func (s *SS) GetName(p string) string {
 	return name
 }
 
-// ssBoxURL gets the URL for BoxArt for the preferred region.
-func ssBoxURL(media ss.GameMedia, regions []RegionType, width, height int) string {
-	for _, r := range regions {
-		switch r {
-		case RegionUS:
-			if media.BoxUS != "" {
-				return ssImgURL(media.BoxUS, width, height)
-			}
-		case RegionWOR:
-			if media.BoxWOR != "" {
-				return ssImgURL(media.BoxWOR, width, height)
-			}
-		case RegionEU:
-			if media.BoxEU != "" {
-				return ssImgURL(media.BoxEU, width, height)
-			}
-		case RegionFR:
-			if media.BoxFR != "" {
-				return ssImgURL(media.BoxFR, width, height)
-			}
-		case RegionJP:
-			if media.BoxJP != "" {
-				return ssImgURL(media.BoxJP, width, height)
-			}
-		case RegionXX:
-			if media.BoxXX != "" {
-				return ssImgURL(media.BoxXX, width, height)
-			}
-		}
-	}
-	return ""
-}
-
-// ss3DBoxURL gets the URL for 3D-BoxArt for the preferred region.
-func ss3DBoxURL(media ss.GameMedia, regions []RegionType, width, height int) string {
-	for _, r := range regions {
-		switch r {
-		case RegionUS:
-			if media.Box3DUS != "" {
-				return ssImgURL(media.Box3DUS, width, height)
-			}
-		case RegionWOR:
-			if media.Box3DWOR != "" {
-				return ssImgURL(media.Box3DWOR, width, height)
-			}
-		case RegionEU:
-			if media.Box3DEU != "" {
-				return ssImgURL(media.Box3DEU, width, height)
-			}
-		case RegionFR:
-			if media.Box3DFR != "" {
-				return ssImgURL(media.Box3DFR, width, height)
-			}
-		case RegionJP:
-			if media.Box3DJP != "" {
-				return ssImgURL(media.Box3DJP, width, height)
-			}
-		case RegionXX:
-			if media.Box3DXX != "" {
-				return ssImgURL(media.Box3DXX, width, height)
-			}
-		}
-	}
-	return ""
-}
-
-// ssFlyerURL gets the URL for Flyer for the preferred region.
-func ssFlyerURL(media ss.GameMedia, regions []RegionType, width, height int) string {
-	for _, r := range regions {
-		switch r {
-		case RegionUS:
-			if media.FlyerUS != "" {
-				return ssImgURL(media.FlyerUS, width, height)
-			}
-		case RegionWOR:
-			if media.FlyerWOR != "" {
-				return ssImgURL(media.FlyerWOR, width, height)
-			}
-		case RegionEU:
-			if media.FlyerEU != "" {
-				return ssImgURL(media.FlyerEU, width, height)
-			}
-		case RegionFR:
-			if media.FlyerFR != "" {
-				return ssImgURL(media.FlyerFR, width, height)
-			}
-		case RegionJP:
-			if media.FlyerJP != "" {
-				return ssImgURL(media.FlyerJP, width, height)
-			}
-		case RegionXX:
-			if media.FlyerXX != "" {
-				return ssImgURL(media.FlyerXX, width, height)
-			}
-		}
-	}
-	return ""
-}
-
-// ssDate gets the date for the preferred region.
-func ssDate(dates ss.GameDates, regions []RegionType) string {
-	for _, r := range regions {
-		switch r {
-		case RegionUS:
-			if dates.US != "" {
-				return toXMLDate(dates.US)
-			}
-		case RegionWOR:
-			if dates.WOR != "" {
-				return toXMLDate(dates.WOR)
-			}
-		case RegionEU:
-			if dates.EU != "" {
-				return toXMLDate(dates.EU)
-			}
-		case RegionFR:
-			if dates.FR != "" {
-				return toXMLDate(dates.FR)
-			}
-		case RegionJP:
-			if dates.JP != "" {
-				return toXMLDate(dates.JP)
-			}
-		case RegionXX:
-			if dates.XX != "" {
-				return toXMLDate(dates.XX)
-			}
-		}
-	}
-	return ""
-}
-
-// ssDesc gets the desc for the preferred language.
-func ssDesc(desc ss.GameDesc, lang []LangType) string {
-	for _, l := range lang {
-		switch l {
-		case LangEN:
-			if desc.EN != "" {
-				return desc.EN
-			}
-		case LangFR:
-			if desc.FR != "" {
-				return desc.FR
-			}
-		case LangES:
-			if desc.ES != "" {
-				return desc.ES
-			}
-		case LangDE:
-			if desc.DE != "" {
-				return desc.DE
-			}
-		case LangPT:
-			if desc.PT != "" {
-				return desc.PT
-			}
-		}
-	}
-	return ""
-}
-
-// ssName gets the name for the preferred language, else the original.
-func ssName(name ss.GameNames, lang []LangType) string {
-	for _, l := range lang {
-		switch l {
-		case LangEN:
-			if name.EN != "" {
-				return name.EN
-			}
-		case LangFR:
-			if name.FR != "" {
-				return name.FR
-			}
-		case LangES:
-			if name.ES != "" {
-				return name.ES
-			}
-		case LangDE:
-			if name.DE != "" {
-				return name.DE
-			}
-		case LangPT:
-			if name.PT != "" {
-				return name.PT
-			}
-		}
-	}
-	return name.Original
-}
-
-// ssGenre gets the genre for the preferred language.
-func ssGenre(genre ss.GameGenre, lang []LangType) string {
-	for _, l := range lang {
-		switch l {
-		case LangEN:
-			if genre.EN != nil {
-				return strings.Join(genre.EN, ",")
-			}
-		case LangFR:
-			if genre.FR != nil {
-				return strings.Join(genre.FR, ",")
-			}
-		case LangES:
-			if genre.ES != nil {
-				return strings.Join(genre.ES, ",")
-			}
-		case LangDE:
-			if genre.DE != nil {
-				return strings.Join(genre.DE, ",")
-			}
-		case LangPT:
-			if genre.PT != nil {
-				return strings.Join(genre.PT, ",")
-			}
-		}
-	}
-	return ""
-}
-
-// romRegion extracts the region from the No-Intro name.
-func romRegion(n string) RegionType {
-	for {
-		s := strings.IndexRune(n, '(')
-		if s == -1 {
-			return RegionUnknown
-		}
-		e := strings.IndexRune(n[s:], ')')
-		if e == -1 {
-			return RegionUnknown
-		}
-		switch n[s : s+e+1] {
-		case "(USA)":
-			return RegionUS
-		case "(Europe)":
-			return RegionEU
-		case "(Japan)":
-			return RegionJP
-		case "(France)":
-			return RegionFR
-		case "(World)":
-			return RegionWOR
-		}
-		n = n[s+e+1:]
-	}
-}
-
 // GetGame implements DS
 func (s *SS) GetGame(path string) (*Game, error) {
+	if s.Limit != nil {
+		<-s.Limit
+		defer func() {
+			s.Limit <- struct{}{}
+		}()
+	}
 	id, err := s.getID(path)
 	if err != nil {
 		return nil, err
@@ -298,44 +155,40 @@ func (s *SS) GetGame(path string) (*Game, error) {
 		}
 		return nil, err
 	}
-	game := resp.Game
-
-	region := RegionUnknown
-	if name, ok := s.HM.Name(id); ok {
-		region = romRegion(name)
+	game := resp.Response.Game
+	var regions []string
+	for _, r := range game.ROM(req).Regions() {
+		regions = append(regions, r)
 	}
-	var regions []RegionType
-	if region != RegionUnknown {
-		regions = append([]RegionType{region}, s.Region...)
-	} else {
-		regions = s.Region
-	}
+	regions = append(regions, s.Region...)
 
 	ret := NewGame()
-	if game.Media.ScreenShot != "" {
-		ret.Images[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
-		ret.Thumbs[ImgScreen] = ssImgURL(game.Media.ScreenShot, s.Width, s.Height)
+	if game.Media.Screenshot != "" {
+		ret.Images[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
+		ret.Thumbs[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
 	}
-	if imgURL := ssBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
-		ret.Images[ImgBoxart] = imgURL
-		ret.Thumbs[ImgBoxart] = imgURL
+	if imgURL, ok := game.Media.Box2D(regions); ok {
+		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
+		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if imgURL := ss3DBoxURL(game.Media, regions, s.Width, s.Height); imgURL != "" {
-		ret.Images[ImgBoxart3D] = imgURL
-		ret.Thumbs[ImgBoxart3D] = imgURL
+	if imgURL, ok := game.Media.Box3D(regions); ok {
+		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
+		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
 	}
-	ret.ID = strconv.Itoa(game.ID)
+	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
-	ret.GameTitle = game.Names.Original
-	ret.Overview = ssDesc(game.Desc, s.Lang)
+	ret.GameTitle = game.Name
+	ret.Overview, _ = game.Desc(s.Lang)
 	game.Rating = strings.TrimSuffix(game.Rating, "/20")
 	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
 		ret.Rating = r / 20.0
 	}
 	ret.Developer = game.Developer
 	ret.Publisher = game.Publisher
-	ret.Genre = ssGenre(game.Genre, s.Lang)
-	ret.ReleaseDate = ssDate(game.Dates, s.Region)
+	ret.Genre, _ = game.Genre(s.Lang)
+	if r, ok := game.Date(s.Region); ok {
+		ret.ReleaseDate = ssXMLDate(r)
+	}
 	if strings.ContainsRune(game.Players, '-') {
 		x := strings.Split(game.Players, "-")
 		game.Players = x[len(x)-1]
@@ -344,7 +197,7 @@ func (s *SS) GetGame(path string) (*Game, error) {
 	if err == nil {
 		ret.Players = p
 	}
-	if ret.Overview == "" || (ret.ReleaseDate == "" && ret.Developer == "" && ret.Publisher == "" && ret.Images[ImgBoxart] == "" && ret.Images[ImgScreen] == "") {
+	if ret.Overview == "" && ret.Images[ImgBoxart] == nil && ret.Images[ImgScreen] == nil) {
 		return nil, ErrNotFound
 	}
 	return ret, nil

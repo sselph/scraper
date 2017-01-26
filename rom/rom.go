@@ -3,13 +3,7 @@ package rom
 import (
 	"bufio"
 	"encoding/xml"
-	"errors"
 	"fmt"
-	"image"
-	"image/jpeg"
-	"image/png"
-	"math"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,12 +12,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nfnt/resize"
 	"github.com/sselph/scraper/ds"
 )
 
 var lock chan struct{}
-var errNotFound = errors.New("not found")
 
 func init() {
 	SetMaxImg(runtime.NumCPU())
@@ -306,13 +298,7 @@ func mkDir(d string) error {
 }
 
 // getImage gets the image, resizes it and saves it to specified path.
-func getImage(url string, p string, w uint, h uint) error {
-	if w == 0 {
-		w = math.MaxUint32
-	}
-	if h == 0 {
-		h = math.MaxUint32
-	}
+func getImage(dsImg ds.Image, p string, w uint, h uint) error {
 	dir := filepath.Dir(p)
 	if _, ok := imgDirs[dir]; !ok {
 		err := mkDir(dir)
@@ -321,40 +307,11 @@ func getImage(url string, p string, w uint, h uint) error {
 		}
 		imgDirs[dir] = struct{}{}
 	}
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode == http.StatusNotFound {
-		return errNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%v from $s", resp.StatusCode, url)
-	}
-	defer resp.Body.Close()
 	<-lock
 	defer func() {
 		lock <- struct{}{}
 	}()
-	img, _, err := image.Decode(resp.Body)
-	if err != nil {
-		return err
-	}
-	img = resize.Thumbnail(w, h, img, resize.Bilinear)
-	out, err := os.Create(p)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	e := filepath.Ext(p)
-	switch e {
-	case ".jpg":
-		return jpeg.Encode(out, img, nil)
-	case ".png":
-		return png.Encode(out, img)
-	default:
-		return fmt.Errorf("Invalid image type.")
-	}
+	return dsImg.Save(p, w, h)
 }
 
 func exists(s string) bool {
@@ -407,16 +364,16 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 		return gxml, nil
 	}
 	for _, it := range opts.ImgPriority {
-		var imgURL string
+		var dsImg ds.Image
 		var ok bool
 		if opts.ThumbOnly {
-			imgURL, ok = r.Game.Thumbs[it]
+			dsImg, ok = r.Game.Thumbs[it]
 		} else {
-			imgURL, ok = r.Game.Images[it]
+			dsImg, ok = r.Game.Images[it]
 		}
 		if ok {
-			err := getImage(imgURL, imgPath, opts.ImgWidth, opts.ImgHeight)
-			if err == errNotFound {
+			err := getImage(dsImg, imgPath, opts.ImgWidth, opts.ImgHeight)
+			if err == ds.ErrImgNotFound {
 				continue
 			}
 			if err != nil {

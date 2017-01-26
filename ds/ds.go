@@ -5,8 +5,12 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io/ioutil"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -15,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nfnt/resize"
 )
 
 const (
@@ -23,8 +28,11 @@ const (
 	hashMeta = "hash.meta"
 )
 
-// ErrNotFound is the error returned when a rom can't be found in the soruce.
+// ErrNotFound is the error returned when a rom can't be found in the source.
 var ErrNotFound = errors.New("hash not found")
+
+// ErrImgNotFound is the error returned when a rom image can't be found.
+var ErrImgNotFound = errors.New("image not found")
 
 // ImgType represents the different image types that sources may provide.
 type ImgType string
@@ -43,32 +51,6 @@ const (
 	ImgFlyer    ImgType = "fly"
 )
 
-// RegionType represents the different region types that sources may provide.
-type RegionType string
-
-// Region types for Datasource options. Not all types are valid for all sources.
-const (
-	RegionUnknown RegionType = ""
-	RegionUS      RegionType = "us"
-	RegionWOR     RegionType = "wor"
-	RegionEU      RegionType = "eu"
-	RegionFR      RegionType = "fr"
-	RegionJP      RegionType = "jp"
-	RegionXX      RegionType = "xx"
-)
-
-// LangType represents the different language types that sources may provide.
-type LangType string
-
-// Lanuage types for Datasource options. Not all types are valid for all sources.
-const (
-	LangEN LangType = "en"
-	LangFR LangType = "fr"
-	LangES LangType = "es"
-	LangPT LangType = "pt"
-	LangDE LangType = "de"
-)
-
 // Game is the standard Game that all sources will return.
 // They don't have to populate all values.
 type Game struct {
@@ -76,8 +58,8 @@ type Game struct {
 	Source      string
 	GameTitle   string
 	Overview    string
-	Images      map[ImgType]string
-	Thumbs      map[ImgType]string
+	Images      map[ImgType]Image
+	Thumbs      map[ImgType]Image
 	Rating      float64
 	ReleaseDate string
 	Developer   string
@@ -89,8 +71,8 @@ type Game struct {
 // NewGame returns a new Game.
 func NewGame() *Game {
 	g := &Game{}
-	g.Images = make(map[ImgType]string)
-	g.Thumbs = make(map[ImgType]string)
+	g.Images = make(map[ImgType]Image)
+	g.Thumbs = make(map[ImgType]Image)
 	return g
 }
 
@@ -100,6 +82,66 @@ type DS interface {
 	GetName(string) string
 	// GetGame takes an id and returns the Game.
 	GetGame(string) (*Game, error)
+}
+
+type Image interface {
+	Get(w, h uint) (image.Image, error)
+	Save(p string, w, h uint) error
+}
+
+type HTTPImage struct {
+	URL string
+}
+
+func (i HTTPImage) Get(w, h uint) (image.Image, error) {
+	return getImage(i.URL, w, h)
+}
+
+func (i HTTPImage) Save(p string, w, h uint) error {
+	img, err := i.Get(w, h)
+	if err != nil {
+		return err
+	}
+	out, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	e := filepath.Ext(p)
+	switch e {
+	case ".jpg":
+		return jpeg.Encode(out, img, nil)
+	case ".png":
+		return png.Encode(out, img)
+	default:
+		return fmt.Errorf("Invalid image type.")
+	}
+}
+
+func getImage(url string, w, h uint) (image.Image, error) {
+	if w == 0 {
+		w = math.MaxUint32
+	}
+	if h == 0 {
+		h = math.MaxUint32
+	}
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrImgNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v from $s", resp.StatusCode, url)
+	}
+	defer resp.Body.Close()
+	img, _, err := image.Decode(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	img = resize.Thumbnail(w, h, img, resize.Bilinear)
+	return img, nil
 }
 
 // mkDir checks if directory exists and if it doesn't create it.
