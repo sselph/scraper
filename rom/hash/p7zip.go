@@ -21,7 +21,11 @@ func decode7Zip(f string) (io.ReadCloser, error) {
 				continue
 			}
 			rs := e.Size
-			return decoder(rf, int64(rs))
+			rom, err := decoder(rf, int64(rs))
+			if err != nil {
+				continue
+			}
+			return rom, nil
 		}
 	}
 	return nil, fmt.Errorf("No valid roms found in 7zip.")
