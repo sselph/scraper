@@ -46,15 +46,15 @@ type UserInfo struct {
 }
 
 type UserInfoResp struct {
-	ID string `xml:"ssuser>id"`
-	Level int `xml:"ssuser>niveau"`
-	Contribution int `xml:"ssuser>contribution"`
-	UploadedSystems int `xml:"ssuser>uploadsysteme"`
-	UploadedInfo int `xml:"ssuser>uploadinfos"`
-	ROMsAssociated int `xml:"ssuser>romasso"`
-	UpdatedMedia int `xml:"ssuser>uploadmedia"`
-	FavoriteRegion string `xml:"ssuser>favregion"`
-	MaxThreads int `xml:"ssuser>maxthreads"`
+	ID              string `xml:"ssuser>id"`
+	Level           int    `xml:"ssuser>niveau"`
+	Contribution    int    `xml:"ssuser>contribution"`
+	UploadedSystems int    `xml:"ssuser>uploadsysteme"`
+	UploadedInfo    int    `xml:"ssuser>uploadinfos"`
+	ROMsAssociated  int    `xml:"ssuser>romasso"`
+	UpdatedMedia    int    `xml:"ssuser>uploadmedia"`
+	FavoriteRegion  string `xml:"ssuser>favregion"`
+	MaxThreads      int    `xml:"ssuser>maxthreads"`
 }
 
 // GameInfoReq is the information we use in the GameInfo command.
@@ -135,31 +135,44 @@ func (r ROM) Regions() []string {
 }
 
 type Game struct {
-	Synopsis  map[string]string   `json:"synopsis"`
-	ID        string              `json:"id"`
-	Name      string              `json:"nom"`
-	Names     map[string]string   `json:"noms"`
-	Regions   []string            `json:"regionshortnames"`
-	Publisher string              `json:"editeur"`
-	Developer string              `json:"developpeur"`
-	Players   string              `json:"joueurs"`
-	Rating    string              `json:"note"`
-	Dates     map[string]string   `json:"dates"`
-	Genres    map[string][]string `json:"genres:`
-	Media     Media               `json:"medias"`
-	ROMs      []ROM               `json:"roms"`
+	Synopsis  map[string]string          `json:"synopsis"`
+	ID        string                     `json:"id"`
+	Name      string                     `json:"nom"`
+	Names     map[string]string          `json:"noms"`
+	Regions   []string                   `json:"regionshortnames"`
+	Publisher string                     `json:"editeur"`
+	Developer string                     `json:"developpeur"`
+	Players   string                     `json:"joueurs"`
+	Rating    string                     `json:"note"`
+	Dates     map[string]string          `json:"dates"`
+	Genres    map[string]json.RawMessage `json:"genres:`
+	Media     Media                      `json:"medias"`
+	ROMs      []ROM                      `json:"roms"`
+	genres    map[string]string
 }
 
 func (g Game) Date(r []string) (string, bool) {
 	return getSuffix(g.Dates, preDate, r)
 }
 
-func (g Game) Genre(l []string) (string, bool) {
-	genres := make(map[string]string)
+func (g *Game) decodeGenre() {
+	g.genres = make(map[string]string)
 	for k, v := range g.Genres {
-		genres[k] = strings.Join(v, " / ")
+		if strings.HasSuffix(k, "_medias") || strings.HasSuffix(k, "_id") {
+			continue
+		}
+		s := []string{}
+		if err := json.Unmarshal(v, &s); err == nil {
+			g.genres[k] = strings.Join(s, " / ")
+		}
 	}
-	return getSuffix(genres, preGenre, l)
+}
+
+func (g Game) Genre(l []string) (string, bool) {
+	if g.genres == nil {
+		g.decodeGenre()
+	}
+	return getSuffix(g.genres, preGenre, l)
 }
 
 func (g Game) Desc(l []string) (string, bool) {

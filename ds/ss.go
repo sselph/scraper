@@ -197,7 +197,7 @@ func (s *SS) GetGame(path string) (*Game, error) {
 	if err == nil {
 		ret.Players = p
 	}
-	if (ret.Overview == "" && ret.Images[ImgBoxart] == nil && ret.Images[ImgScreen] == nil) {
+	if ret.Overview == "" && ret.Images[ImgBoxart] == nil && ret.Images[ImgScreen] == nil {
 		return nil, ErrNotFound
 	}
 	return ret, nil

@@ -685,7 +685,7 @@ func main() {
 			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
 			limit := make(chan struct{}, t)
 			for i := 0; i < t; i++ {
-				limit<-struct{}{}
+				limit <- struct{}{}
 			}
 			ssDS := &ds.SS{
 				HM:     hm,
@@ -696,7 +696,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
-				Limit: limit,
+				Limit:  limit,
 			}
 			consoleSources = append(consoleSources, ssDS)
 		case "ovgdb":
@@ -719,7 +719,7 @@ func main() {
 			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
 			limit := make(chan struct{}, t)
 			for i := 0; i < t; i++ {
-				limit<-struct{}{}
+				limit <- struct{}{}
 			}
 			ssMDS := &ds.SSMAME{
 				Dev:    dev,
@@ -728,7 +728,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
-				Limit: limit,
+				Limit:  limit,
 			}
 			arcadeSources = append(arcadeSources, ssMDS)
 		case "mamedb":
