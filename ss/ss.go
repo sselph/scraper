@@ -64,18 +64,40 @@ type GameInfoReq struct {
 	RomType string
 }
 
+type SafeStringMap struct {
+	Map map[string]string
+}
+
+func (s *SafeStringMap) UnmarshalJSON(b []byte) error {
+	if s.Map == nil {
+		s.Map = make(map[string]string)
+	}
+	x := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(b, &x); err != nil {
+		log.Print("json: %v", err)
+		return nil
+	}
+	for k, v := range x {
+		var y string
+		if err := json.Unmarshal(v, &y); err == nil {
+			s.Map[k] = y
+		}
+	}
+	return nil
+}
+
 type BoxArt struct {
-	Box2D map[string]string `json:"media_boxs2d"`
-	Box3D map[string]string `json:"media_boxs3d"`
+	Box2D SafeStringMap `json:"media_boxs2d"`
+	Box3D SafeStringMap `json:"media_boxs3d"`
 }
 
 type Media struct {
-	Screenshot    string            `json:"media_screenshot"`
-	ScreenMarquee string            `json:"media_screenmarquee"`
-	Marquee       string            `json:"media_marquee"`
-	Video         string            `json:"media_video"`
-	Flyers        map[string]string `json:"media_flyers"`
-	BoxArt        BoxArt            `json:"media_boxs"`
+	Screenshot    string        `json:"media_screenshot"`
+	ScreenMarquee string        `json:"media_screenmarquee"`
+	Marquee       string        `json:"media_marquee"`
+	Video         string        `json:"media_video"`
+	Flyers        SafeStringMap `json:"media_flyers"`
+	BoxArt        BoxArt        `json:"media_boxs"`
 }
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
@@ -105,15 +127,15 @@ func getSuffix(m map[string]string, pre string, suf []string) (string, bool) {
 }
 
 func (m Media) Box2D(r []string) (string, bool) {
-	return getSuffix(m.BoxArt.Box2D, pre2D, r)
+	return getSuffix(m.BoxArt.Box2D.Map, pre2D, r)
 }
 
 func (m Media) Box3D(r []string) (string, bool) {
-	return getSuffix(m.BoxArt.Box3D, pre3D, r)
+	return getSuffix(m.BoxArt.Box3D.Map, pre3D, r)
 }
 
 func (m Media) Flyer(r []string) (string, bool) {
-	return getSuffix(m.Flyers, preFlyer, r)
+	return getSuffix(m.Flyers.Map, preFlyer, r)
 }
 
 type ROM struct {
@@ -135,16 +157,16 @@ func (r ROM) Regions() []string {
 }
 
 type Game struct {
-	Synopsis  map[string]string          `json:"synopsis"`
+	Synopsis  SafeStringMap              `json:"synopsis"`
 	ID        string                     `json:"id"`
 	Name      string                     `json:"nom"`
-	Names     map[string]string          `json:"noms"`
+	Names     SafeStringMap              `json:"noms"`
 	Regions   []string                   `json:"regionshortnames"`
 	Publisher string                     `json:"editeur"`
 	Developer string                     `json:"developpeur"`
 	Players   string                     `json:"joueurs"`
 	Rating    string                     `json:"note"`
-	Dates     map[string]string          `json:"dates"`
+	Dates     SafeStringMap              `json:"dates"`
 	Genres    map[string]json.RawMessage `json:"genres:`
 	Media     Media                      `json:"medias"`
 	ROMs      []ROM                      `json:"roms"`
@@ -152,7 +174,7 @@ type Game struct {
 }
 
 func (g Game) Date(r []string) (string, bool) {
-	return getSuffix(g.Dates, preDate, r)
+	return getSuffix(g.Dates.Map, preDate, r)
 }
 
 func (g *Game) decodeGenre() {
@@ -176,12 +198,12 @@ func (g Game) Genre(l []string) (string, bool) {
 }
 
 func (g Game) Desc(l []string) (string, bool) {
-	return getSuffix(g.Synopsis, preSynopsis, l)
+	return getSuffix(g.Synopsis.Map, preSynopsis, l)
 }
 
 func (g Game) ROM(req GameInfoReq) ROM {
 	for _, x := range g.ROMs {
-		if x.SHA1 == req.SHA1 {
+		if strings.ToLower(x.SHA1) == strings.ToLower(req.SHA1) {
 			return x
 		}
 	}
