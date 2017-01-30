@@ -231,14 +231,13 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		return nil
 	}
 
-	extraMap := make(map[string]struct{})
 	if *extraExt != "" {
 		extraSlice := strings.Split(*extraExt, ",")
 		for _, e := range extraSlice {
 			if e[0] != '.' {
-				extraMap["."+e] = struct{}{}
+				rh.AddExtra("."+e)
 			} else {
-				extraMap[e] = struct{}{}
+				rh.AddExtra(e)
 			}
 		}
 	}
@@ -404,15 +403,14 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			log.Printf("ERR: Processing: %s, %s", f, err)
 			continue
 		}
-		_, isExtra := extraMap[r.Ext]
 		if *mame {
-			if r.Ext == ".zip" || r.Ext == ".7z" || isExtra {
+			if r.Ext == ".zip" || r.Ext == ".7z" || rh.HasExtra(r.Ext) {
 				roms <- r
 			}
 			continue
 		}
 		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || isExtra || r.Ext == ".daphne" || r.Ext == ".7z") {
+		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || r.Ext == ".daphne" || r.Ext == ".7z") {
 			roms <- r
 		}
 	}

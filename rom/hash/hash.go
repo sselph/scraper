@@ -12,6 +12,32 @@ import (
 	"strings"
 )
 
+var extra map[string]bool
+
+func init() {
+	extra = make(map[string]bool)
+}
+
+func AddExtra(e ...string) {
+	for _, x := range e {
+		extra[strings.ToLower(x)] = true
+	}
+}
+
+func DelExtra(e ...string) {
+	for _, x := range e {
+		delete(extra, strings.ToLower(x))
+	}
+}
+
+func HasExtra(e string) bool {
+	return extra[e]
+}
+
+func ClearExtra() {
+	extra = make(map[string]bool)
+}
+
 type decoder func(io.ReadCloser, int64) (io.ReadCloser, error)
 
 // Noop does nothong but return the passed in file.
@@ -283,7 +309,8 @@ func decodeSNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 }
 
 func getDecoder(ext string) (decoder, bool) {
-	switch strings.ToLower(ext) {
+	ext = strings.ToLower(ext)
+	switch ext {
 	case ".bin", ".a26", ".a52", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".32x", ".gg",
 		".pce", ".sms", ".col", ".ngp", ".ngc", ".sg", ".int", ".vb", ".vec", ".gam", ".j64",
 		".jag", ".mgw", ".nds", ".fds":
@@ -305,7 +332,7 @@ func getDecoder(ext string) (decoder, bool) {
 	case ".smc", ".sfc", ".fig", ".swc":
 		return decodeSNES, true
 	default:
-		return noop, false
+		return noop, extra[ext]
 	}
 }
 
