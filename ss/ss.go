@@ -102,7 +102,7 @@ type Media struct {
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
 	for k, v := range m {
-		if strings.HasPrefix(k, pre) {
+		if strings.HasPrefix(k, pre) && !strings.Contains(strings.TrimPrefix(k, pre), "_") {
 			return v, true
 		}
 	}
