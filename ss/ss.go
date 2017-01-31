@@ -338,10 +338,10 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	}
 	if err := json.Unmarshal(b, r); err != nil {
 		if err.Error() == "invalid character 'm' looking for beginning of value" {
-			return nil, fmt.Errorf("ss: cannot parse response(%s): %q", string(b), err)
+			return nil, fmt.Errorf("ss: %s", string(b))
 		}
 		if err.Error() == "invalid character 'A' looking for beginning of value" {
-			return nil, fmt.Errorf("ss: cannot parse response(%s): %q", string(b), err)
+			return nil, fmt.Errorf("ss: %s", string(b))
 		}
 		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
 	}
