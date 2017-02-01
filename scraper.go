@@ -672,7 +672,7 @@ func main() {
 			if !*skipCheck {
 				if ok := gdb.IsUp(); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
-					return
+					continue
 				}
 			}
 			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
