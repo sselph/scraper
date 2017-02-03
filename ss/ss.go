@@ -333,7 +333,7 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 	if bytes.HasPrefix(b, []byte("Erreur : Rom/Iso/Dossier non trouv")) {
 		return nil, ErrNotFound
 	}
-	if bytes.HasPrefix(b, []byte("Erreur : Jeu non trouv!")) {
+	if bytes.HasPrefix(b, []byte("Erreur : Jeu non trouv")) {
 		return nil, ErrNotFound
 	}
 	if err := json.Unmarshal(b, r); err != nil {
