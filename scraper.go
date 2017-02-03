@@ -235,7 +235,7 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		extraSlice := strings.Split(*extraExt, ",")
 		for _, e := range extraSlice {
 			if e[0] != '.' {
-				rh.AddExtra("."+e)
+				rh.AddExtra("." + e)
 			} else {
 				rh.AddExtra(e)
 			}

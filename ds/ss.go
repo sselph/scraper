@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -45,7 +46,7 @@ type HTTPImageSS struct {
 	Limit chan struct{}
 }
 
-func (i HTTPImageSS) fetch(width, height uint) (io.ReadCloser, error) {
+func (i HTTPImageSS) fetch(width, height uint) (rc io.ReadCloser, err error) {
 	u := ssImgURL(i.URL, int(width), int(height))
 	resp, err := http.Get(u)
 	if err != nil {
@@ -55,11 +56,20 @@ func (i HTTPImageSS) fetch(width, height uint) (io.ReadCloser, error) {
 		}
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			resp.Body.Close()
+		}
+	}()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrImgNotFound
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("%v from $s", resp.StatusCode, ss.SanitizeURL(u))
+		return nil, fmt.Errorf("%v from %s", resp.StatusCode, ss.SanitizeURL(u))
+	}
+	if resp.Header.Get("Content-Type") != "image/png" {
+		b, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%s from %s", string(b), ss.SanitizeURL(u))
 	}
 	return resp.Body, nil
 }
