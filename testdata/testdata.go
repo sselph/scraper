@@ -110,6 +110,26 @@ func New() (*Data, error) {
 	}
 	data.Files = append(data.Files, File{Path: z64Path, SHA1: "00ba552537f953776b37a05230e9f1c2f6d4c145"})
 
+	//Bad N64
+	v64Path = filepath.Join(dir, "test-bad-v64.v64")
+	n64Path = filepath.Join(dir, "test-bad-n64.v64")
+	z64Path = filepath.Join(dir, "test-bad-z64.v64")
+	err = ioutil.WriteFile(v64Path, []byte{0, 0x80, 0, 0, 0, 0}, 0777)
+	if err != nil {
+		return data, err
+	}
+	data.Files = append(data.Files, File{Path: v64Path, SHA1: "a5d06af4902696ab97fd92747bc7886c990dfed5"})
+	err = ioutil.WriteFile(n64Path, []byte{0, 0, 0, 0x80, 0, 0}, 0777)
+	if err != nil {
+		return data, err
+	}
+	data.Files = append(data.Files, File{Path: n64Path, SHA1: "a5d06af4902696ab97fd92747bc7886c990dfed5"})
+	err = ioutil.WriteFile(z64Path, []byte{0x80, 0, 0, 0, 0, 0}, 0777)
+	if err != nil {
+		return data, err
+	}
+	data.Files = append(data.Files, File{Path: z64Path, SHA1: "a5d06af4902696ab97fd92747bc7886c990dfed5"})
+
 	// SNES
 	snesFile1 := make([]byte, 1024)
 	snesFile2 := make([]byte, 1536)

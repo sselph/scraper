@@ -187,6 +187,9 @@ func noSwap(b []byte) {}
 func zSwap(b []byte) {
 	l := len(b)
 	for i := 0; i < l; i += 4 {
+		if l-i < 4 {
+			continue
+		}
 		b[i+1], b[i] = b[i], b[i+1]
 		b[i+3], b[i+2] = b[i+2], b[i+3]
 	}
@@ -195,6 +198,9 @@ func zSwap(b []byte) {
 func nSwap(b []byte) {
 	l := len(b)
 	for i := 0; i < l; i += 4 {
+		if l-i < 4 {
+			continue
+		}
 		b[i+2], b[i] = b[i], b[i+2]
 		b[i+3], b[i+1] = b[i+1], b[i+3]
 	}
