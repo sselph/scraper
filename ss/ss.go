@@ -24,7 +24,7 @@ const (
 )
 
 const (
-	baseURL      = "http://www.screenscraper.fr/"
+	baseURL      = "https://www.screenscraper.fr/"
 	gameInfoPath = "api/jeuInfos.php"
 	userInfoPath = "api/ssuserInfos.php"
 )
