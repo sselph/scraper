@@ -2,9 +2,9 @@ package ds
 
 import (
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strconv"
-	"path/filepath"
 
 	"github.com/sselph/scraper/adb"
 )
@@ -12,7 +12,7 @@ import (
 var bioRE = regexp.MustCompile(`- (CAST|CONTRIBUTE|PORTS|SCORING|SERIES|STAFF|TECHNICAL|TRIVIA|UPDATES) -`)
 
 // ADB is a Data Source using arcadeitalia and arcade-history.
-type ADB struct {}
+type ADB struct{}
 
 // getID gets the ID for the game..
 func (a *ADB) getID(p string) (string, error) {

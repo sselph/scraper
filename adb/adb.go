@@ -1,17 +1,17 @@
 package adb
 
-import(
+import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"encoding/json"
-	"io/ioutil"
 )
 
 const (
 	baseURL = "http://adb.arcadeitalia.net"
-	path = "/service_scraper.php"
+	path    = "/service_scraper.php"
 )
 
 var Source = "adb.arcadeitalia.net"
@@ -20,19 +20,19 @@ var Source = "adb.arcadeitalia.net"
 var ErrNotFound = errors.New("rom not found")
 
 type Result struct {
-	ID string `json:"game_name"`
-	Genre string `json:"genre"`
-	History string `json:"history"`
-	CopyRightLong string `json:"history_copyright_long"`
+	ID             string `json:"game_name"`
+	Genre          string `json:"genre"`
+	History        string `json:"history"`
+	CopyRightLong  string `json:"history_copyright_long"`
 	CopyRightShort string `json:"history_copyright_short"`
-	Manufacturer string `json:"manufacturer"`
-	Players string `json:"players"`
-	Name string `json:"title"`
-	Cabinet string `json:"url_image_cabinet"`
-	Snap string `json:"url_image_ingame"`
-	Marquee string `json:"url_image_marquee"`
-	Title string `json:"url_image_title"`
-	Year string `json:"year"`
+	Manufacturer   string `json:"manufacturer"`
+	Players        string `json:"players"`
+	Name           string `json:"title"`
+	Cabinet        string `json:"url_image_cabinet"`
+	Snap           string `json:"url_image_ingame"`
+	Marquee        string `json:"url_image_marquee"`
+	Title          string `json:"url_image_title"`
+	Year           string `json:"year"`
 }
 
 type GameResp struct {
