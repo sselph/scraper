@@ -64,7 +64,7 @@ var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are 
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet, b=boxart, 3b=3D-boxart, fly=flyer.")
-var mameSrcs = flag.String("mame_src", "mamedb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
+var mameSrcs = flag.String("mame_src", "mamedb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, adb=arcadeitalia, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
 var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to prefer console sources, ss=screenscraper, ovgdb=OpenVGDB, gdb=theGamesDB")
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
@@ -739,6 +739,8 @@ func main() {
 			arcadeSources = append(arcadeSources, mds)
 		case "gdb":
 			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+		case "adb":
+			arcadeSources = append(arcadeSources, &ds.ADB{})
 		default:
 			fmt.Printf("Invalid MAME source %q\n", src)
 			return
