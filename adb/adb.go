@@ -32,6 +32,7 @@ type Result struct {
 	Snap           string `json:"url_image_ingame"`
 	Marquee        string `json:"url_image_marquee"`
 	Title          string `json:"url_image_title"`
+	Flyer          string `json:"url_image_flyer"`
 	Year           string `json:"year"`
 }
 

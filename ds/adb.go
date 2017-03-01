@@ -70,5 +70,9 @@ func (a *ADB) GetGame(p string) (*Game, error) {
 		game.Images[ImgCabinet] = HTTPImage{g.Cabinet}
 		game.Thumbs[ImgCabinet] = HTTPImage{g.Cabinet}
 	}
+	if g.Flyer != "" {
+		game.Images[ImgFlyer] = HTTPImage{g.Flyer}
+		game.Thumbs[ImgFlyer] = HTTPImage{g.Flyer}
+	}
 	return game, nil
 }
