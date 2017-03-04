@@ -2,6 +2,7 @@ package ss
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -238,7 +239,7 @@ func SanitizeURL(s string) string {
 	return u.String()
 }
 
-func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
+func User(ctx context.Context, dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	u, err := url.Parse(baseURL)
 	u.Path = userInfoPath
 	q := url.Values{}
@@ -251,7 +252,12 @@ func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	q.Set("ssid", user.ID)
 	q.Set("sspassword", user.Password)
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		v := u.Query()
 		v.Set("devid", "xxx")
@@ -272,11 +278,11 @@ func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	return r, nil
 }
 
-func Threads(dev DevInfo, user UserInfo) int {
+func Threads(ctx context.Context, dev DevInfo, user UserInfo) int {
 	if user.ID == "" || user.Password == "" {
 		return 1
 	}
-	i, err := User(dev, user)
+	i, err := User(ctx, dev, user)
 	if err != nil {
 		log.Print("error getting allowed threads defaulting to 1")
 		return 1
@@ -288,7 +294,7 @@ func Threads(dev DevInfo, user UserInfo) int {
 }
 
 // GameInfo is the call to get game info.
-func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error) {
+func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error) {
 	u, err := url.Parse(baseURL)
 	u.Path = gameInfoPath
 	q := url.Values{}
@@ -316,7 +322,12 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 		q.Set("romnom", req.Name)
 	}
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	hReq, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	hReq = hReq.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(hReq)
 	if err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			uerr.URL = SanitizeURL(uerr.URL)

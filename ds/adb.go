@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -27,12 +28,12 @@ func (a *ADB) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (a *ADB) GetGame(p string) (*Game, error) {
+func (a *ADB) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := a.getID(p)
 	if err != nil {
 		return nil, err
 	}
-	r, err := adb.GetGame(id)
+	r, err := adb.GetGame(ctx, id)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package ds
 
 import (
 	"archive/zip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -89,7 +90,7 @@ func (o *OVGDB) getID(p string) (string, error) {
 }
 
 // GetGame implements DS.
-func (o *OVGDB) GetGame(p string) (*Game, error) {
+func (o *OVGDB) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := o.getID(p)
 	if err != nil {
 		return nil, err
@@ -109,13 +110,14 @@ func (o *OVGDB) Close() error {
 	return o.db.Close()
 }
 
-func updateDB(version, p string) error {
+func updateDB(ctx context.Context, version, p string) error {
 	log.Print("INFO: Checking for new OpenVGDB.")
 	req, err := http.NewRequest("GET", zipURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("if-none-match", version)
+	req = req.WithContext(ctx)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -179,7 +181,7 @@ func updateDB(version, p string) error {
 	return nil
 }
 
-func getDB(p string, u bool) (*leveldb.DB, error) {
+func getDB(ctx context.Context, p string, u bool) (*leveldb.DB, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -202,7 +204,7 @@ func getDB(p string, u bool) (*leveldb.DB, error) {
 		version = strings.Trim(string(b[:]), "\n\r")
 	}
 	if !exists(fp) || u {
-		err = updateDB(version, p)
+		err = updateDB(ctx, version, p)
 		if err != nil {
 			return nil, err
 		}
@@ -215,8 +217,8 @@ func getDB(p string, u bool) (*leveldb.DB, error) {
 }
 
 // NewOVGDB returns a new OVGDB. OVGDB should be closed when not needed.
-func NewOVGDB(h *Hasher, u bool) (*OVGDB, error) {
-	db, err := getDB("", u)
+func NewOVGDB(ctx context.Context, h *Hasher, u bool) (*OVGDB, error) {
+	db, err := getDB(ctx, "", u)
 	if err != nil {
 		return nil, err
 	}

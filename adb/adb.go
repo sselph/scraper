@@ -1,6 +1,7 @@
 package adb
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,7 +42,7 @@ type GameResp struct {
 }
 
 // GetGame gets a game from mamedb.
-func GetGame(name string) (*GameResp, error) {
+func GetGame(ctx context.Context, name string) (*GameResp, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -52,7 +53,12 @@ func GetGame(name string) (*GameResp, error) {
 	q.Set("lang", "en")
 	q.Set("game_name", name)
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

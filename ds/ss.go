@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -46,9 +47,14 @@ type HTTPImageSS struct {
 	Limit chan struct{}
 }
 
-func (i HTTPImageSS) fetch(width, height uint) (rc io.ReadCloser, err error) {
+func (i HTTPImageSS) fetch(ctx context.Context, width, height uint) (rc io.ReadCloser, err error) {
 	u := ssImgURL(i.URL, int(width), int(height))
-	resp, err := http.Get(u)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			uerr.URL = ss.SanitizeURL(uerr.URL)
@@ -74,14 +80,14 @@ func (i HTTPImageSS) fetch(width, height uint) (rc io.ReadCloser, err error) {
 	return resp.Body, nil
 }
 
-func (i HTTPImageSS) Get(width, height uint) (image.Image, error) {
+func (i HTTPImageSS) Get(ctx context.Context, width, height uint) (image.Image, error) {
 	if i.Limit != nil {
 		<-i.Limit
 		defer func() {
 			i.Limit <- struct{}{}
 		}()
 	}
-	b, err := i.fetch(width, height)
+	b, err := i.fetch(ctx, width, height)
 	if err != nil {
 		return nil, err
 	}
@@ -93,14 +99,14 @@ func (i HTTPImageSS) Get(width, height uint) (image.Image, error) {
 	return img, nil
 }
 
-func (i HTTPImageSS) Save(p string, width, height uint) error {
+func (i HTTPImageSS) Save(ctx context.Context, p string, width, height uint) error {
 	if i.Limit != nil {
 		<-i.Limit
 		defer func() {
 			i.Limit <- struct{}{}
 		}()
 	}
-	b, err := i.fetch(width, height)
+	b, err := i.fetch(ctx, width, height)
 	if err != nil {
 		return err
 	}
@@ -146,7 +152,7 @@ func (s *SS) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (s *SS) GetGame(path string) (*Game, error) {
+func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	if s.Limit != nil {
 		<-s.Limit
 		defer func() {
@@ -158,7 +164,7 @@ func (s *SS) GetGame(path string) (*Game, error) {
 		return nil, err
 	}
 	req := ss.GameInfoReq{SHA1: id}
-	resp, err := ss.GameInfo(s.Dev, s.User, req)
+	resp, err := ss.GameInfo(ctx, s.Dev, s.User, req)
 	if err != nil {
 		if err == ss.ErrNotFound {
 			return nil, ErrNotFound

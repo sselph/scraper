@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -45,13 +46,13 @@ func (d *Daphne) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (d *Daphne) GetGame(p string) (*Game, error) {
+func (d *Daphne) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := d.getID(p)
 	if err != nil {
 		return nil, err
 	}
 	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(req)
+	resp, err := gdb.GetGame(ctx, req)
 	if err != nil {
 		return nil, err
 	}

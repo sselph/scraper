@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -69,13 +70,13 @@ func (g *GDB) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (g *GDB) GetGame(p string) (*Game, error) {
+func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := g.getID(p)
 	if err != nil {
 		return nil, err
 	}
 	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(req)
+	resp, err := gdb.GetGame(ctx, req)
 	if err != nil {
 		return nil, err
 	}

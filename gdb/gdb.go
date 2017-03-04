@@ -5,6 +5,7 @@
 package gdb
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -93,7 +94,7 @@ type Game struct {
 }
 
 // GetGame gets the game information from the DB.
-func GetGame(req GGReq) (*GGResp, error) {
+func GetGame(ctx context.Context, req GGReq) (*GGResp, error) {
 	u, err := url.Parse(gdbURL)
 	u.Path = ggPath
 	q := url.Values{}
@@ -109,7 +110,12 @@ func GetGame(req GGReq) (*GGResp, error) {
 		return nil, fmt.Errorf("must provide an ID or Name")
 	}
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	hReq, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	hReq = hReq.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(hReq)
 	if err != nil {
 		return nil, fmt.Errorf("getting game url:%s, error:%s", u, err)
 	}
@@ -127,7 +133,7 @@ func GetGame(req GGReq) (*GGResp, error) {
 }
 
 // GetGameList gets the game information from the DB.
-func GetGameList(req GGLReq) (*GGLResp, error) {
+func GetGameList(ctx context.Context, req GGLReq) (*GGLResp, error) {
 	u, err := url.Parse(gdbURL)
 	u.Path = gglPath
 	q := url.Values{}
@@ -142,7 +148,12 @@ func GetGameList(req GGLReq) (*GGLResp, error) {
 		q.Set("genre", req.Genre)
 	}
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	hReq, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	hReq = hReq.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(hReq)
 	if err != nil {
 		return nil, fmt.Errorf("getting game list url:%s, error:%s", u, err)
 	}
@@ -160,13 +171,18 @@ func GetGameList(req GGLReq) (*GGLResp, error) {
 }
 
 // IsUp returns if thegamedb.net is up.
-func IsUp() bool {
+func IsUp(ctx context.Context) bool {
 	u, err := url.Parse(gdbURL)
 	u.Path = ggPath
 	q := url.Values{}
 	q.Set("id", "1")
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	hReq, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return false
+	}
+	hReq = hReq.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(hReq)
 	if err != nil {
 		return false
 	}

@@ -11,6 +11,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 package mamedb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -57,11 +58,16 @@ type Game struct {
 }
 
 // GetGame gets a game from mamedb.
-func GetGame(name string) (*Game, error) {
+func GetGame(ctx context.Context, name string) (*Game, error) {
 	var g Game
 	g.Source = "mamedb.blu-ferret.co.uk"
 	g.ID = name
-	resp, err := http.Get(path + name)
+	req, err := http.NewRequest("GET", path+name, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

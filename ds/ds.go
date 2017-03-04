@@ -2,6 +2,7 @@ package ds
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -81,24 +82,24 @@ type DS interface {
 	// GetName takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
 	GetName(string) string
 	// GetGame takes an id and returns the Game.
-	GetGame(string) (*Game, error)
+	GetGame(context.Context, string) (*Game, error)
 }
 
 type Image interface {
-	Get(w, h uint) (image.Image, error)
-	Save(p string, w, h uint) error
+	Get(ctx context.Context, w, h uint) (image.Image, error)
+	Save(ctx context.Context, p string, w, h uint) error
 }
 
 type HTTPImage struct {
 	URL string
 }
 
-func (i HTTPImage) Get(w, h uint) (image.Image, error) {
-	return getImage(i.URL, w, h)
+func (i HTTPImage) Get(ctx context.Context, w, h uint) (image.Image, error) {
+	return getImage(ctx, i.URL, w, h)
 }
 
-func (i HTTPImage) Save(p string, w, h uint) error {
-	img, err := i.Get(w, h)
+func (i HTTPImage) Save(ctx context.Context, p string, w, h uint) error {
+	img, err := i.Get(ctx, w, h)
 	if err != nil {
 		return err
 	}
@@ -118,14 +119,19 @@ func (i HTTPImage) Save(p string, w, h uint) error {
 	}
 }
 
-func getImage(url string, w, h uint) (image.Image, error) {
+func getImage(ctx context.Context, url string, w, h uint) (image.Image, error) {
 	if w == 0 {
 		w = math.MaxUint32
 	}
 	if h == 0 {
 		h = math.MaxUint32
 	}
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -223,13 +229,14 @@ func DefaultCachePath() (string, error) {
 }
 
 // updateHash downloads the latest hash file.
-func updateHash(version, p string) error {
+func updateHash(ctx context.Context, version, p string) error {
 	log.Print("INFO: Checking for new hash.csv.")
 	req, err := http.NewRequest("GET", hashURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("if-none-match", version)
+	req = req.WithContext(ctx)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -272,7 +279,7 @@ func exists(s string) bool {
 }
 
 // CachedHashMap gets the mapping of hashes to IDs.
-func CachedHashMap(p string, u bool) (*HashMap, error) {
+func CachedHashMap(ctx context.Context, p string, u bool) (*HashMap, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -293,7 +300,7 @@ func CachedHashMap(p string, u bool) (*HashMap, error) {
 		}
 		version = strings.Trim(string(b[:]), "\n\r")
 	}
-	err = updateHash(version, p)
+	err = updateHash(ctx, version, p)
 	if err != nil {
 		return nil, err
 	}
