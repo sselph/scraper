@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha1"
 	"flag"
 	"fmt"
@@ -57,13 +58,14 @@ func rename(source *ds.GDB, files []string) error {
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	hasher, err := ds.NewHasher(sha1.New, 1)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	hm, err := ds.CachedHashMap("", true)
+	hm, err := ds.CachedHashMap(ctx, "", true)
 	if err != nil {
 		fmt.Println(err)
 		return
