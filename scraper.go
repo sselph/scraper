@@ -289,7 +289,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 	if !*mame {
 		err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
 			if done(ctx) {
-				return errUserCanceled
+				return ctx.Err()
 			}
 			if err != nil {
 				log.Printf("ERR: Processing: %s, %s", f, err)
@@ -323,13 +323,13 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 			roms <- r
 			return nil
 		})
-		if err != nil && err != errUserCanceled {
+		if err != nil && err != context.Canceled {
 			return err
 		}
 	}
 	err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
 		if done(ctx) {
-			return errUserCanceled
+			return ctx.Err()
 		}
 		if err != nil {
 			log.Printf("ERR: Processing: %s, %s", f, err)
@@ -367,7 +367,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 		}
 		return nil
 	})
-	if err != nil && err != errUserCanceled {
+	if err != nil && err != context.Canceled {
 		return err
 	}
 	close(roms)
