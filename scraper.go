@@ -19,7 +19,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kr/fs"
 	"github.com/mitchellh/go-homedir"
 	"github.com/sselph/scraper/ds"
 	"github.com/sselph/scraper/gdb"
@@ -98,32 +97,40 @@ func dirExists(s string) bool {
 	return !os.IsNotExist(err) && fi.IsDir()
 }
 
+func isHidden(f string) bool {
+	b := filepath.Base(f)
+	return b != "." && strings.HasPrefix(b, ".")
+}
+
 type result struct {
 	ROM *rom.ROM
 	XML *rom.GameXML
 	Err error
 }
 
+func done(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
 // worker is a function to process roms from a channel.
 func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
-	var stop bool
-	go func() {
-		<-ctx.Done()
-		stop = true
-	}()
 	for r := range roms {
-		if stop {
-			continue
+		if done(ctx) {
+			break
 		}
 		res := result{ROM: r}
 		for try := 0; try <= *retries; try++ {
-			if stop {
+			if done(ctx) {
 				break
 			}
 			log.Printf("INFO: Starting: %s", r.Path)
-			err := r.GetGame(ctx, sources, gameOpts)
-			if err != nil {
+			if err := r.GetGame(ctx, sources, gameOpts); err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				res.Err = err
 				if err == ds.ErrNotFound {
@@ -176,7 +183,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 		}
 	}
 
-	existing := make(map[string]struct{})
+	existing := make(map[string]bool)
 
 	if !dirExists(xmlOpts.RomDir) {
 		log.Printf("ERR %s: does not exists", xmlOpts.RomDir)
@@ -206,9 +213,9 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 		}
 		switch {
 		case *appendOut:
-			existing[f] = struct{}{}
+			existing[f] = true
 		case *refreshOut:
-			existing[x.Path] = struct{}{}
+			existing[x.Path] = true
 		}
 	}
 	gl.GameList = filterGL
@@ -263,7 +270,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 					log.Printf("ERR: Can't write to %s", *missing)
 				}
 			}
-			if _, ok := existing[r.XML.Path]; ok && *refreshOut {
+			if existing[r.XML.Path] && *refreshOut {
 				for i, g := range gl.GameList {
 					if g.Path != r.XML.Path {
 						continue
@@ -278,94 +285,97 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 			gl.Append(r.XML)
 		}
 	}()
-	var stop bool
-	go func() {
-		for {
-			<-ctx.Done()
-			if !stop {
-				stop = true
-				for _ = range roms {
-				}
-				continue
-			}
-		}
-	}()
-	bins := make(map[string]struct{})
+	bins := make(map[string]bool)
 	if !*mame {
-		walker := fs.Walk(xmlOpts.RomDir)
-		for walker.Step() {
-			if stop {
-				break
+		err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
+			if done(ctx) {
+				return errUserCanceled
 			}
-			if err := walker.Err(); err != nil {
-				return err
+			if err != nil {
+				log.Printf("ERR: Processing: %s, %s", f, err)
+				return nil
 			}
-			f := walker.Path()
-			if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
-				walker.SkipDir()
-				continue
+			if isHidden(f) {
+				if fi.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if fi.IsDir() {
+				return nil
 			}
 			r, err := rom.NewROM(f)
 			if err != nil {
 				log.Printf("ERR: Processing: %s, %s", f, err)
-				continue
+				return nil
 			}
 			if !r.Cue {
-				continue
+				return nil
 			}
 			for _, b := range r.Bins {
-				bins[b] = struct{}{}
+				bins[b] = true
 			}
-			bins[f] = struct{}{}
-			if _, ok := existing[f]; !*refreshOut && ok {
+			bins[f] = true
+			if existing[f] && !*refreshOut {
 				log.Printf("INFO: Skipping %s, already in gamelist.", f)
-				continue
+				return nil
 			}
 			roms <- r
-		}
-	}
-	walker := fs.Walk(xmlOpts.RomDir)
-	for walker.Step() {
-		if stop {
-			break
-		}
-		if err := walker.Err(); err != nil {
+			return nil
+		})
+		if err != nil && err != errUserCanceled {
 			return err
 		}
-		f := walker.Path()
-		if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
-			walker.SkipDir()
-			continue
+	}
+	err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
+		if done(ctx) {
+			return errUserCanceled
+		}
+		if err != nil {
+			log.Printf("ERR: Processing: %s, %s", f, err)
+			return nil
+		}
+		if isHidden(f) {
+			if fi.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if fi.IsDir() {
+			return nil
 		}
 		if filepath.Ext(f) == ".daphne" {
-			walker.SkipDir()
+			return filepath.SkipDir
 		}
-		if _, ok := existing[f]; !*refreshOut && ok {
+		if existing[f] && !*refreshOut {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
-			continue
+			return nil
 		}
 		r, err := rom.NewROM(f)
 		if err != nil {
 			log.Printf("ERR: Processing: %s, %s", f, err)
-			continue
+			return nil
 		}
 		if *mame {
 			if r.Ext == ".zip" || r.Ext == ".7z" || rh.HasExtra(r.Ext) {
 				roms <- r
 			}
-			continue
+			return nil
 		}
-		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || r.Ext == ".daphne" || r.Ext == ".7z") {
+		if !bins[f] && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || r.Ext == ".daphne" || r.Ext == ".7z") {
 			roms <- r
 		}
+		return nil
+	})
+	if err != nil && err != errUserCanceled {
+		return err
 	}
 	close(roms)
 	wg.Wait()
 	wg.Add(1)
 	close(results)
 	wg.Wait()
-	if stop {
+	if done(ctx) {
 		return errUserCanceled
 	}
 	return nil

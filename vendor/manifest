@@ -52,14 +52,6 @@
 			"notests": true
 		},
 		{
-			"importpath": "github.com/kr/fs",
-			"repository": "https://github.com/kr/fs",
-			"vcs": "git",
-			"revision": "2788f0dbd16903de03cb8186e5c7d97b69ad387b",
-			"branch": "master",
-			"notests": true
-		},
-		{
 			"importpath": "github.com/mattn/go-sqlite3",
 			"repository": "https://github.com/mattn/go-sqlite3",
 			"vcs": "git",
