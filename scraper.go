@@ -28,17 +28,6 @@ import (
 	rh "github.com/sselph/scraper/rom/hash"
 )
 
-var useGDB optBool
-var useOVGDB optBool
-var useSS optBool
-
-func init() {
-	useGDB.v = true
-	flag.Var(&useGDB, "use_gdb", "DEPRECATED, see -console_src : use the theGamesDB as a datasource.")
-	flag.Var(&useOVGDB, "use_ovgdb", "DEPRECATED, see -console_src : use the OpenVGDB as a datasource.")
-	flag.Var(&useSS, "use_ss", "DEPRECATED, see -console_src : use the ScreenScraper.fr as a datasource.")
-}
-
 var hashFile = flag.String("hash_file", "", "The `file` containing hash information.")
 var romDir = flag.String("rom_dir", ".", "The `directory` containing the roms file to process.")
 var outputFile = flag.String("output_file", "gamelist.xml", "The XML `file` to output to.")
@@ -69,7 +58,6 @@ var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to pr
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
-var gdbImg = flag.String("gdb_img", "", "Deprecated, see console_img. This will be removed soon.")
 var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart.")
 var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to write the images.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
@@ -500,10 +488,6 @@ func main() {
 		fmt.Println(versionStr)
 		return
 	}
-	if *gdbImg != "" {
-		log.Println("DEPRECATED: -gdb_img has been deprecated, use -console_img")
-		*consoleImg = *gdbImg
-	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	if *startPprof {
 		go http.ListenAndServe(":8080", nil)
@@ -556,21 +540,6 @@ func main() {
 
 	var arcadeSources []ds.DS
 	var consoleSources []ds.DS
-
-	if useGDB.set || useOVGDB.set || useSS.set {
-		log.Println("DEPRECATED: -use_* has been deprecated, use -console_src")
-		var v []string
-		if useGDB.v {
-			v = append(v, "gdb")
-		}
-		if useOVGDB.v {
-			v = append(v, "ovgdb")
-		}
-		if useSS.v {
-			v = append(v, "ss")
-		}
-		*consoleSrcs = strings.Join(v, ",")
-	}
 
 	if !*scrapeAll {
 		if *mame {
