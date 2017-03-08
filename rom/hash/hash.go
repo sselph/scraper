@@ -348,6 +348,9 @@ func KnownExt(ext string) bool {
 	if ext == ".zip" {
 		return true
 	}
+	if ext == ".7z" {
+		return true
+	}
 	if ext == ".gz" {
 		return true
 	}
@@ -360,6 +363,10 @@ func decode(p string) (io.ReadCloser, error) {
 	ext := strings.ToLower(path.Ext(p))
 	if ext == ".zip" {
 		r, err := decodeZip(p)
+		return r, err
+	}
+	if ext == ".7z" {
+		r, err := decode7Zip(p)
 		return r, err
 	}
 	if ext == ".gz" {
