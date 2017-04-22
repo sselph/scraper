@@ -7,7 +7,6 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -359,7 +358,6 @@ func KnownExt(ext string) bool {
 // decode takes a path and returns a reader for the inner rom data.
 func decode(p string) (io.ReadCloser, error) {
 	ext := strings.ToLower(path.Ext(p))
-	log.Printf("%s: %s: %t", p, ext, has7z)
 	if ext == ".zip" {
 		return decodeZip(p)
 	}
@@ -367,7 +365,6 @@ func decode(p string) (io.ReadCloser, error) {
 		return decodeGZip(p)
 	}
 	if ext == ".7z" && has7z {
-		log.Print("7zip")
 		return decode7Zip(p)
 	}
 	decode, _ := getDecoder(ext)

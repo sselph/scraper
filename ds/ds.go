@@ -50,6 +50,8 @@ const (
 	ImgMarquee  ImgType = "m"
 	ImgCabinet  ImgType = "c"
 	ImgFlyer    ImgType = "fly"
+	ImgMix3     ImgType = "mix3"
+	ImgMix4     ImgType = "mix4"
 )
 
 // Game is the standard Game that all sources will return.

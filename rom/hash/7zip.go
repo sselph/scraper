@@ -2,7 +2,6 @@ package hash
 
 import (
 	"fmt"
-	"log"
 	"io"
 	"os"
 	"os/exec"
@@ -25,7 +24,6 @@ func init() {
 func decode7Zip(f string) (io.ReadCloser, error) {
 	r, err := lzmadec.NewArchive(f)
 	if err != nil {
-		log.Printf("Skipping: %s: %q", f, err)
 		return nil, err
 	}
 	for _, e := range r.Entries {
@@ -33,18 +31,14 @@ func decode7Zip(f string) (io.ReadCloser, error) {
 		if decoder, ok := getDecoder(ext); ok {
 			rf, err := r.GetFileReader(e.Path)
 			if err != nil {
-				log.Printf("Skipping: %s: %q", e.Path, err)
 				continue
 			}
 			rom, err := decoder(rf, e.Size)
 			if err != nil {
-				log.Printf("Skipping: %s: %q", e.Path, err)
 				continue
 			}
-			log.Printf("Found: %s", e.Path)
 			return rom, nil
 		}
-		log.Printf("Skipping: %s", e.Path)
 	}
 	return nil, fmt.Errorf("No valid roms found in 7zip.")
 }

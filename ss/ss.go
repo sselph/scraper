@@ -16,12 +16,14 @@ import (
 
 // JSON field prefixes.
 const (
-	pre2D       = "media_box2d_"
-	pre3D       = "media_box3d_"
-	preFlyer    = "media_flyer_"
-	preDate     = "date_"
-	preGenre    = "genres_"
-	preSynopsis = "synopsis_"
+	pre2D        = "media_box2d_"
+	pre3D        = "media_box3d_"
+	preFlyer     = "media_flyer_"
+	preWheel     = "media_wheel_"
+	preSupport2D = "media_support2d"
+	preDate      = "date_"
+	preGenre     = "genres_"
+	preSynopsis  = "synopsis_"
 )
 
 const (
@@ -99,6 +101,8 @@ type Media struct {
 	Video         string        `json:"media_video"`
 	Flyers        SafeStringMap `json:"media_flyers"`
 	BoxArt        BoxArt        `json:"media_boxs"`
+	Wheels        SafeStringMap `json:"media_wheels"`
+	Support2Ds    SafeStringMap `json:"media_supports2d"`
 }
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
@@ -137,6 +141,14 @@ func (m Media) Box3D(r []string) (string, bool) {
 
 func (m Media) Flyer(r []string) (string, bool) {
 	return getSuffix(m.Flyers.Map, preFlyer, r)
+}
+
+func (m Media) Wheel(r []string) (string, bool) {
+	return getSuffix(m.Wheels.Map, preWheel, r)
+}
+
+func (m Media) Support2D(r []string) (string, bool) {
+	return getSuffix(m.Support2Ds.Map, preSupport2D, r)
 }
 
 type ROM struct {

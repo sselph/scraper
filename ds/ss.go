@@ -179,18 +179,31 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	regions = append(regions, s.Region...)
 
 	ret := NewGame()
+	var screen, box, cart, wheel Image
 	if game.Media.Screenshot != "" {
-		ret.Images[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
-		ret.Thumbs[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
+		screen = HTTPImageSS{game.Media.Screenshot, s.Limit}
+		ret.Images[ImgScreen] = screen
+		ret.Thumbs[ImgScreen] = screen
 	}
 	if imgURL, ok := game.Media.Box2D(regions); ok {
 		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 	}
 	if imgURL, ok := game.Media.Box3D(regions); ok {
-		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
+		box = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[ImgBoxart3D] = box
+		ret.Thumbs[ImgBoxart3D] = box
 	}
+	if imgURL, ok := game.Media.Wheel(regions); ok {
+		wheel = HTTPImageSS{imgURL, s.Limit}
+	}
+	if imgURL, ok := game.Media.Support2D(regions); ok {
+		cart = HTTPImageSS{imgURL, s.Limit}
+	}
+	ret.Images[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
+	ret.Thumbs[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
+	ret.Images[ImgMix4] = MixImage{StandardFour(screen, box, cart, wheel)}
+	ret.Thumbs[ImgMix4] = MixImage{StandardFour(screen, box, cart, wheel)}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
 	ret.GameTitle = game.Name
