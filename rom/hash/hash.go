@@ -7,6 +7,7 @@ import (
 	"hash"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path"
 	"strings"
@@ -345,10 +346,10 @@ func getDecoder(ext string) (decoder, bool) {
 // KnownExt returns true if the ext is recognized.
 func KnownExt(ext string) bool {
 	ext = strings.ToLower(ext)
-	if ext == ".zip" {
+	if ext == ".zip" || ext == ".gz" {
 		return true
 	}
-	if ext == ".gz" {
+	if ext == ".7z" && has7z {
 		return true
 	}
 	_, ok := getDecoder(ext)
@@ -358,13 +359,16 @@ func KnownExt(ext string) bool {
 // decode takes a path and returns a reader for the inner rom data.
 func decode(p string) (io.ReadCloser, error) {
 	ext := strings.ToLower(path.Ext(p))
+	log.Printf("%s: %s: %t", p, ext, has7z)
 	if ext == ".zip" {
-		r, err := decodeZip(p)
-		return r, err
+		return decodeZip(p)
 	}
 	if ext == ".gz" {
-		r, err := decodeGZip(p)
-		return r, err
+		return decodeGZip(p)
+	}
+	if ext == ".7z" && has7z {
+		log.Print("7zip")
+		return decode7Zip(p)
 	}
 	decode, _ := getDecoder(ext)
 	r, err := os.Open(p)
@@ -375,8 +379,7 @@ func decode(p string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	ret, err := decode(r, fi.Size())
-	return ret, err
+	return decode(r, fi.Size())
 }
 
 // Hash returns the hash of a rom given a path to the file and hash function.
