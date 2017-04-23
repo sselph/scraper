@@ -2,6 +2,7 @@ package rom
 
 import (
 	"bufio"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"os"
@@ -197,7 +198,7 @@ func (r *ROM) populateBins() error {
 }
 
 // GetGame attempts to populates the Game from data sources in oder.
-func (r *ROM) GetGame(data []ds.DS, opts *GameOpts) error {
+func (r *ROM) GetGame(ctx context.Context, data []ds.DS, opts *GameOpts) error {
 	if opts == nil {
 		opts = &GameOpts{}
 	}
@@ -212,7 +213,7 @@ Loop:
 	for _, file := range files {
 		for _, source := range data {
 			prettyName = source.GetName(file)
-			game, err = source.GetGame(file)
+			game, err = source.GetGame(ctx, file)
 			if err != nil {
 				continue
 			}
@@ -298,7 +299,7 @@ func mkDir(d string) error {
 }
 
 // getImage gets the image, resizes it and saves it to specified path.
-func getImage(dsImg ds.Image, p string, w uint, h uint) error {
+func getImage(ctx context.Context, dsImg ds.Image, p string, w uint, h uint) error {
 	dir := filepath.Dir(p)
 	if _, ok := imgDirs[dir]; !ok {
 		err := mkDir(dir)
@@ -311,7 +312,7 @@ func getImage(dsImg ds.Image, p string, w uint, h uint) error {
 	defer func() {
 		lock <- struct{}{}
 	}()
-	return dsImg.Save(p, w, h)
+	return dsImg.Save(ctx, p, w, h)
 }
 
 func exists(s string) bool {
@@ -338,7 +339,7 @@ func imgExists(p string) (string, bool) {
 }
 
 // XML creates the XML for the ROM after the Game has been populates.
-func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
+func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	gxml := &GameXML{
 		Path:        fixPath(opts.RomXMLDir + "/" + strings.TrimPrefix(r.Path, opts.RomDir)),
 		ID:          r.Game.ID,
@@ -372,7 +373,7 @@ func (r *ROM) XML(opts *XMLOpts) (*GameXML, error) {
 			dsImg, ok = r.Game.Images[it]
 		}
 		if ok {
-			err := getImage(dsImg, imgPath, opts.ImgWidth, opts.ImgHeight)
+			err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight)
 			if err == ds.ErrImgNotFound {
 				continue
 			}

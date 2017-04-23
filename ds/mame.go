@@ -2,6 +2,7 @@ package ds
 
 import (
 	"archive/zip"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -44,12 +45,12 @@ func (m *MAME) Close() error {
 }
 
 // GetGame implements DS.
-func (m *MAME) GetGame(p string) (*Game, error) {
+func (m *MAME) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := m.getID(p)
 	if err != nil {
 		return nil, err
 	}
-	g, err := mamedb.GetGame(id)
+	g, err := mamedb.GetGame(ctx, id)
 	if err != nil {
 		if err == mamedb.ErrNotFound {
 			return nil, ErrNotFound
@@ -91,13 +92,14 @@ func (m *MAME) GetGame(p string) (*Game, error) {
 	return game, nil
 }
 
-func updateMAMEDB(version, p string) error {
+func updateMAMEDB(ctx context.Context, version, p string) error {
 	log.Print("INFO: Checking for new MAME History.")
 	req, err := http.NewRequest("GET", mameZipURL, nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("if-none-match", version)
+	req = req.WithContext(ctx)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -161,7 +163,7 @@ func updateMAMEDB(version, p string) error {
 	return nil
 }
 
-func getMAMEDB(p string, u bool) (*leveldb.DB, error) {
+func getMAMEDB(ctx context.Context, p string, u bool) (*leveldb.DB, error) {
 	var err error
 	if p == "" {
 		p, err = DefaultCachePath()
@@ -184,7 +186,7 @@ func getMAMEDB(p string, u bool) (*leveldb.DB, error) {
 		version = strings.Trim(string(b[:]), "\n\r")
 	}
 	if !exists(fp) || u {
-		err = updateMAMEDB(version, p)
+		err = updateMAMEDB(ctx, version, p)
 		if err != nil {
 			return nil, err
 		}
@@ -197,8 +199,8 @@ func getMAMEDB(p string, u bool) (*leveldb.DB, error) {
 }
 
 // NewMAME returns a new MAME. MAME should be closed when not needed.
-func NewMAME(p string, u bool) (*MAME, error) {
-	db, err := getMAMEDB(p, u)
+func NewMAME(ctx context.Context, p string, u bool) (*MAME, error) {
+	db, err := getMAMEDB(ctx, p, u)
 	if err != nil {
 		return nil, err
 	}

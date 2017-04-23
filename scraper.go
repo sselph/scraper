@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha1"
 	"encoding/csv"
 	"encoding/xml"
@@ -18,7 +19,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kr/fs"
 	"github.com/mitchellh/go-homedir"
 	"github.com/sselph/scraper/ds"
 	"github.com/sselph/scraper/gdb"
@@ -27,17 +27,6 @@ import (
 
 	rh "github.com/sselph/scraper/rom/hash"
 )
-
-var useGDB optBool
-var useOVGDB optBool
-var useSS optBool
-
-func init() {
-	useGDB.v = true
-	flag.Var(&useGDB, "use_gdb", "DEPRECATED, see -console_src : use the theGamesDB as a datasource.")
-	flag.Var(&useOVGDB, "use_ovgdb", "DEPRECATED, see -console_src : use the OpenVGDB as a datasource.")
-	flag.Var(&useSS, "use_ss", "DEPRECATED, see -console_src : use the ScreenScraper.fr as a datasource.")
-}
 
 var hashFile = flag.String("hash_file", "", "The `file` containing hash information.")
 var romDir = flag.String("rom_dir", ".", "The `directory` containing the roms file to process.")
@@ -64,13 +53,12 @@ var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are 
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
 var mame = flag.Bool("mame", false, "If true we want to run in MAME mode.")
 var mameImg = flag.String("mame_img", "t,m,s,c", "Comma separated order to prefer images, s=snap, t=title, m=marquee, c=cabniet, b=boxart, 3b=3D-boxart, fly=flyer.")
-var mameSrcs = flag.String("mame_src", "mamedb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, adb=arcadeitalia, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
+var mameSrcs = flag.String("mame_src", "adb,gdb", "Comma seperated order to prefer mame sources, ss=screenscraper, adb=arcadeitalia, mamedb=mamedb-mirror, gdb=theGamesDB-neogeo")
 var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to prefer console sources, ss=screenscraper, ovgdb=OpenVGDB, gdb=theGamesDB")
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
-var gdbImg = flag.String("gdb_img", "", "Deprecated, see console_img. This will be removed soon.")
-var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart.")
+var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart, mix3=Standard 3 mix, mix4=Standard 4 mix.")
 var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to write the images.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
@@ -97,35 +85,40 @@ func dirExists(s string) bool {
 	return !os.IsNotExist(err) && fi.IsDir()
 }
 
+func isHidden(f string) bool {
+	b := filepath.Base(f)
+	return b != "." && strings.HasPrefix(b, ".")
+}
+
 type result struct {
 	ROM *rom.ROM
 	XML *rom.GameXML
 	Err error
 }
 
+func done(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
+}
+
 // worker is a function to process roms from a channel.
-func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
+func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	defer signal.Stop(sig)
-	var stop bool
-	go func() {
-		<-sig
-		stop = true
-	}()
 	for r := range roms {
-		if stop {
-			continue
+		if done(ctx) {
+			break
 		}
 		res := result{ROM: r}
 		for try := 0; try <= *retries; try++ {
-			if stop {
+			if done(ctx) {
 				break
 			}
 			log.Printf("INFO: Starting: %s", r.Path)
-			err := r.GetGame(sources, gameOpts)
-			if err != nil {
+			if err := r.GetGame(ctx, sources, gameOpts); err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				res.Err = err
 				if err == ds.ErrNotFound {
@@ -137,7 +130,7 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 			if r.NotFound {
 				log.Printf("INFO: %s, %s", r.Path, ds.ErrNotFound)
 			}
-			xml, err := r.XML(xmlOpts)
+			xml, err := r.XML(ctx, xmlOpts)
 			if err != nil {
 				log.Printf("ERR: error processing %s: %s", r.Path, err)
 				res.Err = err
@@ -150,52 +143,8 @@ func worker(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, resul
 	}
 }
 
-// cancelTransport is a special HTTP transport that tracks pending requests so they can be cancelled.
-type cancelTransport struct {
-	mu      sync.Mutex
-	Pending map[*http.Request]struct{}
-	T       *http.Transport
-	stop    bool
-}
-
-func (t *cancelTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	t.mu.Lock()
-	if t.stop {
-		t.mu.Unlock()
-		return nil, fmt.Errorf("Cancelled")
-	}
-	t.Pending[req] = struct{}{}
-	t.mu.Unlock()
-	resp, err := t.T.RoundTrip(req)
-	t.mu.Lock()
-	delete(t.Pending, req)
-	if t.stop {
-		t.mu.Unlock()
-		return nil, fmt.Errorf("Cancelled")
-	}
-	t.mu.Unlock()
-	return resp, err
-}
-
-func (t *cancelTransport) Stop() {
-	t.mu.Lock()
-	t.stop = true
-	for req := range t.Pending {
-		t.T.CancelRequest(req)
-	}
-	t.Pending = make(map[*http.Request]struct{})
-	t.mu.Unlock()
-}
-
-// newCancelTransport wraps a transport to create a cancelTransport
-func newCancelTransport(t *http.Transport) *cancelTransport {
-	ct := &cancelTransport{T: t}
-	ct.Pending = make(map[*http.Request]struct{})
-	return ct
-}
-
 // crawlROMs crawls the rom directory and processes the files.
-func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var missingCSV *csv.Writer
 	var gdbDS *ds.GDB
 	if *missing != "" {
@@ -221,10 +170,8 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			}
 		}
 	}
-	var ct http.RoundTripper = newCancelTransport(http.DefaultTransport.(*http.Transport))
-	http.DefaultClient.Transport = ct
 
-	existing := make(map[string]struct{})
+	existing := make(map[string]bool)
 
 	if !dirExists(xmlOpts.RomDir) {
 		log.Printf("ERR %s: does not exists", xmlOpts.RomDir)
@@ -254,9 +201,9 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 		}
 		switch {
 		case *appendOut:
-			existing[f] = struct{}{}
+			existing[f] = true
 		case *refreshOut:
-			existing[x.Path] = struct{}{}
+			existing[x.Path] = true
 		}
 	}
 	gl.GameList = filterGL
@@ -266,7 +213,7 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 	roms := make(chan *rom.ROM, 2**workers)
 	for i := 0; i < *workers; i++ {
 		wg.Add(1)
-		go worker(sources, xmlOpts, gameOpts, results, roms, &wg)
+		go worker(ctx, sources, xmlOpts, gameOpts, results, roms, &wg)
 	}
 	go func() {
 		defer wg.Done()
@@ -311,7 +258,7 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 					log.Printf("ERR: Can't write to %s", *missing)
 				}
 			}
-			if _, ok := existing[r.XML.Path]; ok && *refreshOut {
+			if existing[r.XML.Path] && *refreshOut {
 				for i, g := range gl.GameList {
 					if g.Path != r.XML.Path {
 						continue
@@ -326,100 +273,97 @@ func crawlROMs(gl *rom.GameListXML, sources []ds.DS, xmlOpts *rom.XMLOpts, gameO
 			gl.Append(r.XML)
 		}
 	}()
-	var stop bool
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt)
-	defer signal.Stop(sig)
-	go func() {
-		for {
-			<-sig
-			if !stop {
-				stop = true
-				log.Println("Stopping, ctrl-c again to stop now.")
-				ct.(*cancelTransport).Stop()
-				for _ = range roms {
-				}
-				continue
-			}
-			panic("AHHHH!")
-		}
-	}()
-	bins := make(map[string]struct{})
+	bins := make(map[string]bool)
 	if !*mame {
-		walker := fs.Walk(xmlOpts.RomDir)
-		for walker.Step() {
-			if stop {
-				break
+		err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
+			if done(ctx) {
+				return ctx.Err()
 			}
-			if err := walker.Err(); err != nil {
-				return err
+			if err != nil {
+				log.Printf("ERR: Processing: %s, %s", f, err)
+				return nil
 			}
-			f := walker.Path()
-			if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
-				walker.SkipDir()
-				continue
+			if isHidden(f) {
+				if fi.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if fi.IsDir() {
+				return nil
 			}
 			r, err := rom.NewROM(f)
 			if err != nil {
 				log.Printf("ERR: Processing: %s, %s", f, err)
-				continue
+				return nil
 			}
 			if !r.Cue {
-				continue
+				return nil
 			}
 			for _, b := range r.Bins {
-				bins[b] = struct{}{}
+				bins[b] = true
 			}
-			bins[f] = struct{}{}
-			if _, ok := existing[f]; !*refreshOut && ok {
+			bins[f] = true
+			if existing[f] && !*refreshOut {
 				log.Printf("INFO: Skipping %s, already in gamelist.", f)
-				continue
+				return nil
 			}
 			roms <- r
-		}
-	}
-	walker := fs.Walk(xmlOpts.RomDir)
-	for walker.Step() {
-		if stop {
-			break
-		}
-		if err := walker.Err(); err != nil {
+			return nil
+		})
+		if err != nil && err != context.Canceled {
 			return err
 		}
-		f := walker.Path()
-		if b := filepath.Base(f); b != "." && strings.HasPrefix(b, ".") {
-			walker.SkipDir()
-			continue
+	}
+	err := filepath.Walk(xmlOpts.RomDir, func(f string, fi os.FileInfo, err error) error {
+		if done(ctx) {
+			return ctx.Err()
+		}
+		if err != nil {
+			log.Printf("ERR: Processing: %s, %s", f, err)
+			return nil
+		}
+		if isHidden(f) {
+			if fi.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if fi.IsDir() {
+			return nil
 		}
 		if filepath.Ext(f) == ".daphne" {
-			walker.SkipDir()
+			return filepath.SkipDir
 		}
-		if _, ok := existing[f]; !*refreshOut && ok {
+		if existing[f] && !*refreshOut {
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
-			continue
+			return nil
 		}
 		r, err := rom.NewROM(f)
 		if err != nil {
 			log.Printf("ERR: Processing: %s, %s", f, err)
-			continue
+			return nil
 		}
 		if *mame {
 			if r.Ext == ".zip" || r.Ext == ".7z" || rh.HasExtra(r.Ext) {
 				roms <- r
 			}
-			continue
+			return nil
 		}
-		_, ok := bins[f]
-		if !ok && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || r.Ext == ".daphne" || r.Ext == ".7z") {
+		if !bins[f] && (rh.KnownExt(r.Ext) || r.Ext == ".svm" || r.Ext == ".daphne" || r.Ext == ".7z") {
 			roms <- r
 		}
+		return nil
+	})
+	if err != nil && err != context.Canceled {
+		return err
 	}
 	close(roms)
 	wg.Wait()
 	wg.Add(1)
 	close(results)
 	wg.Wait()
-	if stop {
+	if done(ctx) {
 		return errUserCanceled
 	}
 	return nil
@@ -439,7 +383,7 @@ func mkDir(d string) error {
 }
 
 // scrape handles scraping and wriiting the XML.
-func scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
+func scrape(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error {
 	var err error
 	xmlOpts.RomDir, err = filepath.EvalSymlinks(xmlOpts.RomDir)
 	if err != nil {
@@ -458,7 +402,7 @@ func scrape(sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts) error
 			f.Close()
 		}
 	}
-	cerr := crawlROMs(gl, sources, xmlOpts, gameOpts)
+	cerr := crawlROMs(ctx, gl, sources, xmlOpts, gameOpts)
 	if cerr != nil && cerr != errUserCanceled {
 		return cerr
 	}
@@ -530,13 +474,19 @@ func getSystems() ([]System, error) {
 
 func main() {
 	flag.Parse()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stopChan := make(chan os.Signal)
+	signal.Notify(stopChan, os.Interrupt)
+	defer signal.Stop(stopChan)
+	go func() {
+		<-stopChan
+		cancel()
+	}()
+
 	if *version {
 		fmt.Println(versionStr)
 		return
-	}
-	if *gdbImg != "" {
-		log.Println("DEPRECATED: -gdb_img has been deprecated, use -console_img")
-		*consoleImg = *gdbImg
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
 	if *startPprof {
@@ -591,21 +541,6 @@ func main() {
 	var arcadeSources []ds.DS
 	var consoleSources []ds.DS
 
-	if useGDB.set || useOVGDB.set || useSS.set {
-		log.Println("DEPRECATED: -use_* has been deprecated, use -console_src")
-		var v []string
-		if useGDB.v {
-			v = append(v, "gdb")
-		}
-		if useOVGDB.v {
-			v = append(v, "ovgdb")
-		}
-		if useSS.v {
-			v = append(v, "ss")
-		}
-		*consoleSrcs = strings.Join(v, ",")
-	}
-
 	if !*scrapeAll {
 		if *mame {
 			*consoleSrcs = ""
@@ -651,7 +586,7 @@ func main() {
 		if *hashFile != "" {
 			hm, err = ds.FileHashMap(*hashFile)
 		} else {
-			hm, err = ds.CachedHashMap("", *updateCache)
+			hm, err = ds.CachedHashMap(ctx, "", *updateCache)
 		}
 		if err != nil {
 			fmt.Println(err)
@@ -670,7 +605,7 @@ func main() {
 		case "":
 		case "gdb":
 			if !*skipCheck {
-				if ok := gdb.IsUp(); !ok {
+				if ok := gdb.IsUp(ctx); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 					continue
 				}
@@ -680,7 +615,7 @@ func main() {
 			consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
 		case "ss":
-			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
+			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
 			limit := make(chan struct{}, t)
 			for i := 0; i < t; i++ {
 				limit <- struct{}{}
@@ -698,7 +633,7 @@ func main() {
 			}
 			consoleSources = append(consoleSources, ssDS)
 		case "ovgdb":
-			o, err := ds.NewOVGDB(hasher, *updateCache)
+			o, err := ds.NewOVGDB(ctx, hasher, *updateCache)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -714,7 +649,7 @@ func main() {
 		switch src {
 		case "":
 		case "ss":
-			t := ss.Threads(dev, ss.UserInfo{*ssUser, *ssPassword})
+			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
 			limit := make(chan struct{}, t)
 			for i := 0; i < t; i++ {
 				limit <- struct{}{}
@@ -730,7 +665,7 @@ func main() {
 			}
 			arcadeSources = append(arcadeSources, ssMDS)
 		case "mamedb":
-			mds, err := ds.NewMAME("", *updateCache)
+			mds, err := ds.NewMAME(ctx, "", *updateCache)
 			if err != nil {
 				fmt.Println(err)
 				return
@@ -756,7 +691,7 @@ func main() {
 			sources = consoleSources
 			xmlOpts.ImgPriority = cImg
 		}
-		err := scrape(sources, xmlOpts, gameOpts)
+		err := scrape(ctx, sources, xmlOpts, gameOpts)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -789,7 +724,7 @@ func main() {
 				sources = consoleSources
 				xmlOpts.ImgPriority = cImg
 			}
-			err := scrape(sources, xmlOpts, gameOpts)
+			err := scrape(ctx, sources, xmlOpts, gameOpts)
 			if err != nil {
 				fmt.Println(err)
 				return

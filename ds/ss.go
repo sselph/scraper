@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -46,9 +47,14 @@ type HTTPImageSS struct {
 	Limit chan struct{}
 }
 
-func (i HTTPImageSS) fetch(width, height uint) (rc io.ReadCloser, err error) {
+func (i HTTPImageSS) fetch(ctx context.Context, width, height uint) (rc io.ReadCloser, err error) {
 	u := ssImgURL(i.URL, int(width), int(height))
-	resp, err := http.Get(u)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			uerr.URL = ss.SanitizeURL(uerr.URL)
@@ -74,14 +80,14 @@ func (i HTTPImageSS) fetch(width, height uint) (rc io.ReadCloser, err error) {
 	return resp.Body, nil
 }
 
-func (i HTTPImageSS) Get(width, height uint) (image.Image, error) {
+func (i HTTPImageSS) Get(ctx context.Context, width, height uint) (image.Image, error) {
 	if i.Limit != nil {
 		<-i.Limit
 		defer func() {
 			i.Limit <- struct{}{}
 		}()
 	}
-	b, err := i.fetch(width, height)
+	b, err := i.fetch(ctx, width, height)
 	if err != nil {
 		return nil, err
 	}
@@ -93,14 +99,14 @@ func (i HTTPImageSS) Get(width, height uint) (image.Image, error) {
 	return img, nil
 }
 
-func (i HTTPImageSS) Save(p string, width, height uint) error {
+func (i HTTPImageSS) Save(ctx context.Context, p string, width, height uint) error {
 	if i.Limit != nil {
 		<-i.Limit
 		defer func() {
 			i.Limit <- struct{}{}
 		}()
 	}
-	b, err := i.fetch(width, height)
+	b, err := i.fetch(ctx, width, height)
 	if err != nil {
 		return err
 	}
@@ -146,7 +152,7 @@ func (s *SS) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (s *SS) GetGame(path string) (*Game, error) {
+func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	if s.Limit != nil {
 		<-s.Limit
 		defer func() {
@@ -158,7 +164,7 @@ func (s *SS) GetGame(path string) (*Game, error) {
 		return nil, err
 	}
 	req := ss.GameInfoReq{SHA1: id}
-	resp, err := ss.GameInfo(s.Dev, s.User, req)
+	resp, err := ss.GameInfo(ctx, s.Dev, s.User, req)
 	if err != nil {
 		if err == ss.ErrNotFound {
 			return nil, ErrNotFound
@@ -173,18 +179,31 @@ func (s *SS) GetGame(path string) (*Game, error) {
 	regions = append(regions, s.Region...)
 
 	ret := NewGame()
+	var screen, box, cart, wheel Image
 	if game.Media.Screenshot != "" {
-		ret.Images[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
-		ret.Thumbs[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
+		screen = HTTPImageSS{game.Media.Screenshot, s.Limit}
+		ret.Images[ImgScreen] = screen
+		ret.Thumbs[ImgScreen] = screen
 	}
 	if imgURL, ok := game.Media.Box2D(regions); ok {
 		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 	}
 	if imgURL, ok := game.Media.Box3D(regions); ok {
-		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
+		box = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[ImgBoxart3D] = box
+		ret.Thumbs[ImgBoxart3D] = box
 	}
+	if imgURL, ok := game.Media.Wheel(regions); ok {
+		wheel = HTTPImageSS{imgURL, s.Limit}
+	}
+	if imgURL, ok := game.Media.Support2D(regions); ok {
+		cart = HTTPImageSS{imgURL, s.Limit}
+	}
+	ret.Images[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
+	ret.Thumbs[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
+	ret.Images[ImgMix4] = MixImage{StandardFour(screen, box, cart, wheel)}
+	ret.Thumbs[ImgMix4] = MixImage{StandardFour(screen, box, cart, wheel)}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
 	ret.GameTitle = game.Name

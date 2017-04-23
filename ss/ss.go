@@ -2,6 +2,7 @@ package ss
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -15,12 +16,14 @@ import (
 
 // JSON field prefixes.
 const (
-	pre2D       = "media_box2d_"
-	pre3D       = "media_box3d_"
-	preFlyer    = "media_flyer_"
-	preDate     = "date_"
-	preGenre    = "genres_"
-	preSynopsis = "synopsis_"
+	pre2D        = "media_box2d_"
+	pre3D        = "media_box3d_"
+	preFlyer     = "media_flyer_"
+	preWheel     = "media_wheel_"
+	preSupport2D = "media_support2d"
+	preDate      = "date_"
+	preGenre     = "genres_"
+	preSynopsis  = "synopsis_"
 )
 
 const (
@@ -98,6 +101,8 @@ type Media struct {
 	Video         string        `json:"media_video"`
 	Flyers        SafeStringMap `json:"media_flyers"`
 	BoxArt        BoxArt        `json:"media_boxs"`
+	Wheels        SafeStringMap `json:"media_wheels"`
+	Support2Ds    SafeStringMap `json:"media_supports2d"`
 }
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
@@ -136,6 +141,14 @@ func (m Media) Box3D(r []string) (string, bool) {
 
 func (m Media) Flyer(r []string) (string, bool) {
 	return getSuffix(m.Flyers.Map, preFlyer, r)
+}
+
+func (m Media) Wheel(r []string) (string, bool) {
+	return getSuffix(m.Wheels.Map, preWheel, r)
+}
+
+func (m Media) Support2D(r []string) (string, bool) {
+	return getSuffix(m.Support2Ds.Map, preSupport2D, r)
 }
 
 type ROM struct {
@@ -238,7 +251,7 @@ func SanitizeURL(s string) string {
 	return u.String()
 }
 
-func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
+func User(ctx context.Context, dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	u, err := url.Parse(baseURL)
 	u.Path = userInfoPath
 	q := url.Values{}
@@ -251,7 +264,12 @@ func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	q.Set("ssid", user.ID)
 	q.Set("sspassword", user.Password)
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		v := u.Query()
 		v.Set("devid", "xxx")
@@ -272,11 +290,11 @@ func User(dev DevInfo, user UserInfo) (*UserInfoResp, error) {
 	return r, nil
 }
 
-func Threads(dev DevInfo, user UserInfo) int {
+func Threads(ctx context.Context, dev DevInfo, user UserInfo) int {
 	if user.ID == "" || user.Password == "" {
 		return 1
 	}
-	i, err := User(dev, user)
+	i, err := User(ctx, dev, user)
 	if err != nil {
 		log.Print("error getting allowed threads defaulting to 1")
 		return 1
@@ -288,7 +306,7 @@ func Threads(dev DevInfo, user UserInfo) int {
 }
 
 // GameInfo is the call to get game info.
-func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error) {
+func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error) {
 	u, err := url.Parse(baseURL)
 	u.Path = gameInfoPath
 	q := url.Values{}
@@ -316,7 +334,12 @@ func GameInfo(dev DevInfo, user UserInfo, req GameInfoReq) (*GameInfoResp, error
 		q.Set("romnom", req.Name)
 	}
 	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+	hReq, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	hReq = hReq.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(hReq)
 	if err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			uerr.URL = SanitizeURL(uerr.URL)

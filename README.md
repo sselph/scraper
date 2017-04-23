@@ -16,15 +16,17 @@ Donate
 I don't accept donations but feel free to donate to:  
 [retropie](https://retropie.org.uk/donate/)  
 [theGamesDB](http://thegamesdb.net/)  
+[ScreenScraper](https://screenscraper.fr/)
+[ArcadeItalia](http://adb.arcadeitalia.net/)
 
 Installation
 ------------
 
-Make sure you have go version 1.3.3 or later installed.
+Make sure you have go version 1.7 or later installed.
 
 ```bash
 $ go version
-go version go1.3.3 linux/amd64
+go version go1.8 linux/amd64
 ```
 
 Fetch and build.
@@ -33,8 +35,6 @@ Fetch and build.
 $ go get github.com/sselph/scraper
 $ go build github.com/sselph/scraper
 ```
-
-If you have issues that mention snappy try adding `-tags noasm` to the build command.
 
 Usage
 -----
@@ -72,7 +72,7 @@ Raspberry Pi
 
 *Note:* Scraper is included in RetroPie-Setup from [version 3.1](https://github.com/RetroPie/RetroPie-Setup/releases/tag/3.1) and can be [accessed from their UI](https://github.com/RetroPie/RetroPie-setup/wiki/scraper). Otherwise you can use the instructions below.
 
-At the time of writing this raspbian has an old version of go 1.0.2 so you can cross-compile on another system or download an unofficial go binary from [http://dave.cheney.net/unofficial-arm-tarballs](http://dave.cheney.net/unofficial-arm-tarballs).
+At the time of writing this raspbian has an old version of go 1.3.3 so you can cross-compile on another system or download a [recent version of Go](https://golang.org/dl/)
 
 ### Build:
 
@@ -87,7 +87,7 @@ $ GOARM=7 GOARCH=arm GOOS=linux go build github.com/sselph/scraper
 
 ### Install from my Binaries
 
-Replace the release_name with the release like v0.6.3-beta
+Replace the release_name with the release like v1.2.6
 
 #### Rpi v1
 ```bash
@@ -120,7 +120,6 @@ Used libraries
 | Package | Description | License |
 | --- | --- | --- |
 | [github.com/nfnt/resize](https://github.com/nfnt/resize) | resizes images | ISC |
-| [github.com/kr/fs](https://github.com/kr/fs) | provides filesystem-related functions | New BSD |
 | [github.com/mattn/go-sqlite3](https://github.com/mattn/go-sqlite3) | provides sqlite | MIT |
 | [github.com/mitchellh/go-homedir](https://github.com/mitchellh/go-homedir) | get user homedir | MIT |
 | [github.com/syndtr/goleveldb](https://github.com/syndtr/goleveldb) | provides leveldb | Simplified BSD |

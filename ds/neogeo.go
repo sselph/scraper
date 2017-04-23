@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -39,13 +40,13 @@ func (n *NeoGeo) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (n *NeoGeo) GetGame(p string) (*Game, error) {
+func (n *NeoGeo) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := n.getID(p)
 	if err != nil {
 		return nil, err
 	}
 	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(req)
+	resp, err := gdb.GetGame(ctx, req)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -41,13 +42,13 @@ func (s *ScummVM) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (s *ScummVM) GetGame(p string) (*Game, error) {
+func (s *ScummVM) GetGame(ctx context.Context, p string) (*Game, error) {
 	id, err := s.getID(p)
 	if err != nil {
 		return nil, err
 	}
 	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(req)
+	resp, err := gdb.GetGame(ctx, req)
 	if err != nil {
 		return nil, err
 	}

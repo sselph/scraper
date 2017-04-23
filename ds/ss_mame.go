@@ -1,6 +1,7 @@
 package ds
 
 import (
+	"context"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,7 +26,7 @@ func (s *SSMAME) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (s *SSMAME) GetGame(path string) (*Game, error) {
+func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	if s.Limit != nil {
 		<-s.Limit
 		defer func() {
@@ -33,7 +34,7 @@ func (s *SSMAME) GetGame(path string) (*Game, error) {
 		}()
 	}
 	req := ss.GameInfoReq{Name: filepath.Base(path)}
-	resp, err := ss.GameInfo(s.Dev, s.User, req)
+	resp, err := ss.GameInfo(ctx, s.Dev, s.User, req)
 	if err != nil {
 		if err == ss.ErrNotFound {
 			return nil, ErrNotFound
