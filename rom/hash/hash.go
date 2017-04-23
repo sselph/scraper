@@ -319,7 +319,7 @@ func getDecoder(ext string) (decoder, bool) {
 	switch ext {
 	case ".bin", ".a26", ".a52", ".rom", ".cue", ".gdi", ".gb", ".gba", ".gbc", ".32x", ".gg",
 		".pce", ".sms", ".col", ".ngp", ".ngc", ".sg", ".int", ".vb", ".vec", ".gam", ".j64",
-		".jag", ".mgw", ".nds", ".fds":
+		".jag", ".mgw", ".nds", ".fds", ".ctg":
 		return noop, true
 	case ".a78":
 		return decodeA78, true
