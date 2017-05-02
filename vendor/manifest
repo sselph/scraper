@@ -5,7 +5,7 @@
 			"importpath": "github.com/PuerkitoBio/goquery",
 			"repository": "https://github.com/PuerkitoBio/goquery",
 			"vcs": "git",
-			"revision": "e1271ee34c6a305e38566ecd27ae374944907ee9",
+			"revision": "ed7d758e9a34ba1f55e8084e0d731448b46921a8",
 			"branch": "master",
 			"notests": true
 		},
@@ -21,7 +21,7 @@
 			"importpath": "github.com/golang/protobuf/proto",
 			"repository": "https://github.com/golang/protobuf",
 			"vcs": "git",
-			"revision": "69b215d01a5606c843240eab4937eab3acee6530",
+			"revision": "18c9bb3261723cd5401db4d0c9fbc5c3b6c70fe8",
 			"branch": "master",
 			"path": "/proto",
 			"notests": true
@@ -30,7 +30,7 @@
 			"importpath": "github.com/golang/protobuf/ptypes/any",
 			"repository": "https://github.com/golang/protobuf",
 			"vcs": "git",
-			"revision": "69b215d01a5606c843240eab4937eab3acee6530",
+			"revision": "18c9bb3261723cd5401db4d0c9fbc5c3b6c70fe8",
 			"branch": "master",
 			"path": "ptypes/any",
 			"notests": true
@@ -63,7 +63,7 @@
 			"importpath": "github.com/mattn/go-sqlite3",
 			"repository": "https://github.com/mattn/go-sqlite3",
 			"vcs": "git",
-			"revision": "acf4ae44299454c98d3a39ea15d444b5a6708710",
+			"revision": "cf7286f069c3ef596efcc87781a4653a2e7607bd",
 			"branch": "master",
 			"notests": true
 		},
@@ -87,7 +87,7 @@
 			"importpath": "github.com/onsi/ginkgo",
 			"repository": "https://github.com/onsi/ginkgo",
 			"vcs": "git",
-			"revision": "bb93381d543b0e5725244abe752214a110791d01",
+			"revision": "83438ca4278f2f56757b9ab2cb15dd4f596d84e8",
 			"branch": "master",
 			"notests": true
 		},
@@ -95,7 +95,7 @@
 			"importpath": "github.com/onsi/gomega",
 			"repository": "https://github.com/onsi/gomega",
 			"vcs": "git",
-			"revision": "c463cd2a8578290d4be7a25cba69de81cf35785e",
+			"revision": "da367351331c75190afec7ed3a0c61e0016942ed",
 			"branch": "master",
 			"notests": true
 		},
@@ -103,7 +103,7 @@
 			"importpath": "github.com/syndtr/goleveldb/leveldb",
 			"repository": "https://github.com/syndtr/goleveldb",
 			"vcs": "git",
-			"revision": "3c5717caf1475fd25964109a0fc640bd150fce43",
+			"revision": "8c81ea47d4c41a385645e133e15510fc6a2a74b4",
 			"branch": "master",
 			"path": "/leveldb",
 			"notests": true
@@ -112,7 +112,7 @@
 			"importpath": "golang.org/x/net/context",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "d379faa25cbdc04d653984913a2ceb43b0bc46d7",
+			"revision": "da118f7b8e5954f39d0d2130ab35d4bf0e3cb344",
 			"branch": "master",
 			"path": "/context",
 			"notests": true
@@ -121,7 +121,7 @@
 			"importpath": "golang.org/x/net/html",
 			"repository": "https://go.googlesource.com/net",
 			"vcs": "git",
-			"revision": "d379faa25cbdc04d653984913a2ceb43b0bc46d7",
+			"revision": "da118f7b8e5954f39d0d2130ab35d4bf0e3cb344",
 			"branch": "master",
 			"path": "html",
 			"notests": true
@@ -130,7 +130,7 @@
 			"importpath": "golang.org/x/sys/unix",
 			"repository": "https://go.googlesource.com/sys",
 			"vcs": "git",
-			"revision": "e48874b42435b4347fc52bdee0424a52abc974d7",
+			"revision": "9ccfe848b9db8435a24c424abbc07a921adf1df5",
 			"branch": "master",
 			"path": "/unix",
 			"notests": true
@@ -139,7 +139,7 @@
 			"importpath": "golang.org/x/text/encoding",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "encoding",
 			"notests": true
@@ -148,7 +148,7 @@
 			"importpath": "golang.org/x/text/internal/gen",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "internal/gen",
 			"notests": true
@@ -157,7 +157,7 @@
 			"importpath": "golang.org/x/text/internal/tag",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "internal/tag",
 			"notests": true
@@ -166,7 +166,7 @@
 			"importpath": "golang.org/x/text/internal/utf8internal",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "internal/utf8internal",
 			"notests": true
@@ -175,7 +175,7 @@
 			"importpath": "golang.org/x/text/language",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "language",
 			"notests": true
@@ -184,7 +184,7 @@
 			"importpath": "golang.org/x/text/runes",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "runes",
 			"notests": true
@@ -193,7 +193,7 @@
 			"importpath": "golang.org/x/text/transform",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "/transform",
 			"notests": true
@@ -202,7 +202,7 @@
 			"importpath": "golang.org/x/text/unicode/cldr",
 			"repository": "https://go.googlesource.com/text",
 			"vcs": "git",
-			"revision": "f28f36722d5ef2f9655ad3de1f248e3e52ad5ebd",
+			"revision": "470f45bf29f4147d6fbd7dfd0a02a848e49f5bf4",
 			"branch": "master",
 			"path": "unicode/cldr",
 			"notests": true
@@ -211,7 +211,7 @@
 			"importpath": "gopkg.in/yaml.v2",
 			"repository": "https://gopkg.in/yaml.v2",
 			"vcs": "git",
-			"revision": "a3f3340b5840cee44f372bddb5880fcbc419b46a",
+			"revision": "cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b",
 			"branch": "v2",
 			"notests": true
 		}
