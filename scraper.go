@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -47,7 +45,6 @@ var skipCheck = flag.Bool("skip_check", false, "Skip the check if thegamesdb.net
 var nestedImageDir = flag.Bool("nested_img_dir", false, "Use a nested img directory structure that matches rom structure.")
 var region = flag.String("region", "us,wor,eu,jp,fr,xx", "The order to choose for region if there is more than one for a value. xx is a special region that will choose any region.")
 var lang = flag.String("lang", "en", "The order to choose for language if there is more than one for a value. (en, fr, es, de, pt)")
-var startPprof = flag.Bool("start_pprof", false, "If true, start the pprof service used to profile the application.")
 var useFilename = flag.Bool("use_filename", false, "If true, use the filename minus the extension as the game title in xml.")
 var addNotFound = flag.Bool("add_not_found", false, "If true, add roms that are not found as an empty gamelist entry.")
 var useNoIntroName = flag.Bool("use_nointro_name", true, "Use the name in the No-Intro DB instead of the one in the GDB.")
@@ -489,9 +486,6 @@ func main() {
 		return
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	if *startPprof {
-		go http.ListenAndServe(":8080", nil)
-	}
 	if *imgWorkers == 0 {
 		*imgWorkers = *workers
 	}
