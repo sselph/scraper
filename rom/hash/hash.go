@@ -277,7 +277,10 @@ func decodeNES(f io.ReadCloser, s int64) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if n < 16 {
-		return nil, fmt.Errorf("invalid header")
+		return nil, fmt.Errorf("invalid ROM")
+	}
+	if !bytes.Equal(header[:3], []byte("NES")) {
+		return newMultiReader(header, f), nil
 	}
 	prgSize := int64(header[4])
 	chrSize := int64(header[5])

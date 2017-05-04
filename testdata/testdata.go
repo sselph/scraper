@@ -213,15 +213,18 @@ func New() (*Data, error) {
 	nesFilev1Trainer := make([]byte, 16+512+32768+49152)
 	nesHeaderv2 := []byte{0x4E, 0x45, 0x53, 0x1A, 0x02, 0x06, 0, 0x08, 0, 0x11, 0, 0, 0, 0, 0, 0}
 	nesFilev2 := make([]byte, 16+4227072+2146304)
+	nesFileNoHeader := make([]byte, 32768+49152)
 	copy(nesFilev1, nesHeaderv1)
 	copy(nesFilev1Trainer, nesHeaderv1Trainer)
 	copy(nesFilev2, nesHeaderv2)
 	for i := 16; i < len(nesFilev1); i++ {
 		if i < 32768+16 {
 			nesFilev1[i] = 0
+			nesFileNoHeader[i-16] = 0
 			nesFilev1Trainer[i+512] = 0
 		} else {
 			nesFilev1[i] = 1
+			nesFileNoHeader[i-16] = 1
 			nesFilev1Trainer[i+512] = 1
 		}
 	}
@@ -235,6 +238,7 @@ func New() (*Data, error) {
 	nesPathv1 := filepath.Join(dir, "nes-v1.nes")
 	nesPathv1Trainer := filepath.Join(dir, "nes-v1-trainer.nes")
 	nesPathv2 := filepath.Join(dir, "nes-v2.nes")
+	nesPathNoHeader := filepath.Join(dir, "nes-noheader.nes")
 	err = ioutil.WriteFile(nesPathv1, nesFilev1, 0777)
 	if err != nil {
 		return data, err
@@ -245,6 +249,11 @@ func New() (*Data, error) {
 		return data, err
 	}
 	data.Files = append(data.Files, File{Path: nesPathv1Trainer, SHA1: "310127efa1522ee9cb559ec502c0f6bb7fde308c"})
+	err = ioutil.WriteFile(nesPathNoHeader, nesFileNoHeader, 0777)
+	if err != nil {
+		return data, err
+	}
+	data.Files = append(data.Files, File{Path: nesPathNoHeader, SHA1: "310127efa1522ee9cb559ec502c0f6bb7fde308c"})
 	err = ioutil.WriteFile(nesPathv2, nesFilev2, 0777)
 	if err != nil {
 		return data, err
