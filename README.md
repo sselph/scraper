@@ -124,3 +124,4 @@ Used libraries
 | [github.com/mitchellh/go-homedir](https://github.com/mitchellh/go-homedir) | get user homedir | MIT |
 | [github.com/syndtr/goleveldb](https://github.com/syndtr/goleveldb) | provides leveldb | Simplified BSD |
 | [github.com/hashicorp/golang-lru](https://github.com/hashicorp/golang-lru) | provides a LRU cache | Mozilla |
+| [github.com/kjk/lzmadec](https://github.com/kjk/lzmadec) | provides access to 7z binary | MIT |
