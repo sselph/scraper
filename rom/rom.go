@@ -17,6 +17,8 @@ import (
 )
 
 var lock chan struct{}
+var imgExts = []string{".jpg", ".png"}
+var vidExts = []string{".mp4", ".mkv", ".flv", ".ogv", ".avi", ".mov", ".mpg", "m4v"}
 
 func init() {
 	SetMaxImg(runtime.NumCPU())
@@ -70,21 +72,26 @@ type XMLOpts struct {
 	// ImgWidth is the max width of images. Anything larger will be resized.
 	ImgWidth uint
 	// ImgHeight is the max height of images. Anything larger will be resized.
-	ImgHeight uint
+	ImgHeight    uint
+	DownloadVid  bool
+	VidPriority  []ds.VidType
+	VidSuffix    string
+	VidDir       string
+	VidXMLDir    string
+	DownloadMarq bool
+	MarqSuffix   string
+	MarqDir      string
+	MarqXMLDir   string
 }
 
 // stripChars strips out unicode and converts "fancy" quotes to normal quotes.
 func stripChars(r rune) rune {
-	// Single Quote
-	if r == 8217 || r == 8216 {
-		return 39
-	}
-	// Double Quote
-	if r == 8220 || r == 8221 {
-		return 34
-	}
-	// ASCII
-	if r < 127 {
+	switch {
+	case r == 8217 || r == 8216:
+		return 39 // Single Quote
+	case r == 8220 || r == 8221:
+		return 34 // Double Quote
+	case r < 127:
 		return r
 	}
 	return -1
@@ -239,7 +246,7 @@ Loop:
 		game.Overview = strings.Map(stripChars, game.Overview)
 		game.GameTitle = strings.Map(stripChars, game.GameTitle)
 	}
-	if opts.OverviewLen != 0 && opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen+3 {
+	if opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen+3 {
 		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
@@ -252,16 +259,15 @@ func NewROM(p string) (*ROM, error) {
 	r.populatePaths()
 	r.Cue = r.Ext == ".cue" || r.Ext == ".gdi"
 	if r.Cue {
-		err := r.populateBins()
-		if err != nil {
+		if err := r.populateBins(); err != nil {
 			return nil, err
 		}
 	}
 	return r, nil
 }
 
-// getImgPaths gets the paths to use for images.
-func getImgPaths(r *ROM, opts *XMLOpts) string {
+// getImgPath gets the path to use for images.
+func getImgPath(r *ROM, opts *XMLOpts) string {
 	var imgPath string
 	if opts.NestImgDir {
 		dir := strings.TrimPrefix(r.Dir, opts.RomDir)
@@ -271,6 +277,32 @@ func getImgPaths(r *ROM, opts *XMLOpts) string {
 	}
 	iName := fmt.Sprintf("%s%s.%s", r.BaseName, opts.ImgSuffix, opts.ImgFormat)
 	return filepath.Join(imgPath, iName)
+}
+
+// getVidPath gets the path to use for video.
+func getVidPath(r *ROM, opts *XMLOpts) string {
+	var vidPath string
+	if opts.NestImgDir {
+		dir := strings.TrimPrefix(r.Dir, opts.RomDir)
+		vidPath = filepath.Join(opts.VidDir, dir)
+	} else {
+		vidPath = opts.VidDir
+	}
+	iName := r.BaseName + opts.VidSuffix
+	return filepath.Join(vidPath, iName)
+}
+
+// getMarqPath gets the path to use for marquees.
+func getMarqPath(r *ROM, opts *XMLOpts) string {
+	var marqPath string
+	if opts.NestImgDir {
+		dir := strings.TrimPrefix(r.Dir, opts.RomDir)
+		marqPath = filepath.Join(opts.MarqDir, dir)
+	} else {
+		marqPath = opts.MarqDir
+	}
+	iName := fmt.Sprintf("%s%s.%s", r.BaseName, opts.MarqSuffix, opts.ImgFormat)
+	return filepath.Join(marqPath, iName)
 }
 
 // fixPaths fixes relative file paths to include the leading './'.
@@ -283,7 +315,7 @@ func fixPath(s string) string {
 	return fmt.Sprintf("./%s", s)
 }
 
-var imgDirs = make(map[string]struct{})
+var imgDirs = make(map[string]bool)
 
 func mkDir(d string) error {
 	fi, err := os.Stat(d)
@@ -298,15 +330,27 @@ func mkDir(d string) error {
 	return fmt.Errorf("%s is a file not a directory", d)
 }
 
-// getImage gets the image, resizes it and saves it to specified path.
-func getImage(ctx context.Context, dsImg ds.Image, p string, w uint, h uint) error {
+func getVideo(ctx context.Context, dsVid ds.Video, p string) error {
 	dir := filepath.Dir(p)
-	if _, ok := imgDirs[dir]; !ok {
+	if !imgDirs[dir] {
 		err := mkDir(dir)
 		if err != nil {
 			return err
 		}
-		imgDirs[dir] = struct{}{}
+		imgDirs[dir] = true
+	}
+	return dsVid.Save(ctx, p)
+}
+
+// getImage gets the image, resizes it and saves it to specified path.
+func getImage(ctx context.Context, dsImg ds.Image, p string, w uint, h uint) error {
+	dir := filepath.Dir(p)
+	if !imgDirs[dir] {
+		err := mkDir(dir)
+		if err != nil {
+			return err
+		}
+		imgDirs[dir] = true
 	}
 	<-lock
 	defer func() {
@@ -320,20 +364,20 @@ func exists(s string) bool {
 	return err == nil && fi.Size() > 0
 }
 
-// imgExists checks if an image exists with either format.
-func imgExists(p string) (string, bool) {
+// fileExists checks if an image exists with either format.
+func fileExists(p string, ext ...string) (string, bool) {
 	if exists(p) {
 		return p, true
 	}
 	e := filepath.Ext(p)
-	if e == ".jpg" {
-		e = ".png"
-	} else {
-		e = ".jpg"
-	}
-	op := p[:len(p)-len(e)] + e
-	if exists(op) {
-		return op, true
+	for _, x := range ext {
+		if e == x {
+			continue
+		}
+		op := p[:len(p)-len(e)] + x
+		if exists(op) {
+			return op, true
+		}
 	}
 	return p, false
 }
@@ -355,35 +399,66 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	if r.Game.Players > 0 {
 		gxml.Players = strconv.FormatInt(r.Game.Players, 10)
 	}
-	imgPath := getImgPaths(r, opts)
-	imgPath, exists := imgExists(imgPath)
+	imgPath := getImgPath(r, opts)
+	imgPath, exists := fileExists(imgPath, imgExts...)
 	if exists {
 		gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
-		return gxml, nil
 	}
-	if opts.NoDownload {
-		return gxml, nil
-	}
-	for _, it := range opts.ImgPriority {
-		var dsImg ds.Image
-		var ok bool
-		if opts.ThumbOnly {
-			dsImg, ok = r.Game.Thumbs[it]
-		} else {
-			dsImg, ok = r.Game.Images[it]
-		}
-		if ok {
-			err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight)
-			if err == ds.ErrImgNotFound {
+	if !exists && !opts.NoDownload {
+		for _, it := range opts.ImgPriority {
+			var dsImg ds.Image
+			var ok bool
+			if opts.ThumbOnly {
+				dsImg, ok = r.Game.Thumbs[it]
+			} else {
+				dsImg, ok = r.Game.Images[it]
+			}
+			if !ok {
 				continue
 			}
-			if err != nil {
+			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil {
+				if err == ds.ErrImgNotFound {
+					continue
+				}
 				return nil, err
 			}
 			gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
 			break
 		}
-
+	}
+	vidPath := getVidPath(r, opts)
+	newPath, exists := fileExists(vidPath+".mp4", vidExts...)
+	if exists {
+		gxml.Video = fixPath(opts.VidXMLDir + "/" + strings.TrimPrefix(newPath, opts.VidDir))
+	}
+	if !exists && opts.DownloadVid {
+		for _, vt := range opts.VidPriority {
+			dsVid, ok := r.Game.Videos[vt]
+			if !ok {
+				continue
+			}
+			newPath = vidPath + dsVid.Ext()
+			if err := getVideo(ctx, dsVid, newPath); err != nil {
+				if err == ds.ErrImgNotFound {
+					continue
+				}
+				return nil, err
+			}
+			gxml.Video = fixPath(opts.VidXMLDir + "/" + strings.TrimPrefix(newPath, opts.VidDir))
+		}
+	}
+	imgPath = getMarqPath(r, opts)
+	imgPath, exists = fileExists(imgPath, imgExts...)
+	if exists {
+		gxml.Marquee = fixPath(opts.MarqXMLDir + "/" + strings.TrimPrefix(imgPath, opts.MarqDir))
+	}
+	if !exists && opts.DownloadMarq {
+		if dsImg, ok := r.Game.Images[ds.ImgMarquee]; ok {
+			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil && err != ds.ErrImgNotFound {
+				return nil, err
+			}
+			gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+		}
 	}
 	return gxml, nil
 }
@@ -407,6 +482,8 @@ type GameXML struct {
 	PlayCount   string   `xml:"playcount,omitempty"`
 	LastPlayed  string   `xml:"lastplayed,omitempty"`
 	Favorite    string   `xml:"favorite,omitempty"`
+	Marquee     string   `xml:"marquee,omitempty"`
+	Video       string   `xml:"video,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.

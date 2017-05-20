@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"io/ioutil"
 	"log"
 	"math"
@@ -54,6 +55,14 @@ const (
 	ImgMix4     ImgType = "mix4"
 )
 
+// VidTtpe represents the different video types that sources may provide.
+type VidType string
+
+// Video types for Datasource options. Not all types are valid for all sources.
+const (
+	VidStandard VidType = "v"
+)
+
 // Game is the standard Game that all sources will return.
 // They don't have to populate all values.
 type Game struct {
@@ -63,6 +72,7 @@ type Game struct {
 	Overview    string
 	Images      map[ImgType]Image
 	Thumbs      map[ImgType]Image
+	Videos      map[VidType]Video
 	Rating      float64
 	ReleaseDate string
 	Developer   string
@@ -76,6 +86,7 @@ func NewGame() *Game {
 	g := &Game{}
 	g.Images = make(map[ImgType]Image)
 	g.Thumbs = make(map[ImgType]Image)
+	g.Videos = make(map[VidType]Video)
 	return g
 }
 
@@ -85,6 +96,46 @@ type DS interface {
 	GetName(string) string
 	// GetGame takes an id and returns the Game.
 	GetGame(context.Context, string) (*Game, error)
+}
+
+type Video interface {
+	Save(ctx context.Context, p string) error
+	Ext() string
+}
+
+type HTTPVideo struct {
+	URL string
+	E   string
+}
+
+func (v HTTPVideo) Save(ctx context.Context, p string) error {
+	req, err := http.NewRequest("GET", v.URL, nil)
+	if err != nil {
+		return err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrImgNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v from $s", resp.StatusCode, v.URL)
+	}
+	defer resp.Body.Close()
+	out, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func (v HTTPVideo) Ext() string {
+	return v.E
 }
 
 type Image interface {

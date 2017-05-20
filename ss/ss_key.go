@@ -15,21 +15,21 @@ const data = "tyaeVitrQtwVtlZdKN1htjwLYrLgSezPt2edn8o1ayryAQmCHnIK3BKCbGZfMA+5FG
 
 func ObfuscateDevInfo(info DevInfo) (string, error) {
 	k, err := base64.StdEncoding.DecodeString(key)
-        if err != nil {
-                return "", err
-        }
+	if err != nil {
+		return "", err
+	}
 	b, err := json.Marshal(info)
 	if err != nil {
 		return "", err
 	}
 	block, err := aes.NewCipher(k[:])
-        if err != nil {
-                return "", err
-        }
-        gcm, err := cipher.NewGCM(block)
-        if err != nil {
-                return "", err
-        }
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
 	nonce := make([]byte, 12)
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		panic(err.Error())

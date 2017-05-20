@@ -31,8 +31,14 @@ var romDir = flag.String("rom_dir", ".", "The `directory` containing the roms fi
 var outputFile = flag.String("output_file", "gamelist.xml", "The XML `file` to output to.")
 var imageDir = flag.String("image_dir", "images", "The `directory` to place downloaded images to locally.")
 var imagePath = flag.String("image_path", "images", "The `path` to use for images in gamelist.xml.")
+var videoDir = flag.String("video_dir", "images", "The `directory` to place downloaded videos to locally.")
+var videoPath = flag.String("video_path", "images", "The `path` to use for videos in gamelist.xml.")
+var marqueeDir = flag.String("marquee_dir", "images", "The `directory` to place downloaded marquees to locally.")
+var marqueePath = flag.String("marquee_path", "images", "The `path` to use for marquees in gamelist.xml.")
 var imageSuffix = flag.String("image_suffix", "-image", "The `suffix` added after rom name when creating image files.")
 var thumbSuffix = flag.String("thumb_suffix", "-thumb", "The `suffix` added after rom name when creating thumb files.")
+var videoSuffix = flag.String("video_suffix", "-video", "The `suffix` added after rom name when creating video files.")
+var marqueeSuffix = flag.String("marquee_suffix", "-marquee", "The `suffix` added after rom name when creating marquee files.")
 var romPath = flag.String("rom_path", ".", "The `path` to use for roms in gamelist.xml.")
 var maxWidth = flag.Uint("max_width", 400, "The max `width` of images. Larger images will be resized.")
 var maxHeight = flag.Uint("max_height", 0, "The max `height` of images. Larger images will be resized.")
@@ -54,6 +60,8 @@ var mameSrcs = flag.String("mame_src", "adb,gdb", "Comma seperated order to pref
 var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to prefer console sources, ss=screenscraper, ovgdb=OpenVGDB, gdb=theGamesDB")
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
+var downloadVideos = flag.Bool("download_videos", false, "If true, download videos.")
+var downloadMarquees = flag.Bool("download_marquees", false, "If true, download marquees.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
 var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart, mix3=Standard 3 mix, mix4=Standard 4 mix.")
 var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to write the images.")
@@ -492,17 +500,26 @@ func main() {
 	rom.SetMaxImg(*imgWorkers)
 
 	xmlOpts := &rom.XMLOpts{
-		RomDir:     *romDir,
-		RomXMLDir:  *romPath,
-		NestImgDir: *nestedImageDir,
-		ImgDir:     *imageDir,
-		ImgXMLDir:  *imagePath,
-		ImgSuffix:  *imageSuffix,
-		ThumbOnly:  *thumbOnly,
-		NoDownload: !*downloadImages,
-		ImgFormat:  *imgFormat,
-		ImgWidth:   *maxWidth,
-		ImgHeight:  *maxHeight,
+		RomDir:       *romDir,
+		RomXMLDir:    *romPath,
+		NestImgDir:   *nestedImageDir,
+		ImgDir:       *imageDir,
+		ImgXMLDir:    *imagePath,
+		ImgSuffix:    *imageSuffix,
+		ThumbOnly:    *thumbOnly,
+		NoDownload:   !*downloadImages,
+		DownloadVid:  *downloadVideos,
+		DownloadMarq: *downloadMarquees,
+		ImgFormat:    *imgFormat,
+		ImgWidth:     *maxWidth,
+		ImgHeight:    *maxHeight,
+		VidDir:       *videoDir,
+		VidXMLDir:    *videoPath,
+		VidSuffix:    *videoSuffix,
+		MarqDir:      *marqueeDir,
+		MarqXMLDir:   *marqueePath,
+		MarqSuffix:   *marqueeSuffix,
+		VidPriority:  []ds.VidType{ds.VidStandard},
 	}
 	var aImg []ds.ImgType
 	var cImg []ds.ImgType

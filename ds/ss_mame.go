@@ -2,6 +2,7 @@ package ds
 
 import (
 	"context"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -72,6 +73,12 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	if imgURL, ok := game.Media.Flyer(regions); ok {
 		ret.Images[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
+	}
+	if vidURL := game.Media.Video; vidURL != "" {
+		if u, err := url.Parse(vidURL); err == nil {
+			ext := u.Query().Get("mediaformat")
+			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
+		}
 	}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"

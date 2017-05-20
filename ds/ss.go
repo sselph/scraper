@@ -42,6 +42,48 @@ type SS struct {
 	Limit  chan struct{}
 }
 
+type HTTPVideoSS struct {
+	URL   string
+	E     string
+	Limit chan struct{}
+}
+
+func (v HTTPVideoSS) Save(ctx context.Context, p string) error {
+	if v.Limit != nil {
+		<-v.Limit
+		defer func() {
+			v.Limit <- struct{}{}
+		}()
+	}
+	req, err := http.NewRequest("GET", v.URL, nil)
+	if err != nil {
+		return err
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return ErrImgNotFound
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v from $s", resp.StatusCode, v.URL)
+	}
+	defer resp.Body.Close()
+	out, err := os.Create(p)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	return err
+}
+
+func (v HTTPVideoSS) Ext() string {
+	return v.E
+}
+
 type HTTPImageSS struct {
 	URL   string
 	Limit chan struct{}
@@ -196,9 +238,17 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	if imgURL, ok := game.Media.Wheel(regions); ok {
 		wheel = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[ImgMarquee] = wheel
+		ret.Thumbs[ImgMarquee] = wheel
 	}
 	if imgURL, ok := game.Media.Support2D(regions); ok {
 		cart = HTTPImageSS{imgURL, s.Limit}
+	}
+	if vidURL := game.Media.Video; vidURL != "" {
+		if u, err := url.Parse(vidURL); err == nil {
+			ext := u.Query().Get("mediaformat")
+			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
+		}
 	}
 	ret.Images[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
 	ret.Thumbs[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
