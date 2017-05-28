@@ -61,6 +61,7 @@ var consoleSrcs = flag.String("console_src", "gdb", "Comma seperated order to pr
 var stripUnicode = flag.Bool("strip_unicode", false, "If true, remove all non-ascii characters.")
 var downloadImages = flag.Bool("download_images", true, "If false, don't download any images, instead see if the expected file is stored locally already.")
 var downloadVideos = flag.Bool("download_videos", false, "If true, download videos.")
+var convertVideos = flag.Bool("convert_videos", false, "If true, convert videos for the Raspberry Pi (e.g. 320x240@30fps) NOTE: This needs HandBrakeCLI installed")
 var downloadMarquees = flag.Bool("download_marquees", false, "If true, download marquees.")
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
 var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart, mix3=Standard 3 mix, mix4=Standard 4 mix.")
@@ -516,6 +517,7 @@ func main() {
 		VidDir:       *videoDir,
 		VidXMLDir:    *videoPath,
 		VidSuffix:    *videoSuffix,
+		VidConvert:   *convertVideos,
 		MarqDir:      *marqueeDir,
 		MarqXMLDir:   *marqueePath,
 		MarqSuffix:   *marqueeSuffix,
