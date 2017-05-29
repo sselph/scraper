@@ -6,6 +6,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os"
+	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -78,6 +80,7 @@ type XMLOpts struct {
 	VidSuffix    string
 	VidDir       string
 	VidXMLDir    string
+	VidConvert   bool
 	DownloadMarq bool
 	MarqSuffix   string
 	MarqDir      string
@@ -382,6 +385,36 @@ func fileExists(p string, ext ...string) (string, bool) {
 	return p, false
 }
 
+// Not sure if this is the right place for this.
+func convertVideo(p string) error {
+	vidExt := path.Ext(p)
+	baseFile := p[:len(p)-len(vidExt)]
+	outputFile := baseFile + "-converting" + vidExt
+	// Hardcoded command for now, clean this up once we offer more
+	// conversion options.
+	cmd := exec.Command("HandBrakeCLI", "-i", p, "-o", outputFile,
+		"-e", "x264",
+		"-w", "320",
+		"-l", "240",
+		"-r", "30",
+		"--keep-display-aspect",
+		"--decomb",
+		"--audio", "1",
+		"-B", "80",
+		"-E", "av_aac")
+	err := cmd.Run()
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(outputFile, p)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // XML creates the XML for the ROM after the Game has been populates.
 func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	gxml := &GameXML{
@@ -444,7 +477,14 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 				}
 				return nil, err
 			}
+			if opts.VidConvert {
+				if err := convertVideo(newPath); err != nil {
+					return nil, err
+				}
+			}
+
 			gxml.Video = fixPath(opts.VidXMLDir + "/" + strings.TrimPrefix(newPath, opts.VidDir))
+
 		}
 	}
 	imgPath = getMarqPath(r, opts)
