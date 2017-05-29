@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"runtime"
 
 	"github.com/kjk/lzmadec"
@@ -27,7 +27,7 @@ func decode7Zip(f string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	for _, e := range r.Entries {
-		ext := path.Ext(e.Path)
+		ext := filepath.Ext(e.Path)
 		if decoder, ok := getDecoder(ext); ok {
 			rf, err := r.GetFileReader(e.Path)
 			if err != nil {

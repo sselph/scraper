@@ -7,7 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 )
 
 func decodeGZip(f string) (io.ReadCloser, error) {
@@ -21,7 +21,7 @@ func decodeGZip(f string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	defer gzr.Close()
-	ext := path.Ext(gzr.Header.Name)
+	ext := filepath.Ext(gzr.Header.Name)
 	if decoder, ok := getDecoder(ext); ok {
 		d, err := ioutil.ReadAll(gzr)
 		if err != nil {

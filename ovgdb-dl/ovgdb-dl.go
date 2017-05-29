@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -180,7 +180,7 @@ func updateDB(version, p string) error {
 		if err != nil {
 			return err
 		}
-		zf := path.Join(p, zipName)
+		zf := filepath.Join(p, zipName)
 		err = ioutil.WriteFile(zf, b, 0664)
 		if err != nil {
 			return err
@@ -203,10 +203,10 @@ func updateDB(version, p string) error {
 			if err != nil {
 				return err
 			}
-			ioutil.WriteFile(path.Join(p, metaName), []byte(r.TagName), 0664)
+			ioutil.WriteFile(filepath.Join(p, metaName), []byte(r.TagName), 0664)
 			os.Remove(zf)
 			log.Print("INFO: Upgrade Complete.")
-			return ioutil.WriteFile(path.Join(p, fileName), b, 0664)
+			return ioutil.WriteFile(filepath.Join(p, fileName), b, 0664)
 		}
 	}
 	return fmt.Errorf("no openvgdb found")

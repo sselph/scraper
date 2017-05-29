@@ -4,7 +4,7 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"path"
+	"path/filepath"
 )
 
 type zipReader struct {
@@ -29,7 +29,7 @@ func decodeZip(f string) (io.ReadCloser, error) {
 	}
 	var zr zipReader
 	for _, zf := range r.File {
-		ext := path.Ext(zf.FileHeader.Name)
+		ext := filepath.Ext(zf.FileHeader.Name)
 		if decoder, ok := getDecoder(ext); ok {
 			rf, err := zf.Open()
 			if err != nil {

@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -134,7 +133,7 @@ func updateDB(ctx context.Context, version, p string) error {
 		log.Printf("WARN: Using cached OpenVGDB. Server over quota.")
 		return nil
 	}
-	dbp := path.Join(p, dbName)
+	dbp := filepath.Join(p, dbName)
 	err = os.RemoveAll(dbp)
 	if err != nil {
 		return err
@@ -149,7 +148,7 @@ func updateDB(ctx context.Context, version, p string) error {
 	if err != nil {
 		return err
 	}
-	zf := path.Join(p, zipName)
+	zf := filepath.Join(p, zipName)
 	err = ioutil.WriteFile(zf, b, 0664)
 	if err != nil {
 		return err
@@ -170,14 +169,14 @@ func updateDB(ctx context.Context, version, p string) error {
 		if err != nil {
 			return err
 		}
-		err = ioutil.WriteFile(path.Join(dbp, n), b, 0664)
+		err = ioutil.WriteFile(filepath.Join(dbp, n), b, 0664)
 		if err != nil {
 			return err
 		}
 	}
 	log.Print("INFO: Upgrade Complete.")
 	os.Remove(zf)
-	ioutil.WriteFile(path.Join(p, metaName), []byte(newVersion), 0664)
+	ioutil.WriteFile(filepath.Join(p, metaName), []byte(newVersion), 0664)
 	return nil
 }
 
@@ -194,8 +193,8 @@ func getDB(ctx context.Context, p string, u bool) (*leveldb.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	fp := path.Join(p, dbName)
-	mp := path.Join(p, metaName)
+	fp := filepath.Join(p, dbName)
+	mp := filepath.Join(p, metaName)
 	if exists(fp) && exists(mp) {
 		b, err := ioutil.ReadFile(mp)
 		if err != nil {
