@@ -84,6 +84,7 @@ type XMLOpts struct {
 	MarqSuffix   string
 	MarqDir      string
 	MarqXMLDir   string
+	MarqFormat   string
 }
 
 // stripChars strips out unicode and converts "fancy" quotes to normal quotes.
@@ -303,7 +304,7 @@ func getMarqPath(r *ROM, opts *XMLOpts) string {
 	} else {
 		marqPath = opts.MarqDir
 	}
-	iName := fmt.Sprintf("%s%s.%s", r.BaseName, opts.MarqSuffix, opts.ImgFormat)
+	iName := fmt.Sprintf("%s%s.%s", r.BaseName, opts.MarqSuffix, opts.MarqFormat)
 	return filepath.Join(marqPath, iName)
 }
 

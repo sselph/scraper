@@ -66,6 +66,7 @@ var downloadMarquees = flag.Bool("download_marquees", false, "If true, download 
 var scrapeAll = flag.Bool("scrape_all", false, "If true, scrape all systems listed in es_systems.cfg. All dir/path flags will be ignored.")
 var consoleImg = flag.String("console_img", "b", "Comma seperated order to prefer images, s=snapshot, b=boxart, f=fanart, a=banner, l=logo, 3b=3D boxart, mix3=Standard 3 mix, mix4=Standard 4 mix.")
 var imgFormat = flag.String("img_format", "jpg", "`jpg or png`, the format to write the images.")
+var marqueeFormat = flag.String("marquee_format", "png", "`jpg or png`, the format to write the marquees.")
 var appendOut = flag.Bool("append", false, "If the gamelist file already exist skip files that are already listed and only append new files.")
 var version = flag.Bool("version", false, "Print the release version and exit.")
 var refreshOut = flag.Bool("refresh", false, "Information will be attempted to be downloaded again but won't remove roms that are not scraped.")
@@ -521,6 +522,7 @@ func main() {
 		MarqDir:      *marqueeDir,
 		MarqXMLDir:   *marqueePath,
 		MarqSuffix:   *marqueeSuffix,
+		MarqFormat:   *marqueeFormat,
 		VidPriority:  []ds.VidType{ds.VidStandard},
 	}
 	var aImg []ds.ImgType
