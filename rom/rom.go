@@ -489,7 +489,7 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil && err != ds.ErrImgNotFound {
 				return nil, err
 			}
-			gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+			gxml.Marquee = fixPath(opts.MarqXMLDir + "/" + strings.TrimPrefix(imgPath, opts.MarqDir))
 		}
 	}
 	return gxml, nil
