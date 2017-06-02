@@ -24,6 +24,9 @@ var vidExts = []string{".mp4", ".mkv", ".flv", ".ogv", ".avi", ".mov", ".mpg", "
 
 func init() {
 	SetMaxImg(runtime.NumCPU())
+	if runtime.GOOS == "windows" {
+		os.Setenv("PATH", fmt.Sprintf("C:\\Program Files\\Handbrake;%s", os.Getenv("PATH")))
+	}
 }
 
 // SetMaxImg sets the maximum number of threads that are allowed to have an open image.
