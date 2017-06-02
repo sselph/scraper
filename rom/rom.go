@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -309,10 +310,10 @@ func getMarqPath(r *ROM, opts *XMLOpts) string {
 }
 
 // fixPaths fixes relative file paths to include the leading './'.
-func fixPath(s string) string {
-	s = filepath.ToSlash(s)
-	s = strings.Replace(s, "//", "/", -1)
-	if filepath.IsAbs(s) || s[0] == '.' || s[0] == '~' {
+func fixPath(xmlDir, localDir, p string) string {
+	s := strings.TrimPrefix(filepath.Clean(p), filepath.Clean(localDir))
+	s = path.Clean(path.Join(xmlDir, filepath.ToSlash(s)))
+	if strings.HasPrefix(s, "/") || strings.HasPrefix(s, ".") || strings.HasPrefix(s, "~") {
 		return s
 	}
 	return fmt.Sprintf("./%s", s)
@@ -411,7 +412,7 @@ func convertVideo(p string) error {
 // XML creates the XML for the ROM after the Game has been populates.
 func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	gxml := &GameXML{
-		Path:        fixPath(opts.RomXMLDir + "/" + strings.TrimPrefix(r.Path, opts.RomDir)),
+		Path:        fixPath(opts.RomXMLDir, opts.RomDir, r.Path),
 		ID:          r.Game.ID,
 		GameTitle:   r.Game.GameTitle,
 		Overview:    r.Game.Overview,
@@ -428,7 +429,7 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	imgPath := getImgPath(r, opts)
 	imgPath, exists := fileExists(imgPath, imgExts...)
 	if exists {
-		gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+		gxml.Image = fixPath(opts.ImgXMLDir, opts.ImgDir, imgPath)
 	}
 	if !exists && !opts.NoDownload {
 		for _, it := range opts.ImgPriority {
@@ -448,14 +449,14 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 				}
 				return nil, err
 			}
-			gxml.Image = fixPath(opts.ImgXMLDir + "/" + strings.TrimPrefix(imgPath, opts.ImgDir))
+			gxml.Image = fixPath(opts.ImgXMLDir, opts.ImgDir, imgPath)
 			break
 		}
 	}
 	vidPath := getVidPath(r, opts)
 	newPath, exists := fileExists(vidPath+".mp4", vidExts...)
 	if exists {
-		gxml.Video = fixPath(opts.VidXMLDir + "/" + strings.TrimPrefix(newPath, opts.VidDir))
+		gxml.Video = fixPath(opts.VidXMLDir, opts.VidDir, newPath)
 	}
 	if !exists && opts.DownloadVid {
 		for _, vt := range opts.VidPriority {
@@ -476,21 +477,21 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 				}
 			}
 
-			gxml.Video = fixPath(opts.VidXMLDir + "/" + strings.TrimPrefix(newPath, opts.VidDir))
+			gxml.Video = fixPath(opts.VidXMLDir, opts.VidDir, newPath)
 
 		}
 	}
 	imgPath = getMarqPath(r, opts)
 	imgPath, exists = fileExists(imgPath, imgExts...)
 	if exists {
-		gxml.Marquee = fixPath(opts.MarqXMLDir + "/" + strings.TrimPrefix(imgPath, opts.MarqDir))
+		gxml.Marquee = fixPath(opts.MarqXMLDir, opts.MarqDir, imgPath)
 	}
 	if !exists && opts.DownloadMarq {
 		if dsImg, ok := r.Game.Images[ds.ImgMarquee]; ok {
 			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil && err != ds.ErrImgNotFound {
 				return nil, err
 			}
-			gxml.Marquee = fixPath(opts.MarqXMLDir + "/" + strings.TrimPrefix(imgPath, opts.MarqDir))
+			gxml.Marquee = fixPath(opts.MarqXMLDir, opts.MarqDir, imgPath)
 		}
 	}
 	return gxml, nil
