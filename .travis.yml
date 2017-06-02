@@ -7,7 +7,7 @@ go:
 env:
     - GIMME_OS=linux GIMME_ARCH=amd64
 #    - GIMME_OS=darwin GIMME_ARCH=amd64
-    - GIMME_OS=windows GIMME_ARCH=amd64
+#    - GIMME_OS=windows GIMME_ARCH=amd64
     - GIMME_OS=linux GIMME_ARCH=arm GOARM=6
 
 
@@ -20,5 +20,4 @@ script:
     - go build -o rename-bin -v ./rename
     - go build -o mame-history-bin -v ./mame-history
     - go build -v .
-    - go test -v ./rom
     - ./scripts/run-tests.sh
