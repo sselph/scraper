@@ -76,5 +76,8 @@ func (a *ADB) GetGame(ctx context.Context, p string) (*Game, error) {
 		game.Images[ImgFlyer] = HTTPImage{g.Flyer}
 		game.Thumbs[ImgFlyer] = HTTPImage{g.Flyer}
 	}
+	if g.Video != "" {
+		game.Videos[VidStandard] = HTTPVideo{g.Video, ".mp4"}
+	}
 	return game, nil
 }
