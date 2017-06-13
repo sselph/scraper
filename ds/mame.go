@@ -63,6 +63,7 @@ func (m *MAME) GetGame(ctx context.Context, p string) (*Game, error) {
 	game.ReleaseDate = g.Date
 	game.Developer = g.Developer
 	game.Genre = g.Genre
+	game.CloneOf = g.CloneOf
 	game.Source = g.Source
 	game.Players = g.Players
 	game.Rating = g.Rating / 10.0

@@ -425,6 +425,7 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 		Publisher:   r.Game.Publisher,
 		Genre:       r.Game.Genre,
 		Source:      r.Game.Source,
+		CloneOf:     r.Game.CloneOf,
 	}
 	if r.Game.Players > 0 {
 		gxml.Players = strconv.FormatInt(r.Game.Players, 10)
@@ -521,6 +522,7 @@ type GameXML struct {
 	Favorite    string   `xml:"favorite,omitempty"`
 	Marquee     string   `xml:"marquee,omitempty"`
 	Video       string   `xml:"video,omitempty"`
+	CloneOf     string   `xml:"cloneof,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.

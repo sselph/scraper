@@ -35,6 +35,7 @@ type Result struct {
 	Title          string `json:"url_image_title"`
 	Flyer          string `json:"url_image_flyer"`
 	Year           string `json:"year"`
+	CloneOf        string `json:"cloneof"`
 }
 
 type GameResp struct {

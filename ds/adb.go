@@ -47,6 +47,7 @@ func (a *ADB) GetGame(ctx context.Context, p string) (*Game, error) {
 	game.ReleaseDate = g.Year
 	game.Developer = g.Manufacturer
 	game.Genre = g.Genre
+	game.CloneOf = g.CloneOf
 	game.Source = adb.Source
 	if p, err := strconv.ParseInt(g.Players, 10, 32); err == nil {
 		game.Players = p

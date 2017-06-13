@@ -79,6 +79,7 @@ type Game struct {
 	Publisher   string
 	Genre       string
 	Players     int64
+	CloneOf     string
 }
 
 // NewGame returns a new Game.

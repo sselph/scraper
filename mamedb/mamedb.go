@@ -36,6 +36,7 @@ var (
 	titleImgRE   = regexp.MustCompile("<img src='/titles/(.*?)\\.png'")
 	cabinetRE    = regexp.MustCompile("<img src='/cabinets.small/(.*?)\\.(png|jpg|jpeg)'")
 	marqueeRE    = regexp.MustCompile("<img src='/marquees.small/(.*?)\\.(png|jpg|jpeg)'")
+	cloneRE      = regexp.MustCompile(`\(clone of: <a href='/game/.*?'>(?P<cloneof>.*?)</a>\)&nbsp;<br/>`)
 )
 
 // ErrNotFound is returned when a game is not found.
@@ -55,6 +56,7 @@ type Game struct {
 	Genre     string
 	Date      string
 	Source    string
+	CloneOf   string
 }
 
 // GetGame gets a game from mamedb.
@@ -86,7 +88,8 @@ func GetGame(ctx context.Context, name string) (*Game, error) {
 	if ilm == nil {
 		return nil, fmt.Errorf("ILM Bad HTML")
 	}
-	tm := titleRE.FindSubmatch(ilm[1])
+	gameInfo := ilm[1]
+	tm := titleRE.FindSubmatch(gameInfo)
 	if tm == nil {
 		return nil, fmt.Errorf("TM Bad HTML")
 	}
@@ -108,39 +111,35 @@ func GetGame(ctx context.Context, name string) (*Game, error) {
 			}
 		}
 	}
-	gm := genreRE.FindSubmatch(ilm[1])
-	if gm != nil {
-		g.Genre = string(gm[1])
+	if m := genreRE.FindSubmatch(gameInfo); m != nil {
+		g.Genre = string(m[1])
 	}
-	rm := scoreRE.FindSubmatch(body)
-	if rm != nil {
-		rating, err := strconv.ParseFloat(string(rm[1]), 64)
+	if m := cloneRE.FindSubmatch(gameInfo); m != nil {
+		g.CloneOf = string(m[1])
+	}
+	if m := scoreRE.FindSubmatch(body); m != nil {
+		rating, err := strconv.ParseFloat(string(m[1]), 64)
 		if err == nil {
 			g.Rating = rating
 		}
 	}
-	pm := playersRE.FindSubmatch(ilm[1])
-	if pm != nil {
-		players, err := strconv.ParseInt(string(pm[1]), 10, 64)
+	if m := playersRE.FindSubmatch(gameInfo); m != nil {
+		players, err := strconv.ParseInt(string(m[1]), 10, 64)
 		if err == nil {
 			g.Players = players
 		}
 	}
-	sm := snapRE.FindSubmatch(body)
-	if sm != nil {
-		g.Snap = fmt.Sprintf("%s/snap/%s.png", baseURL, string(sm[1]))
+	if m := snapRE.FindSubmatch(body); m != nil {
+		g.Snap = fmt.Sprintf("%s/snap/%s.png", baseURL, string(m[1]))
 	}
-	mm := marqueeRE.FindSubmatch(body)
-	if mm != nil {
-		g.Marquee = fmt.Sprintf("%s/marquees/%s.png", baseURL, string(mm[1]))
+	if m := marqueeRE.FindSubmatch(body); m != nil {
+		g.Marquee = fmt.Sprintf("%s/marquees/%s.png", baseURL, string(m[1]))
 	}
-	tim := titleImgRE.FindSubmatch(body)
-	if tim != nil {
-		g.Title = fmt.Sprintf("%s/titles/%s.png", baseURL, string(tim[1]))
+	if m := titleImgRE.FindSubmatch(body); m != nil {
+		g.Title = fmt.Sprintf("%s/titles/%s.png", baseURL, string(m[1]))
 	}
-	cm := cabinetRE.FindSubmatch(body)
-	if cm != nil {
-		g.Cabinet = fmt.Sprintf("%s/cabinets/%s.png", baseURL, string(cm[1]))
+	if m := cabinetRE.FindSubmatch(body); m != nil {
+		g.Cabinet = fmt.Sprintf("%s/cabinets/%s.png", baseURL, string(m[1]))
 	}
 	return &g, nil
 }
