@@ -204,7 +204,7 @@ func Draw(ctx context.Context, def *Def, width, height int) (image.Image, error)
 			return m, fmt.Errorf("%s: %q", e.Image, err)
 		}
 		if e.Fill {
-			img = resize.Resize(uint(w), uint(h), img, resize.Bilinear)
+			img = resize.Thumbnail(uint(w), uint(h), img, resize.Bilinear)
 		}
 		b := img.Bounds()
 		w = b.Dx()
