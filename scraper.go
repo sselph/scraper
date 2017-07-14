@@ -28,13 +28,13 @@ import (
 
 var hashFile = flag.String("hash_file", "", "The `file` containing hash information.")
 var romDir = flag.String("rom_dir", ".", "The `directory` containing the roms file to process.")
-var outputFile = flag.String("output_file", "gamelist.xml", "The XML `file` to output to.")
+var outputFile = flag.String("output_file", "gamelist.xml", "The XML `file` to output to. If scrape_all is used, this is ignored and the gamelist in the system path.")
 var imageDir = flag.String("image_dir", "images", "The `directory` to place downloaded images to locally.")
-var imagePath = flag.String("image_path", "images", "The `path` to use for images in gamelist.xml.")
+var imagePath = flag.String("image_path", "images", "The `path` to use for images in gamelist.xml. If scrape_all is used, only image_dir is used.")
 var videoDir = flag.String("video_dir", "images", "The `directory` to place downloaded videos to locally.")
-var videoPath = flag.String("video_path", "images", "The `path` to use for videos in gamelist.xml.")
+var videoPath = flag.String("video_path", "images", "The `path` to use for videos in gamelist.xml. If scrape_all is used, only video_dir is used.")
 var marqueeDir = flag.String("marquee_dir", "images", "The `directory` to place downloaded marquees to locally.")
-var marqueePath = flag.String("marquee_path", "images", "The `path` to use for marquees in gamelist.xml.")
+var marqueePath = flag.String("marquee_path", "images", "The `path` to use for marquees in gamelist.xml. If scrape_all is used, only marquee_dir is used.")
 var imageSuffix = flag.String("image_suffix", "-image", "The `suffix` added after rom name when creating image files.")
 var thumbSuffix = flag.String("thumb_suffix", "-thumb", "The `suffix` added after rom name when creating thumb files.")
 var videoSuffix = flag.String("video_suffix", "-video", "The `suffix` added after rom name when creating video files.")
@@ -439,6 +439,13 @@ type System struct {
 	Platform  string `xml:"platform"`
 }
 
+func (s System) mediaPath(path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Join(path, s.Name)
+	}
+	return filepath.Join(s.Path, path)
+}
+
 // ESSystems represents es_systems.cfg
 type ESSystems struct {
 	XMLName xml.Name `xml:"systemList"`
@@ -722,9 +729,12 @@ func main() {
 			log.Printf("Starting System %s", s.Path)
 			xmlOpts.RomDir = s.Path
 			xmlOpts.RomXMLDir = s.Path
-			p := filepath.Join(s.Path, "images")
-			xmlOpts.ImgDir = p
-			xmlOpts.ImgXMLDir = p
+			xmlOpts.ImgDir = s.mediaPath(*imageDir)
+			xmlOpts.ImgXMLDir = s.mediaPath(*imageDir)
+			xmlOpts.VidDir = s.mediaPath(*videoDir)
+			xmlOpts.VidXMLDir = s.mediaPath(*videoDir)
+			xmlOpts.MarqDir = s.mediaPath(*marqueeDir)
+			xmlOpts.MarqXMLDir = s.mediaPath(*marqueeDir)
 			out := filepath.Join(s.Path, "gamelist.xml")
 			*outputFile = out
 			if origMissing != "" {
