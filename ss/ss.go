@@ -16,14 +16,15 @@ import (
 
 // JSON field prefixes.
 const (
-	pre2D        = "media_box2d_"
-	pre3D        = "media_box3d_"
-	preFlyer     = "media_flyer_"
-	preWheel     = "media_wheel_"
-	preSupport2D = "media_support2d"
-	preDate      = "date_"
-	preGenre     = "genres_"
-	preSynopsis  = "synopsis_"
+	pre2D           = "media_box2d_"
+	pre3D           = "media_box3d_"
+	preFlyer        = "media_flyer_"
+	preWheel        = "media_wheel_"
+	preSupport2D    = "media_support2d_"
+	preSupportLabel = "media_supporttexture_"
+	preDate         = "date_"
+	preGenre        = "genres_"
+	preSynopsis     = "synopsis_"
 )
 
 const (
@@ -94,6 +95,11 @@ type BoxArt struct {
 	Box3D SafeStringMap `json:"media_boxs3d"`
 }
 
+type Support struct {
+	Support2Ds    SafeStringMap `json:"media_supports2d"`
+	SupportLabels SafeStringMap `json:"media_supportstexture"`
+}
+
 type Media struct {
 	Screenshot    string        `json:"media_screenshot"`
 	ScreenMarquee string        `json:"media_screenmarquee"`
@@ -102,7 +108,7 @@ type Media struct {
 	Flyers        SafeStringMap `json:"media_flyers"`
 	BoxArt        BoxArt        `json:"media_boxs"`
 	Wheels        SafeStringMap `json:"media_wheels"`
-	Support2Ds    SafeStringMap `json:"media_supports2d"`
+	Supports      Support       `json:"media_supports"`
 }
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
@@ -148,7 +154,11 @@ func (m Media) Wheel(r []string) (string, bool) {
 }
 
 func (m Media) Support2D(r []string) (string, bool) {
-	return getSuffix(m.Support2Ds.Map, preSupport2D, r)
+	return getSuffix(m.Supports.Support2Ds.Map, preSupport2D, r)
+}
+
+func (m Media) SupportLabel(r []string) (string, bool) {
+	return getSuffix(m.Supports.SupportLabels.Map, preSupportLabel, r)
 }
 
 type ROM struct {
@@ -368,5 +378,6 @@ func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) 
 		}
 		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
 	}
+	log.Printf("%+v\n", r)
 	return r, nil
 }

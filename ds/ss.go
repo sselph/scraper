@@ -243,6 +243,13 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	if imgURL, ok := game.Media.Support2D(regions); ok {
 		cart = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[ImgCart] = cart
+		ret.Thumbs[ImgCart] = cart
+	}
+	if imgURL, ok := game.Media.SupportLabel(regions); ok {
+		label := HTTPImageSS{imgURL, s.Limit}
+		ret.Images[ImgCartLabel] = label
+		ret.Thumbs[ImgCartLabel] = label
 	}
 	if vidURL := game.Media.Video; vidURL != "" {
 		if u, err := url.Parse(vidURL); err == nil {

@@ -41,18 +41,20 @@ type ImgType string
 
 // Image types for Datasource options. Not all types are valid for all sources.
 const (
-	ImgBoxart   ImgType = "b"
-	ImgBoxart3D ImgType = "3b"
-	ImgScreen   ImgType = "s"
-	ImgFanart   ImgType = "f"
-	ImgBanner   ImgType = "a"
-	ImgLogo     ImgType = "l"
-	ImgTitle    ImgType = "t"
-	ImgMarquee  ImgType = "m"
-	ImgCabinet  ImgType = "c"
-	ImgFlyer    ImgType = "fly"
-	ImgMix3     ImgType = "mix3"
-	ImgMix4     ImgType = "mix4"
+	ImgBoxart    ImgType = "b"
+	ImgBoxart3D  ImgType = "3b"
+	ImgScreen    ImgType = "s"
+	ImgFanart    ImgType = "f"
+	ImgBanner    ImgType = "a"
+	ImgLogo      ImgType = "l"
+	ImgTitle     ImgType = "t"
+	ImgMarquee   ImgType = "m"
+	ImgCabinet   ImgType = "c"
+	ImgFlyer     ImgType = "fly"
+	ImgCart      ImgType = "cart"
+	ImgCartLabel ImgType = "clabel"
+	ImgMix3      ImgType = "mix3"
+	ImgMix4      ImgType = "mix4"
 )
 
 // VidTtpe represents the different video types that sources may provide.
