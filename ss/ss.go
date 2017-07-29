@@ -378,6 +378,5 @@ func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) 
 		}
 		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
 	}
-	log.Printf("%+v\n", r)
 	return r, nil
 }
