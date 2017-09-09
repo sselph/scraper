@@ -15,7 +15,7 @@ Donate
 ------
 Donate to my extra-life page to help the children's hospital:
 
-[![Extra Life](http://bfapps1.boundlessfundraising.com/badge/extralife/display/268545/534)](https://goo.gl/38RN7g)
+<a href="https://goo.gl/38RN7g" target=new><img src="http://bfapps1.boundlessfundraising.com/badge/extralife/display/268545/534"></a>
 
 Or donate to the community:
 
