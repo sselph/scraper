@@ -107,11 +107,18 @@ type Video interface {
 }
 
 type HTTPVideo struct {
-	URL string
-	E   string
+	URL   string
+	E     string
+	Limit chan struct{}
 }
 
 func (v HTTPVideo) Save(ctx context.Context, p string) error {
+	if v.Limit != nil {
+		v.Limit <- struct{}{}
+		defer func() {
+			<-v.Limit
+		}()
+	}
 	req, err := http.NewRequest("GET", v.URL, nil)
 	if err != nil {
 		return err
@@ -147,10 +154,17 @@ type Image interface {
 }
 
 type HTTPImage struct {
-	URL string
+	URL   string
+	Limit chan struct{}
 }
 
 func (i HTTPImage) Get(ctx context.Context, w, h uint) (image.Image, error) {
+	if i.Limit != nil {
+		i.Limit <- struct{}{}
+		defer func() {
+			<-i.Limit
+		}()
+	}
 	return getImage(ctx, i.URL, w, h)
 }
 

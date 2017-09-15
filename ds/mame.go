@@ -68,20 +68,20 @@ func (m *MAME) GetGame(ctx context.Context, p string) (*Game, error) {
 	game.Players = g.Players
 	game.Rating = g.Rating / 10.0
 	if g.Title != "" {
-		game.Images[ImgTitle] = HTTPImage{g.Title}
-		game.Thumbs[ImgTitle] = HTTPImage{g.Title}
+		game.Images[ImgTitle] = HTTPImage{URL: g.Title}
+		game.Thumbs[ImgTitle] = HTTPImage{URL: g.Title}
 	}
 	if g.Snap != "" {
-		game.Images[ImgScreen] = HTTPImage{g.Snap}
-		game.Thumbs[ImgScreen] = HTTPImage{g.Snap}
+		game.Images[ImgScreen] = HTTPImage{URL: g.Snap}
+		game.Thumbs[ImgScreen] = HTTPImage{URL: g.Snap}
 	}
 	if g.Marquee != "" {
-		game.Images[ImgMarquee] = HTTPImage{g.Marquee}
-		game.Thumbs[ImgMarquee] = HTTPImage{g.Marquee}
+		game.Images[ImgMarquee] = HTTPImage{URL: g.Marquee}
+		game.Thumbs[ImgMarquee] = HTTPImage{URL: g.Marquee}
 	}
 	if g.Cabinet != "" {
-		game.Images[ImgCabinet] = HTTPImage{g.Cabinet}
-		game.Thumbs[ImgCabinet] = HTTPImage{g.Cabinet}
+		game.Images[ImgCabinet] = HTTPImage{URL: g.Cabinet}
+		game.Thumbs[ImgCabinet] = HTTPImage{URL: g.Cabinet}
 	}
 	hi, err := m.db.Get([]byte(id), nil)
 	if err == nil {

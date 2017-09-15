@@ -672,10 +672,6 @@ func main() {
 		case "":
 		case "ss":
 			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
-			limit := make(chan struct{}, t)
-			for i := 0; i < t; i++ {
-				limit <- struct{}{}
-			}
 			ssMDS := &ds.SSMAME{
 				Dev:    dev,
 				User:   ss.UserInfo{*ssUser, *ssPassword},
@@ -683,7 +679,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
-				Limit:  limit,
+				Limit:  make(chan struct{}, t),
 			}
 			arcadeSources = append(arcadeSources, ssMDS)
 		case "mamedb":
@@ -697,7 +693,7 @@ func main() {
 		case "gdb":
 			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
 		case "adb":
-			arcadeSources = append(arcadeSources, &ds.ADB{})
+			arcadeSources = append(arcadeSources, &ds.ADB{Limit: make(chan struct{}, 1)})
 		default:
 			fmt.Printf("Invalid MAME source %q\n", src)
 			return

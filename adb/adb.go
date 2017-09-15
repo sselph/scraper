@@ -27,7 +27,7 @@ type Result struct {
 	CopyRightLong  string `json:"history_copyright_long"`
 	CopyRightShort string `json:"history_copyright_short"`
 	Manufacturer   string `json:"manufacturer"`
-	Players        string `json:"players"`
+	Players        int64  `json:"players"`
 	Name           string `json:"title"`
 	Cabinet        string `json:"url_image_cabinet"`
 	Snap           string `json:"url_image_ingame"`
@@ -37,6 +37,7 @@ type Result struct {
 	Year           string `json:"year"`
 	CloneOf        string `json:"cloneof"`
 	Video          string `json:"url_video_shortplay"`
+	Rating         int64  `json:"rate"`
 }
 
 type GameResp struct {

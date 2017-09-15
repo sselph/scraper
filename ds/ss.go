@@ -50,9 +50,9 @@ type HTTPVideoSS struct {
 
 func (v HTTPVideoSS) Save(ctx context.Context, p string) error {
 	if v.Limit != nil {
-		<-v.Limit
+		v.Limit <- struct{}{}
 		defer func() {
-			v.Limit <- struct{}{}
+			<-v.Limit
 		}()
 	}
 	req, err := http.NewRequest("GET", v.URL, nil)
@@ -124,9 +124,9 @@ func (i HTTPImageSS) fetch(ctx context.Context, width, height uint) (rc io.ReadC
 
 func (i HTTPImageSS) Get(ctx context.Context, width, height uint) (image.Image, error) {
 	if i.Limit != nil {
-		<-i.Limit
+		i.Limit <- struct{}{}
 		defer func() {
-			i.Limit <- struct{}{}
+			<-i.Limit
 		}()
 	}
 	b, err := i.fetch(ctx, width, height)
@@ -143,9 +143,9 @@ func (i HTTPImageSS) Get(ctx context.Context, width, height uint) (image.Image, 
 
 func (i HTTPImageSS) Save(ctx context.Context, p string, width, height uint) error {
 	if i.Limit != nil {
-		<-i.Limit
+		i.Limit <- struct{}{}
 		defer func() {
-			i.Limit <- struct{}{}
+			<-i.Limit
 		}()
 	}
 	b, err := i.fetch(ctx, width, height)
@@ -196,9 +196,9 @@ func (s *SS) GetName(p string) string {
 // GetGame implements DS
 func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	if s.Limit != nil {
-		<-s.Limit
+		s.Limit <- struct{}{}
 		defer func() {
-			s.Limit <- struct{}{}
+			<-s.Limit
 		}()
 	}
 	id, err := s.getID(path)

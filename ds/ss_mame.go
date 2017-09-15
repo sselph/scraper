@@ -29,9 +29,9 @@ func (s *SSMAME) GetName(p string) string {
 // GetGame implements DS
 func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	if s.Limit != nil {
-		<-s.Limit
+		s.Limit <- struct{}{}
 		defer func() {
-			s.Limit <- struct{}{}
+			<-s.Limit
 		}()
 	}
 	req := ss.GameInfoReq{Name: filepath.Base(path)}

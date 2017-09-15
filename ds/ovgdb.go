@@ -41,8 +41,8 @@ func ovgdbUnmarshalGame(b []byte) (*Game, error) {
 	g.ReleaseDate = s[6]
 	g.Source = s[7]
 	if s[8] != "" {
-		g.Images[ImgBoxart] = HTTPImage{s[8]}
-		g.Thumbs[ImgBoxart] = HTTPImage{s[8]}
+		g.Images[ImgBoxart] = HTTPImage{URL: s[8]}
+		g.Thumbs[ImgBoxart] = HTTPImage{URL: s[8]}
 	}
 	return g, nil
 }

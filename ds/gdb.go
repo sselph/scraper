@@ -93,25 +93,25 @@ func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
 func ParseGDBGame(game gdb.Game, imgURL string) *Game {
 	ret := NewGame()
 	if len(game.Screenshot) != 0 {
-		ret.Images[ImgScreen] = HTTPImage{imgURL + game.Screenshot[0].Original.URL}
-		ret.Thumbs[ImgScreen] = HTTPImage{imgURL + game.Screenshot[0].Thumb}
+		ret.Images[ImgScreen] = HTTPImage{URL: imgURL + game.Screenshot[0].Original.URL}
+		ret.Thumbs[ImgScreen] = HTTPImage{URL: imgURL + game.Screenshot[0].Thumb}
 	}
 	front := getFront(game)
 	if front != nil {
-		ret.Images[ImgBoxart] = HTTPImage{imgURL + front.URL}
-		ret.Thumbs[ImgBoxart] = HTTPImage{imgURL + front.Thumb}
+		ret.Images[ImgBoxart] = HTTPImage{URL: imgURL + front.URL}
+		ret.Thumbs[ImgBoxart] = HTTPImage{URL: imgURL + front.Thumb}
 	}
 	if len(game.FanArt) != 0 {
-		ret.Images[ImgFanart] = HTTPImage{imgURL + game.FanArt[0].Original.URL}
-		ret.Thumbs[ImgFanart] = HTTPImage{imgURL + game.FanArt[0].Thumb}
+		ret.Images[ImgFanart] = HTTPImage{URL: imgURL + game.FanArt[0].Original.URL}
+		ret.Thumbs[ImgFanart] = HTTPImage{URL: imgURL + game.FanArt[0].Thumb}
 	}
 	if len(game.Banner) != 0 {
-		ret.Images[ImgBanner] = HTTPImage{imgURL + game.Banner[0].URL}
-		ret.Thumbs[ImgBanner] = HTTPImage{imgURL + game.Banner[0].URL}
+		ret.Images[ImgBanner] = HTTPImage{URL: imgURL + game.Banner[0].URL}
+		ret.Thumbs[ImgBanner] = HTTPImage{URL: imgURL + game.Banner[0].URL}
 	}
 	if len(game.ClearLogo) != 0 {
-		ret.Images[ImgLogo] = HTTPImage{imgURL + game.ClearLogo[0].URL}
-		ret.Thumbs[ImgLogo] = HTTPImage{imgURL + game.ClearLogo[0].URL}
+		ret.Images[ImgLogo] = HTTPImage{URL: imgURL + game.ClearLogo[0].URL}
+		ret.Thumbs[ImgLogo] = HTTPImage{URL: imgURL + game.ClearLogo[0].URL}
 	}
 
 	var genre string
