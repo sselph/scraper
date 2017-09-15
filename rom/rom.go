@@ -523,6 +523,8 @@ type GameXML struct {
 	Marquee     string   `xml:"marquee,omitempty"`
 	Video       string   `xml:"video,omitempty"`
 	CloneOf     string   `xml:"cloneof,omitempty"`
+	Hidden      string   `xml:"hidden,omitempty"`
+	KidGame     string   `xml:"kidgame,omitempty"`
 }
 
 // GameListXML is the structure used to export the gamelist.xml file.
