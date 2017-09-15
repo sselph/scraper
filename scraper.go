@@ -643,10 +643,6 @@ func main() {
 			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
 		case "ss":
 			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
-			limit := make(chan struct{}, t)
-			for i := 0; i < t; i++ {
-				limit <- struct{}{}
-			}
 			ssDS := &ds.SS{
 				HM:     hm,
 				Hasher: hasher,
@@ -656,7 +652,7 @@ func main() {
 				Height: int(*maxHeight),
 				Region: ssRegions,
 				Lang:   ssLangs,
-				Limit:  limit,
+				Limit:  make(chan struct{}, t),
 			}
 			consoleSources = append(consoleSources, ssDS)
 		case "ovgdb":
