@@ -488,6 +488,10 @@ func getSystems() ([]System, error) {
 
 func main() {
 	flag.Parse()
+	status := 1
+	defer func() {
+		os.Exit(status)
+	}()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	stopChan := make(chan os.Signal)
@@ -495,6 +499,7 @@ func main() {
 	defer signal.Stop(stopChan)
 	go func() {
 		<-stopChan
+		status = 130
 		cancel()
 	}()
 
@@ -700,6 +705,11 @@ func main() {
 		}
 	}
 
+	if len(consoleSources) == 0 && len(arcadeSources) == 0 {
+		fmt.Println("No sources available")
+		return
+	}
+
 	if !*scrapeAll {
 		var sources []ds.DS
 		if *mame {
@@ -752,4 +762,5 @@ func main() {
 			}
 		}
 	}
+	status = 0
 }
