@@ -25,7 +25,7 @@ var vidExts = []string{".mp4", ".mkv", ".flv", ".ogv", ".avi", ".mov", ".mpg", "
 func init() {
 	SetMaxImg(runtime.NumCPU())
 	if runtime.GOOS == "windows" {
-		os.Setenv("PATH", fmt.Sprintf("C:\\Program Files\\Handbrake;%s", os.Getenv("PATH")))
+		os.Setenv("PATH", fmt.Sprintf("C:\\Program Files\\FFmpeg;%s", os.Getenv("PATH")))
 	}
 }
 
@@ -389,24 +389,23 @@ func fileExists(p string, ext ...string) (string, bool) {
 	return p, false
 }
 
-// convertVideo transcodes a video using HandBrakeCLI.
+// convertVideo transcodes a video using ffmpeg.
 func convertVideo(p string) error {
 	vidExt := filepath.Ext(p)
 	baseFile := p[:len(p)-len(vidExt)]
 	outputFile := baseFile + "-converting" + vidExt
 	// Hardcoded command for now, clean this up once we offer more
 	// conversion options.
-	cmd := exec.Command("HandBrakeCLI", "-i", p, "-o", outputFile,
-		"-e", "x264",
-		"-w", "320",
-		"-l", "240",
-		"-r", "30",
-		"--keep-display-aspect",
-		"--decomb",
-		"--audio", "1",
-		"-B", "80",
-		"-E", "av_aac")
+	cmd := exec.Command("ffmpeg", "-i", p,
+		"-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "23",
+        "-vf", "scale=w=320:h=240:force_original_aspect_ratio=decrease",
+        "-c:a", "aac",
+        "-b:a", "80k",
+        outputFile)
 	if err := cmd.Run(); err != nil {
+        fmt.Println("hello world") 
 		return err
 	}
 	return os.Rename(outputFile, p)
