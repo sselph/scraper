@@ -405,7 +405,6 @@ func convertVideo(p string) error {
         "-b:a", "80k",
         outputFile)
 	if err := cmd.Run(); err != nil {
-        fmt.Println("hello world") 
 		return err
 	}
 	return os.Rename(outputFile, p)
