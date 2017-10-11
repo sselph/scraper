@@ -142,15 +142,16 @@ func scanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 // ROM stores information about the ROM.
 type ROM struct {
-	Path     string
-	Dir      string
-	BaseName string
-	FileName string
-	Ext      string
-	Bins     []string
-	Cue      bool
-	Game     *ds.Game
-	NotFound bool
+	Path     	string
+	Dir      	string
+	BaseName 	string
+	FileName 	string
+	PrettyName	string
+	Ext      	string
+	Bins     	[]string
+	Cue      	bool
+	Game     	*ds.Game
+	NotFound 	bool
 }
 
 // populatePaths populates all the relative path information from the full path.
@@ -257,6 +258,7 @@ Loop:
 		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
+	r.PrettyName = prettyName
 	return nil
 }
 
@@ -295,7 +297,7 @@ func getVidPath(r *ROM, opts *XMLOpts) string {
 	} else {
 		vidPath = opts.VidDir
 	}
-	iName := r.BaseName + opts.VidSuffix
+	iName := r.PrettyName + opts.VidSuffix
 	return filepath.Join(vidPath, iName)
 }
 
