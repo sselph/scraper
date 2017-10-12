@@ -104,6 +104,19 @@ func stripChars(r rune) rune {
 	return -1
 }
 
+// stripCharsForFilename strips out or replace forbidden chars in filenames
+func stripCharsForFilename(r rune) rune {
+	switch {
+	case r == 8217 || r == 8216 || r == 8220 || r == 8221 || r == 63 || r == 42:
+		return 32 
+	case r == 58 || r == 47 || r == 92 || r == 124:
+		return 45 // hyphen
+	case r < 127:
+		return r
+	}
+	return -1
+}
+
 // scanWords is a split function for a Scanner that returns each
 // space-separated word of text, with surrounding spaces deleted. It will
 // never return an empty string. The definition of space is set by
@@ -244,7 +257,7 @@ Loop:
 		}
 		game = &ds.Game{GameTitle: r.BaseName}
 	}
-	r.CleanName = game.GameTitle
+	r.CleanName = strings.Map(stripCharsForFilename, game.GameTitle)
 	if !opts.NoPrettyName && prettyName != "" {
 		game.GameTitle = prettyName
 	}
