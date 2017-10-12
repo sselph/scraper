@@ -146,7 +146,7 @@ type ROM struct {
 	Dir      	string
 	BaseName 	string
 	FileName 	string
-	PrettyName	string
+	CleanName	string
 	Ext      	string
 	Bins     	[]string
 	Cue      	bool
@@ -258,7 +258,7 @@ Loop:
 		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
-	r.PrettyName = prettyName
+	r.CleanName = strings.Map(stripChars, game.GameTitle)
 	return nil
 }
 
@@ -297,7 +297,7 @@ func getVidPath(r *ROM, opts *XMLOpts) string {
 	} else {
 		vidPath = opts.VidDir
 	}
-	iName := r.PrettyName + opts.VidSuffix
+	iName := r.CleanName + opts.VidSuffix
 	return filepath.Join(vidPath, iName)
 }
 
