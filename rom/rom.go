@@ -244,6 +244,7 @@ Loop:
 		}
 		game = &ds.Game{GameTitle: r.BaseName}
 	}
+	r.CleanName = game.GameTitle
 	if !opts.NoPrettyName && prettyName != "" {
 		game.GameTitle = prettyName
 	}
@@ -258,7 +259,6 @@ Loop:
 		game.Overview = game.Overview[:opts.OverviewLen] + "..."
 	}
 	r.Game = game
-	r.CleanName = strings.Map(stripChars, game.GameTitle)
 	return nil
 }
 
