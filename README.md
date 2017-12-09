@@ -13,11 +13,7 @@ If you have RetroPie-Setup 3.1 or later you can follow [the instructions on thei
 
 Donate
 ------
-Donate to my extra-life page to help the children's hospital:
-
-[![Extra Life](http://bfapps1.boundlessfundraising.com/badge/extralife/display/268545/534)](https://goo.gl/38RN7g)
-
-Or donate to the community:
+I don't accept donations but feel free to donate to:
 
 [retropie](https://retropie.org.uk/donate/)  
 [ArcadeItalia](http://adb.arcadeitalia.net/)  
