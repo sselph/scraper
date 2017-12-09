@@ -436,13 +436,12 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	if !exists && !opts.NoDownload {
 		for _, it := range opts.ImgPriority {
 			var dsImg ds.Image
-			var ok bool
 			if opts.ThumbOnly {
-				dsImg, ok = r.Game.Thumbs[it]
+				dsImg = r.Game.Thumbs[it]
 			} else {
-				dsImg, ok = r.Game.Images[it]
+				dsImg = r.Game.Images[it]
 			}
-			if !ok {
+			if dsImage == nil {
 				continue
 			}
 			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil {
@@ -462,8 +461,8 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 	}
 	if !exists && opts.DownloadVid {
 		for _, vt := range opts.VidPriority {
-			dsVid, ok := r.Game.Videos[vt]
-			if !ok {
+			dsVid := r.Game.Videos[vt]
+			if dsVid == nil {
 				continue
 			}
 			newPath = vidPath + dsVid.Ext()
@@ -489,7 +488,7 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 		gxml.Marquee = fixPath(opts.MarqXMLDir, opts.MarqDir, imgPath)
 	}
 	if !exists && opts.DownloadMarq {
-		if dsImg, ok := r.Game.Images[ds.ImgMarquee]; ok {
+		if dsImg := r.Game.Images[ds.ImgMarquee]; dsImg != nil {
 			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil && err != ds.ErrImgNotFound {
 				return nil, err
 			}
