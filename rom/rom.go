@@ -441,7 +441,7 @@ func (r *ROM) XML(ctx context.Context, opts *XMLOpts) (*GameXML, error) {
 			} else {
 				dsImg = r.Game.Images[it]
 			}
-			if dsImage == nil {
+			if dsImg == nil {
 				continue
 			}
 			if err := getImage(ctx, dsImg, imgPath, opts.ImgWidth, opts.ImgHeight); err != nil {
