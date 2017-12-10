@@ -310,7 +310,7 @@ func getVidPath(r *ROM, opts *XMLOpts) string {
 	} else {
 		vidPath = opts.VidDir
 	}
-	iName := r.CleanName + opts.VidSuffix
+	iName := r.BaseName + opts.VidSuffix
 	return filepath.Join(vidPath, iName)
 }
 
