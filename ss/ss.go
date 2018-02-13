@@ -224,18 +224,18 @@ func (g Game) Desc(l []string) (string, bool) {
 	return getSuffix(g.Synopsis.Map, preSynopsis, l)
 }
 
-func (g Game) ROM(req GameInfoReq) ROM {
+func (g Game) ROM(req GameInfoReq) (ROM, bool) {
 	for _, x := range g.ROMs {
 		if strings.ToLower(x.SHA1) == strings.ToLower(req.SHA1) {
-			return x
+			return x, true
 		}
 	}
 	for _, x := range g.ROMs {
 		if x.FileName == req.Name {
-			return x
+			return x, true
 		}
 	}
-	return ROM{}
+	return ROM{}, false
 }
 
 type Response struct {

@@ -205,6 +205,10 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Empty File, SS still returns a result.
+	if id == "da39a3ee5e6b4b0d3255bfef95601890afd80709" {
+		return nil, ErrNotFound
+	}
 	req := ss.GameInfoReq{SHA1: id}
 	resp, err := ss.GameInfo(ctx, s.Dev, s.User, req)
 	if err != nil {
@@ -215,7 +219,11 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	game := resp.Response.Game
 	var regions []string
-	for _, r := range game.ROM(req).Regions() {
+	rom, ok := game.ROM(req)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	for _, r := range rom.Regions() {
 		regions = append(regions, r)
 	}
 	regions = append(regions, s.Region...)

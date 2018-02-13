@@ -44,7 +44,11 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	game := resp.Response.Game
 	var regions []string
-	for _, r := range game.ROM(req).Regions() {
+	rom, ok := game.ROM(req)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	for _, r := range rom.Regions() {
 		regions = append(regions, r)
 	}
 	regions = append(regions, s.Region...)
