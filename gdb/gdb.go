@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	gdbURL  = "http://thegamesdb.net"
+	gdbURL  = "http://legacy.thegamesdb.net"
 	ggPath  = "/api/GetGame.php"
 	gglPath = "/api/GetGamesList.php"
 )
