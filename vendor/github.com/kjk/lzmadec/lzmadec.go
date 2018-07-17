@@ -216,9 +216,9 @@ func (rc *readCloser) Read(p []byte) (int, error) {
 }
 
 func (rc *readCloser) Close() error {
-	// if we want to finish before reading all the data, we need to close
-	// it all the data has already been read, or else rc.cmd.Wait() will hang
-	// if it's already closed then Close() will return 'invalid argument',
+	// if we want to finish before reading all the data, we need to Close()
+	// stdout pipe, or else rc.cmd.Wait() will hang.
+	// if it's already closed then Close() returns 'invalid argument',
 	// which we can ignore
 	rc.rc.Close()
 	return rc.cmd.Wait()
