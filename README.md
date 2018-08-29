@@ -13,7 +13,11 @@ If you have RetroPie-Setup 3.1 or later you can follow [the instructions on thei
 
 Donate
 ------
-I don't accept donations but feel free to donate to:
+I don't accept donations but I'm raising money for Children's Healthcare of Atlanta:
+
+[![Extra Life](https://bfapps1.boundlessfundraising.com/badge/extralife/display/319247/539/status.jpg)](https://goo.gl/diu5oU)
+
+Or feel free to donate to:
 
 [retropie](https://retropie.org.uk/donate/)  
 [ArcadeItalia](http://adb.arcadeitalia.net/)  
