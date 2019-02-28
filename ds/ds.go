@@ -239,7 +239,7 @@ type HashMap struct {
 	data map[string][]string
 }
 
-// GetID returns the id for the given hash.
+// ID returns the id for the given hash.
 func (hm *HashMap) ID(s string) (string, bool) {
 	if hm == nil {
 		return "", false
@@ -251,7 +251,7 @@ func (hm *HashMap) ID(s string) (string, bool) {
 	return d[0], true
 }
 
-// GetName returns the no-intro name for the given hash.
+// Name returns the no-intro name for the given hash.
 func (hm *HashMap) Name(s string) (string, bool) {
 	if hm == nil {
 		return "", false
