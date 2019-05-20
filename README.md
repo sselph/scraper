@@ -7,7 +7,7 @@ This currently works with NES, SNES, N64, GB, GBC, GBA, MD, SMS, 32X, GG, PCE, A
 
 How it Works
 ------------
-The script works by crawling a directory of ROM files looking for known extensions. When it finds a file it hashes the ROM data minus any headers or special file formatting with the goal of hashing only the data pulled from the original game. It compares this hash to a DB I've compiled to look up the correct game in theGamesDB.net. It downloads the metadata and builds the gamelist.xml file.
+The script works by crawling a directory of ROM files looking for known extensions. When it finds a file it hashes the ROM data minus any headers or special file formatting with the goal of hashing only the data pulled from the original game. It compares this hash to a DB from [OpenVGDB](https://github.com/OpenVGDB/OpenVGDB) to look up the correct game in theGamesDB.net. It downloads the metadata and builds the gamelist.xml file.
 
 If you have RetroPie-Setup 3.1 or later you can follow [the instructions on their wiki](https://github.com/RetroPie/RetroPie-setup/wiki/scraper) instead.
 
