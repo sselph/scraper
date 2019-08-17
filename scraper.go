@@ -636,6 +636,10 @@ func main() {
 			if apikey == "" {
 				apikey = os.Getenv("GAMESDB_APIKEY")
 			}
+			if apikey == "" {
+				fmt.Printf("No gamesdb api key provided")
+				return
+			}
 			if !*skipCheck {
 				if ok := gdb.IsUp(ctx, apikey); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
@@ -700,6 +704,10 @@ func main() {
 			apikey := *gdbAPIkey
 			if apikey == "" {
 				apikey = os.Getenv("GAMESDB_APIKEY")
+			}
+			if apikey == "" {
+				fmt.Printf("No gamesdb api key provided")
+				return
 			}
 			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "adb":
