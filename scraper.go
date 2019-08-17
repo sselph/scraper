@@ -75,6 +75,7 @@ var missing = flag.String("missing", "", "The `file` where information about ROM
 var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
 var ssUser = flag.String("ss_user", "", "The `username` for registered ScreenScraper users.")
 var ssPassword = flag.String("ss_password", "", "The `password` for registered ScreenScraper users.")
+var gdbAPIkey = flag.String("gdb_apikey", "", "The gamesdb apikey received by https://forums.thegamesdb.net/viewforum.php?f=10")
 var updateCache = flag.Bool("update_cache", true, "If false, don't check for updates on locally cached files.")
 
 var errUserCanceled = errors.New("user canceled")
@@ -631,13 +632,17 @@ func main() {
 		switch src {
 		case "":
 		case "gdb":
+			apikey := *gdbAPIkey
+			if apikey == "" {
+				apikey = os.Getenv("GAMESDB_APIKEY")
+			}
 			if !*skipCheck {
-				if ok := gdb.IsUp(ctx); !ok {
+				if ok := gdb.IsUp(ctx, apikey); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 					continue
 				}
 			}
-			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
+			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher, APIKey: apikey})
 			//consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
 			//consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
 			//consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})

@@ -6,39 +6,29 @@ package gdb
 
 import (
 	"context"
-	"encoding/xml"
 	"fmt"
 	"net/http"
-	"net/url"
+
+	"github.com/antihax/optional"
+
+	gamesdb "github.com/J-Swift/thegamesdb-swagger-client-go"
 )
 
-const (
-	gdbURL  = "http://legacy.thegamesdb.net"
-	ggPath  = "/api/GetGame.php"
-	gglPath = "/api/GetGamesList.php"
-)
+var apiClient = gamesdb.NewAPIClient(gamesdb.NewConfiguration())
 
 // GGLReq represents a request for a GetGameList command.
-type GGLReq struct {
-	Name     string
-	Platform string
-	Genre    string
-}
+// type GGLReq struct {
+// 	Name     string
+// 	Platform string
+// 	Genre    string
+// }
 
 // GGLResp represents the response of a GetGameList command.
-type GGLResp struct {
-	XMLName xml.Name
-	Game    []GameTrunc
-	Err     string `xml:",chardata"`
-}
-
-// GameTrunc is used to parse the GetGamesList's <Game> tag.
-type GameTrunc struct {
-	ID          string `xml:"id"`
-	GameTitle   string
-	ReleaseDate string
-	Platform    string
-}
+//type GGLResp struct {
+//	XMLName xml.Name
+//	Game    []GameTrunc
+//	Err     string `xml:",chardata"`
+//}
 
 //GGReq is the request to GetGame.
 type GGReq struct {
@@ -49,150 +39,88 @@ type GGReq struct {
 
 // GGResp is the response of the GetGame query.
 type GGResp struct {
-	XMLName  xml.Name
-	ImageURL string `xml:"baseImgUrl"`
-	Game     []Game
-	Err      string `xml:",chardata"`
-}
-
-// Image is used to parse the GetGame's <Images> tags.
-type Image struct {
-	URL    string `xml:",chardata"`
-	Width  uint   `xml:"width,attr"`
-	Height uint   `xml:"height,attr"`
-	// Only used on boxart.
-	Side  string `xml:"side,attr"`
-	Thumb string `xml:"thumb,attr"`
-}
-
-// OImage is used to parse <Images> tags for fanart and
-// screenshots since they are formatted differently.
-type OImage struct {
-	Original Image  `xml:"original"`
-	Thumb    string `xml:"thumb"`
-}
-
-// Game is used to parse the GetGame's <Game> tag.
-type Game struct {
-	ID          string `xml:"id"`
-	GameTitle   string
-	Overview    string
-	ReleaseDate string
-	Platform    string
-	Developer   string
-	Publisher   string
-	Genres      []string `xml:"Genres>genre"`
-	Players     string
-	Rating      float64
-	ESRB        string
-	AltTitles   []string `xml:"AlternateTitles>title"`
-	BoxArt      []Image  `xml:"Images>boxart"`
-	ClearLogo   []Image  `xml:"Images>clearlogo"`
-	Banner      []Image  `xml:"Images>banner"`
-	FanArt      []OImage `xml:"Images>fanart"`
-	Screenshot  []OImage `xml:"Images>screenshot"`
+	Games        []gamesdb.Game
+	Boxart       map[string][]gamesdb.GameImage
+	ImageBaseURL gamesdb.ImageBaseUrlMeta
 }
 
 // GetGame gets the game information from the DB.
-func GetGame(ctx context.Context, req GGReq) (*GGResp, error) {
-	u, err := url.Parse(gdbURL)
-	u.Path = ggPath
-	q := url.Values{}
-	switch {
-	case req.ID != "":
-		q.Set("id", req.ID)
-	case req.Name != "":
-		q.Set("name", req.Name)
-		if req.Platform != "" {
-			q.Set("platform", req.Platform)
-		}
-	default:
+func GetGame(ctx context.Context, apikey string, req GGReq) (*GGResp, error) {
+	var games gamesdb.GamesByGameId
+	var resp *http.Response
+	var err error
+
+	fields := "players,publishers,genres,overview,last_updated,rating,platform,coop,youtube,os,processor,ram,hdd,video,sound,alternates"
+
+	if req.ID != "" {
+		games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, req.ID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
+	} else if req.Name != "" {
+		games, resp, err = apiClient.GamesApi.GamesByGameName(ctx, apikey, req.ID, &gamesdb.GamesByGameNameOpts{Fields: optional.NewString(fields)})
+		// TODO(jpr): handle platform
+		// apiClient.GamesApi.GamesByGameName(ctx, apikey, req.Name, gamesdb.GamesByGameNameOpts{FilterPlatform:}
+	} else {
 		return nil, fmt.Errorf("must provide an ID or Name")
 	}
-	u.RawQuery = q.Encode()
-	hReq, err := http.NewRequest("GET", u.String(), nil)
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err)
 	}
-	hReq = hReq.WithContext(ctx)
-	resp, err := http.DefaultClient.Do(hReq)
-	if err != nil {
-		return nil, fmt.Errorf("getting game url:%s, error:%s", u, err)
+
+	res := &GGResp{
+		Games: games.Data.Games,
 	}
-	defer resp.Body.Close()
-	r := &GGResp{}
-	decoder := xml.NewDecoder(resp.Body)
-	if err := decoder.Decode(r); err != nil {
-		return nil, err
+
+	images, _, err := apiClient.GamesApi.GamesImages(ctx, apikey, req.ID, nil)
+	if err == nil {
+		res.ImageBaseURL = images.Data.BaseUrl
+		res.Boxart = images.Data.Images
 	}
-	if r.XMLName.Local == "Error" {
-		return nil, fmt.Errorf("GetGame error: %s", r.Err)
-	}
-	r.Err = ""
-	return r, nil
+
+	return res, nil
 }
 
 // GetGameList gets the game information from the DB.
-func GetGameList(ctx context.Context, req GGLReq) (*GGLResp, error) {
-	u, err := url.Parse(gdbURL)
-	u.Path = gglPath
-	q := url.Values{}
-	if req.Name == "" {
-		return nil, fmt.Errorf("must provide Name")
-	}
-	q.Set("name", req.Name)
-	if req.Platform != "" {
-		q.Set("platform", req.Platform)
-	}
-	if req.Genre != "" {
-		q.Set("genre", req.Genre)
-	}
-	u.RawQuery = q.Encode()
-	hReq, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	hReq = hReq.WithContext(ctx)
-	resp, err := http.DefaultClient.Do(hReq)
-	if err != nil {
-		return nil, fmt.Errorf("getting game list url:%s, error:%s", u, err)
-	}
-	defer resp.Body.Close()
-	r := &GGLResp{}
-	decoder := xml.NewDecoder(resp.Body)
-	if err := decoder.Decode(r); err != nil {
-		return nil, err
-	}
-	if r.XMLName.Local == "Error" {
-		return nil, fmt.Errorf("GetGameList error: %s", r.Err)
-	}
-	r.Err = ""
-	return r, nil
-}
+// func GetGameList(ctx context.Context, req GGLReq) (*GGLResp, error) {
+// 	u, err := url.Parse(gdbURL)
+// 	u.Path = gglPath
+// 	q := url.Values{}
+// 	if req.Name == "" {
+// 		return nil, fmt.Errorf("must provide Name")
+// 	}
+// 	q.Set("name", req.Name)
+// 	if req.Platform != "" {
+// 		q.Set("platform", req.Platform)
+// 	}
+// 	if req.Genre != "" {
+// 		q.Set("genre", req.Genre)
+// 	}
+// 	u.RawQuery = q.Encode()
+// 	hReq, err := http.NewRequest("GET", u.String(), nil)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	hReq = hReq.WithContext(ctx)
+// 	resp, err := http.DefaultClient.Do(hReq)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("getting game list url:%s, error:%s", u, err)
+// 	}
+// 	defer resp.Body.Close()
+// 	r := &GGLResp{}
+// 	decoder := xml.NewDecoder(resp.Body)
+// 	if err := decoder.Decode(r); err != nil {
+// 		return nil, err
+// 	}
+// 	if r.XMLName.Local == "Error" {
+// 		return nil, fmt.Errorf("GetGameList error: %s", r.Err)
+// 	}
+// 	r.Err = ""
+// 	return r, nil
+// }
 
 // IsUp returns if thegamedb.net is up.
-func IsUp(ctx context.Context) bool {
-	u, err := url.Parse(gdbURL)
-	u.Path = ggPath
-	q := url.Values{}
-	q.Set("id", "1")
-	u.RawQuery = q.Encode()
-	hReq, err := http.NewRequest("GET", u.String(), nil)
-	if err != nil {
-		return false
-	}
-	hReq = hReq.WithContext(ctx)
-	resp, err := http.DefaultClient.Do(hReq)
-	if err != nil {
-		return false
-	}
-	if resp.StatusCode != 200 {
-		return false
-	}
-	defer resp.Body.Close()
-	r := &GGResp{}
-	decoder := xml.NewDecoder(resp.Body)
-	if err := decoder.Decode(r); err != nil {
+func IsUp(ctx context.Context, apikey string) bool {
+	_, resp, err := apiClient.GamesApi.GamesByGameID(ctx, apikey, "1", nil)
+	if err != nil || resp.StatusCode != 200 {
 		return false
 	}
 	return true
