@@ -1,7 +1,4 @@
 // Package gdb interacts with thegamedb.net's API.
-//
-// Example:
-//  resp, err := gdb.GetGame(GGReq{ID: "5"})
 package gdb
 
 import (
@@ -132,13 +129,6 @@ func getCachedGenres(ctx context.Context, apikey string) map[string]gamesdb.Genr
 	return *genres
 }
 
-//GGReq is the request to GetGame.
-type GGReq struct {
-	ID       string
-	Name     string
-	Platform string
-}
-
 // ParsedDeveloper is a normalized GamesDB Developer
 type ParsedDeveloper struct {
 	ID   int
@@ -188,7 +178,7 @@ type ParsedGame struct {
 }
 
 // GetGame gets the game information from the DB.
-func GetGame(ctx context.Context, apikey string, req GGReq) (*ParsedGame, error) {
+func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, error) {
 	var games gamesdb.GamesByGameId
 	var resp *http.Response
 	var err error
@@ -197,12 +187,8 @@ func GetGame(ctx context.Context, apikey string, req GGReq) (*ParsedGame, error)
 	//fields := "players,publishers,genres,overview,last_updated,rating,platform,coop,youtube,os,processor,ram,hdd,video,sound,alternates"
 	fields := "players,publishers,genres,overview,platform"
 
-	if req.ID != "" {
-		games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, req.ID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
-	} else if req.Name != "" {
-		games, resp, err = apiClient.GamesApi.GamesByGameName(ctx, apikey, req.ID, &gamesdb.GamesByGameNameOpts{Fields: optional.NewString(fields)})
-		// TODO(jpr): handle platform
-		// apiClient.GamesApi.GamesByGameName(ctx, apikey, req.Name, gamesdb.GamesByGameNameOpts{FilterPlatform:}
+	if gameID != "" {
+		games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, gameID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
 	} else {
 		return nil, fmt.Errorf("must provide an ID or Name")
 	}

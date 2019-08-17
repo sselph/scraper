@@ -46,8 +46,7 @@ func (n *NeoGeo) GetGame(ctx context.Context, p string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(ctx, n.APIKey, req)
+	resp, err := gdb.GetGame(ctx, n.APIKey, id)
 	if err != nil {
 		return nil, err
 	}
