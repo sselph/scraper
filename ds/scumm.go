@@ -1,12 +1,8 @@
 package ds
 
 import (
-	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
-
-	"github.com/sselph/scraper/gdb"
 )
 
 // ScummVM is a data source using GDB for ScummVM games.
@@ -42,21 +38,21 @@ func (s *ScummVM) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (s *ScummVM) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := s.getID(p)
-	if err != nil {
-		return nil, err
-	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	if len(resp.Game) == 0 {
-		return nil, fmt.Errorf("game with id (%s) not found", id)
-	}
-	game := resp.Game[0]
-	ret := ParseGDBGame(game, resp.ImageURL)
-	ret.ID = id
-	return ret, nil
-}
+// func (s *ScummVM) GetGame(ctx context.Context, p string) (*Game, error) {
+// 	id, err := s.getID(p)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	req := gdb.GGReq{ID: id}
+// 	resp, err := gdb.GetGame(ctx, req)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if len(resp.Game) == 0 {
+// 		return nil, fmt.Errorf("game with id (%s) not found", id)
+// 	}
+// 	game := resp.Game[0]
+// 	ret := ParseGDBGame(game, resp.ImageURL)
+// 	ret.ID = id
+// 	return ret, nil
+// }
