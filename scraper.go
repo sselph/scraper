@@ -643,7 +643,7 @@ func main() {
 				}
 			}
 			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher, APIKey: apikey})
-			//consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
+			consoleSources = append(consoleSources, &ds.ScummVM{HM: hm, APIKey: apikey})
 			consoleSources = append(consoleSources, &ds.Daphne{HM: hm, APIKey: apikey})
 			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "ss":
