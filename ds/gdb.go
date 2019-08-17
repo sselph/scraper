@@ -154,7 +154,7 @@ func parseImages(game gdb.ParsedGame) (map[ImgType]Image, map[ImgType]Image) {
 func ParseGDBGame(game gdb.ParsedGame) *Game {
 	ret := NewGame()
 
-	ret.ID = string(game.ID)
+	ret.ID = strconv.Itoa(game.ID)
 	ret.GameTitle = game.Name
 	ret.Overview = game.Overview
 	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
