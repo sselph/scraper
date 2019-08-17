@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	gamesdb "github.com/J-Swift/thegamesdb-swagger-client-go"
 	"github.com/sselph/scraper/gdb"
 )
 
@@ -18,7 +17,7 @@ type GDB struct {
 }
 
 // getFront gets the front boxart for a Game if it exists.
-func getFront(images []gamesdb.GameImage) *gamesdb.GameImage {
+func getFront(images []gdb.ParsedGameImage) *gdb.ParsedGameImage {
 	for _, image := range images {
 		if image.Side == "front" {
 			return &image
@@ -81,19 +80,17 @@ func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Games) == 0 {
+	if resp == nil {
 		return nil, fmt.Errorf("game with id (%s) not found", id)
 	}
-	game := resp.Games[0]
-	ret := ParseGDBGame(game, resp.Boxart, resp.ImageBaseURL)
-	ret.ID = id
-	return ret, nil
+
+	return ParseGDBGame(*resp), nil
 }
 
 type ImageTypeName string
 
-func bucketImagesByType(images []gamesdb.GameImage) map[ImageTypeName][]gamesdb.GameImage {
-	res := make(map[ImageTypeName][]gamesdb.GameImage)
+func bucketImagesByType(images []gdb.ParsedGameImage) map[ImageTypeName][]gdb.ParsedGameImage {
+	res := make(map[ImageTypeName][]gdb.ParsedGameImage)
 
 	for _, image := range images {
 		imageType := ImageTypeName(image.Type)
@@ -106,14 +103,14 @@ func bucketImagesByType(images []gamesdb.GameImage) map[ImageTypeName][]gamesdb.
 	return res
 }
 
-func parseImages(game gamesdb.Game, images map[string][]gamesdb.GameImage, baseUrls gamesdb.ImageBaseUrlMeta) (map[ImgType]Image, map[ImgType]Image) {
+func parseImages(game gdb.ParsedGame) (map[ImgType]Image, map[ImgType]Image) {
 	originals := make(map[ImgType]Image)
 	thumbs := make(map[ImgType]Image)
 
-	baseURLOriginal := baseUrls.Original
-	baseURLThumb := baseUrls.Thumb
+	baseURLOriginal := game.ImageBaseUrls.Original
+	baseURLThumb := game.ImageBaseUrls.Thumb
 
-	gameImages := images[strconv.Itoa(int(game.Id))]
+	gameImages := game.Images[strconv.Itoa(game.ID)]
 
 	if len(gameImages) != 0 {
 		bucketedImages := bucketImagesByType(gameImages)
@@ -154,25 +151,29 @@ func parseImages(game gamesdb.Game, images map[string][]gamesdb.GameImage, baseU
 }
 
 // ParseGDBGame parses a gdb.Game and returns a Game.
-func ParseGDBGame(game gamesdb.Game, images map[string][]gamesdb.GameImage, baseUrls gamesdb.ImageBaseUrlMeta) *Game {
+func ParseGDBGame(game gdb.ParsedGame) *Game {
 	ret := NewGame()
 
-	parsedImages, parsedThumbs := parseImages(game, images, baseUrls)
+	ret.ID = string(game.ID)
+	ret.GameTitle = game.Name
+	ret.Overview = game.Overview
+	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
+	ret.Players = int64(game.Players)
+
+	if len(game.Developers) > 0 {
+		ret.Developer = game.Developers[0].Name
+	}
+	if len(game.Publishers) > 0 {
+		ret.Publisher = game.Publishers[0].Name
+	}
+	if len(game.Genres) > 0 {
+		ret.Genre = game.Genres[0].Name
+	}
+
+	parsedImages, parsedThumbs := parseImages(game)
 	ret.Images = parsedImages
 	ret.Thumbs = parsedThumbs
 
-	//var genre string
-	//if len(game.Genres) >= 1 {
-	//genre = game.Genres[0]
-	//}
-	ret.GameTitle = game.GameTitle
-	ret.Overview = game.Overview
-	// ret.Rating = game.Rating / 10.0
-	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
-	//ret.Developer = game.Developer
-	//ret.Publisher = game.Publisher
-	//ret.Genre = genre
 	ret.Source = "theGamesDB.net"
-	ret.Players = int64(game.Players)
 	return ret
 }
