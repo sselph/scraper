@@ -645,7 +645,7 @@ func main() {
 			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher, APIKey: apikey})
 			//consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
 			//consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
-			//consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
+			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "ss":
 			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
 			ssDS := &ds.SS{
@@ -697,7 +697,11 @@ func main() {
 			defer mds.Close()
 			arcadeSources = append(arcadeSources, mds)
 		case "gdb":
-			//arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+			apikey := *gdbAPIkey
+			if apikey == "" {
+				apikey = os.Getenv("GAMESDB_APIKEY")
+			}
+			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "adb":
 			arcadeSources = append(arcadeSources, &ds.ADB{Limit: make(chan struct{}, 1)})
 		default:

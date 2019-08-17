@@ -56,37 +56,6 @@ func (g *GDB) getID(p string) (string, error) {
 	return id, nil
 }
 
-// GetName implements DS
-func (g *GDB) GetName(p string) string {
-	h, err := g.Hasher.Hash(p)
-	if err != nil {
-		return ""
-	}
-	name, ok := g.HM.Name(h)
-	if !ok {
-		return ""
-	}
-	return name
-}
-
-// GetGame implements DS
-func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := g.getID(p)
-	if err != nil {
-		return nil, err
-	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(ctx, g.APIKey, req)
-	if err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, fmt.Errorf("game with id (%s) not found", id)
-	}
-
-	return ParseGDBGame(*resp), nil
-}
-
 type ImageTypeName string
 
 func bucketImagesByType(images []gdb.ParsedGameImage) map[ImageTypeName][]gdb.ParsedGameImage {
@@ -176,4 +145,36 @@ func ParseGDBGame(game gdb.ParsedGame) *Game {
 
 	ret.Source = "theGamesDB.net"
 	return ret
+}
+
+// GetName implements DS
+func (g *GDB) GetName(p string) string {
+	h, err := g.Hasher.Hash(p)
+	if err != nil {
+		return ""
+	}
+	name, ok := g.HM.Name(h)
+	if !ok {
+		return ""
+	}
+	return name
+}
+
+// GetGame implements DS
+func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
+	id, err := g.getID(p)
+	if err != nil {
+		return nil, err
+	}
+	req := gdb.GGReq{ID: id}
+	resp, err := gdb.GetGame(ctx, g.APIKey, req)
+	if err != nil {
+		return nil, err
+	}
+	if resp == nil {
+		return nil, fmt.Errorf("game with id (%s) not found", id)
+	}
+
+	result := ParseGDBGame(*resp)
+	return result, nil
 }
