@@ -98,6 +98,22 @@ func isHidden(f string) bool {
 	return b != "." && strings.HasPrefix(b, ".")
 }
 
+const (
+	defaultGamesDbAPIKey = "fdb3e318c535c5f9fb5380d15cd6dbb5363cb197c1da897c7a268695658ceceb"
+)
+
+func getGamesDbAPIKey() string {
+	apikey := *gdbAPIkey
+	if apikey == "" {
+		apikey = os.Getenv("GAMESDB_APIKEY")
+	}
+	if apikey == "" {
+		fmt.Printf("No gamesdb api key provided, using default\n")
+		apikey = defaultGamesDbAPIKey
+	}
+	return apikey
+}
+
 type result struct {
 	ROM *rom.ROM
 	XML *rom.GameXML
@@ -632,14 +648,8 @@ func main() {
 		switch src {
 		case "":
 		case "gdb":
-			apikey := *gdbAPIkey
-			if apikey == "" {
-				apikey = os.Getenv("GAMESDB_APIKEY")
-			}
-			if apikey == "" {
-				fmt.Printf("No gamesdb api key provided")
-				return
-			}
+			apikey := getGamesDbAPIKey()
+
 			if !*skipCheck {
 				if ok := gdb.IsUp(ctx, apikey); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
@@ -701,14 +711,7 @@ func main() {
 			defer mds.Close()
 			arcadeSources = append(arcadeSources, mds)
 		case "gdb":
-			apikey := *gdbAPIkey
-			if apikey == "" {
-				apikey = os.Getenv("GAMESDB_APIKEY")
-			}
-			if apikey == "" {
-				fmt.Printf("No gamesdb api key provided")
-				return
-			}
+			apikey := getGamesDbAPIKey()
 			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "adb":
 			arcadeSources = append(arcadeSources, &ds.ADB{Limit: make(chan struct{}, 1)})
