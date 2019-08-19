@@ -37,60 +37,6 @@ func SetMaxImg(x int) {
 	}
 }
 
-// GameOpts represents the options for creating Game information.
-type GameOpts struct {
-	// AddNotFound instructs the scraper to create a Game even if the game isn't in the sources.
-	AddNotFound bool
-	// NoPrettyName instructs the scraper to leave the name as the name in the source.
-	NoPrettyName bool
-	// UseFilename instructs the scraper to use the filename minus extension as the xml name.
-	UseFilename bool
-	// NoStripUnicode instructs the scraper to not strip out unicode characters.
-	NoStripUnicode bool
-	// OverviewLen is the max length allowed for a overview. 0 means no limit.
-	OverviewLen int
-}
-
-// XMLOpts represents the options for creating XML information.
-type XMLOpts struct {
-	// RomDir is the base directory for scraping rom files.
-	RomDir string
-	// RomXMLDir is the base directory where roms will be located on the target system.
-	RomXMLDir string
-	// NestImgDir if true tells the scraper to use the same directory structure of roms for rom images.
-	NestImgDir bool
-	// ImgDir is the base directory for downloading images.
-	ImgDir string
-	// ImgXMLDir is the directory where images will be located on the target system.
-	ImgXMLDir string
-	// ImgPriority is the order or image preference when multiple images are avialable.
-	ImgPriority []ds.ImgType
-	// ImgSuffix is what will be appened to the end of the rom's name to name the image
-	// ie rom.bin with suffix of "-image" results in rom-image.jpg
-	ImgSuffix string
-	// ThumbOnly tells the scraper to prefer thumbnail size images when available.
-	ThumbOnly bool
-	// NoDownload tells the scraper to not download images.
-	NoDownload bool
-	// ImgFormat is the format for the image, currently only "jpg" and "png" are supported.
-	ImgFormat string
-	// ImgWidth is the max width of images. Anything larger will be resized.
-	ImgWidth uint
-	// ImgHeight is the max height of images. Anything larger will be resized.
-	ImgHeight    uint
-	DownloadVid  bool
-	VidPriority  []ds.VidType
-	VidSuffix    string
-	VidDir       string
-	VidXMLDir    string
-	VidConvert   bool
-	DownloadMarq bool
-	MarqSuffix   string
-	MarqDir      string
-	MarqXMLDir   string
-	MarqFormat   string
-}
-
 // stripChars strips out unicode and converts "fancy" quotes to normal quotes.
 func stripChars(r rune) rune {
 	switch {
@@ -108,7 +54,7 @@ func stripChars(r rune) rune {
 func stripCharsForFilename(r rune) rune {
 	switch {
 	case r == 8217 || r == 8216 || r == 8220 || r == 8221 || r == 63 || r == 42:
-		return 32 
+		return 32
 	case r == 58 || r == 47 || r == 92 || r == 124:
 		return 45 // hyphen
 	case r < 127:
@@ -155,16 +101,16 @@ func scanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 // ROM stores information about the ROM.
 type ROM struct {
-	Path     	string
-	Dir      	string
-	BaseName 	string
-	FileName 	string
-	CleanName	string
-	Ext      	string
-	Bins     	[]string
-	Cue      	bool
-	Game     	*ds.Game
-	NotFound 	bool
+	Path      string
+	Dir       string
+	BaseName  string
+	FileName  string
+	CleanName string
+	Ext       string
+	Bins      []string
+	Cue       bool
+	Game      *ds.Game
+	NotFound  bool
 }
 
 // populatePaths populates all the relative path information from the full path.
@@ -413,12 +359,12 @@ func convertVideo(p string) error {
 	// conversion options.
 	cmd := exec.Command("ffmpeg", "-i", p,
 		"-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
-        "-vf", "scale=w=320:h=-2",
-        "-c:a", "aac",
-        "-b:a", "80k",
-        outputFile)
+		"-preset", "fast",
+		"-crf", "23",
+		"-vf", "scale=w=320:h=-2",
+		"-c:a", "aac",
+		"-b:a", "80k",
+		outputFile)
 	if err := cmd.Run(); err != nil {
 		return err
 	}
