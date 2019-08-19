@@ -75,6 +75,7 @@ var missing = flag.String("missing", "", "The `file` where information about ROM
 var overviewLen = flag.Int("overview_len", 0, "If set it will truncate the overview of roms to `N` characters + ellipsis.")
 var ssUser = flag.String("ss_user", "", "The `username` for registered ScreenScraper users.")
 var ssPassword = flag.String("ss_password", "", "The `password` for registered ScreenScraper users.")
+var gdbAPIkey = flag.String("gdb_apikey", "", "The gamesdb apikey received by https://forums.thegamesdb.net/viewforum.php?f=10")
 var updateCache = flag.Bool("update_cache", true, "If false, don't check for updates on locally cached files.")
 
 var errUserCanceled = errors.New("user canceled")
@@ -95,6 +96,22 @@ func dirExists(s string) bool {
 func isHidden(f string) bool {
 	b := filepath.Base(f)
 	return b != "." && strings.HasPrefix(b, ".")
+}
+
+const (
+	defaultGamesDbAPIKey = "fdb3e318c535c5f9fb5380d15cd6dbb5363cb197c1da897c7a268695658ceceb"
+)
+
+func getGamesDbAPIKey() string {
+	apikey := *gdbAPIkey
+	if apikey == "" {
+		apikey = os.Getenv("GAMESDB_APIKEY")
+	}
+	if apikey == "" {
+		fmt.Printf("No gamesdb api key provided, using default\n")
+		apikey = defaultGamesDbAPIKey
+	}
+	return apikey
 }
 
 type result struct {
@@ -631,16 +648,18 @@ func main() {
 		switch src {
 		case "":
 		case "gdb":
+			apikey := getGamesDbAPIKey()
+
 			if !*skipCheck {
-				if ok := gdb.IsUp(ctx); !ok {
+				if ok := gdb.IsUp(ctx, apikey); !ok {
 					fmt.Println("It appears that thegamesdb.net isn't up. If you are sure it is use -skip_check to bypass this error.")
 					continue
 				}
 			}
-			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher})
-			consoleSources = append(consoleSources, &ds.ScummVM{HM: hm})
-			consoleSources = append(consoleSources, &ds.Daphne{HM: hm})
-			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm})
+			consoleSources = append(consoleSources, &ds.GDB{HM: hm, Hasher: hasher, APIKey: apikey})
+			consoleSources = append(consoleSources, &ds.ScummVM{HM: hm, APIKey: apikey})
+			consoleSources = append(consoleSources, &ds.Daphne{HM: hm, APIKey: apikey})
+			consoleSources = append(consoleSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "ss":
 			t := ss.Threads(ctx, dev, ss.UserInfo{*ssUser, *ssPassword})
 			ssDS := &ds.SS{
@@ -692,7 +711,8 @@ func main() {
 			defer mds.Close()
 			arcadeSources = append(arcadeSources, mds)
 		case "gdb":
-			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm})
+			apikey := getGamesDbAPIKey()
+			arcadeSources = append(arcadeSources, &ds.NeoGeo{HM: hm, APIKey: apikey})
 		case "adb":
 			arcadeSources = append(arcadeSources, &ds.ADB{Limit: make(chan struct{}, 1)})
 		default:

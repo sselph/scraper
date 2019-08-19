@@ -10,7 +10,8 @@ import (
 
 // NeoGeo is a data source using GDB for Daphne games.
 type NeoGeo struct {
-	HM *HashMap
+	HM     *HashMap
+	APIKey string
 }
 
 // getID gets the ID from the path.
@@ -45,20 +46,18 @@ func (n *NeoGeo) GetGame(ctx context.Context, p string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(ctx, req)
+	resp, err := gdb.GetGame(ctx, n.APIKey, id)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Game) == 0 {
+	if resp == nil {
 		return nil, fmt.Errorf("game with id (%s) not found", id)
 	}
-	game := resp.Game[0]
-	ret := ParseGDBGame(game, resp.ImageURL)
-	ret.ID = id
-	ret.Images[ImgTitle] = ret.Images[ImgBoxart]
-	ret.Thumbs[ImgTitle] = ret.Thumbs[ImgBoxart]
-	ret.Images[ImgMarquee] = ret.Images[ImgLogo]
-	ret.Thumbs[ImgMarquee] = ret.Thumbs[ImgLogo]
-	return ret, nil
+
+	result := ParseGDBGame(*resp)
+	result.Images[ImgTitle] = result.Images[ImgBoxart]
+	result.Thumbs[ImgTitle] = result.Thumbs[ImgBoxart]
+	result.Images[ImgMarquee] = result.Images[ImgLogo]
+	result.Thumbs[ImgMarquee] = result.Thumbs[ImgLogo]
+	return result, nil
 }

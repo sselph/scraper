@@ -57,7 +57,7 @@ const (
 	ImgMix4      ImgType = "mix4"
 )
 
-// VidTtpe represents the different video types that sources may provide.
+// VidType represents the different video types that sources may provide.
 type VidType string
 
 // Video types for Datasource options. Not all types are valid for all sources.

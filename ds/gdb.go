@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/sselph/scraper/gdb"
@@ -14,13 +13,14 @@ import (
 type GDB struct {
 	HM     *HashMap
 	Hasher *Hasher
+	APIKey string
 }
 
 // getFront gets the front boxart for a Game if it exists.
-func getFront(g gdb.Game) *gdb.Image {
-	for _, v := range g.BoxArt {
-		if v.Side == "front" {
-			return &v
+func getFront(images []gdb.ParsedGameImage) *gdb.ParsedGameImage {
+	for _, image := range images {
+		if image.Side == "front" {
+			return &image
 		}
 	}
 	return nil
@@ -30,7 +30,7 @@ func getFront(g gdb.Game) *gdb.Image {
 func toXMLDate(d string) string {
 	switch len(d) {
 	case 10:
-		t, _ := time.Parse("01/02/2006", d)
+		t, _ := time.Parse("2006-01-02", d)
 		return t.Format("20060102T000000")
 	case 4:
 		return fmt.Sprintf("%s0101T000000", d)
@@ -56,6 +56,94 @@ func (g *GDB) getID(p string) (string, error) {
 	return id, nil
 }
 
+type ImageTypeName string
+
+func bucketImagesByType(images []gdb.ParsedGameImage) map[ImageTypeName][]gdb.ParsedGameImage {
+	res := make(map[ImageTypeName][]gdb.ParsedGameImage)
+
+	for _, image := range images {
+		imageType := ImageTypeName(image.Type)
+		res[imageType] = append(res[imageType], image)
+	}
+
+	return res
+}
+
+func parseImages(game gdb.ParsedGame) (map[ImgType]Image, map[ImgType]Image) {
+	originals := make(map[ImgType]Image)
+	thumbs := make(map[ImgType]Image)
+
+	baseURLOriginal := game.ImageBaseUrls.Original
+	baseURLThumb := game.ImageBaseUrls.Thumb
+
+	gameImages := game.Images[strconv.Itoa(game.ID)]
+
+	if len(gameImages) != 0 {
+		bucketedImages := bucketImagesByType(gameImages)
+
+		if imgs, ok := bucketedImages["screenshot"]; ok && len(imgs) > 0 {
+			img := imgs[0]
+			originals[ImgScreen] = HTTPImage{URL: baseURLOriginal + img.Filename}
+			thumbs[ImgScreen] = HTTPImage{URL: baseURLThumb + img.Filename}
+		}
+
+		if imgs, ok := bucketedImages["boxart"]; ok && len(imgs) > 0 {
+			if front := getFront(imgs); front != nil {
+				originals[ImgBoxart] = HTTPImage{URL: baseURLOriginal + front.Filename}
+				thumbs[ImgBoxart] = HTTPImage{URL: baseURLThumb + front.Filename}
+			}
+		}
+
+		if imgs, ok := bucketedImages["fanart"]; ok && len(imgs) > 0 {
+			img := imgs[0]
+			originals[ImgFanart] = HTTPImage{URL: baseURLOriginal + img.Filename}
+			thumbs[ImgFanart] = HTTPImage{URL: baseURLThumb + img.Filename}
+		}
+
+		if imgs, ok := bucketedImages["banner"]; ok && len(imgs) > 0 {
+			img := imgs[0]
+			originals[ImgBanner] = HTTPImage{URL: baseURLOriginal + img.Filename}
+			thumbs[ImgBanner] = HTTPImage{URL: baseURLThumb + img.Filename}
+		}
+
+		if imgs, ok := bucketedImages["clearlogo"]; ok && len(imgs) > 0 {
+			img := imgs[0]
+			originals[ImgLogo] = HTTPImage{URL: baseURLOriginal + img.Filename}
+			thumbs[ImgLogo] = HTTPImage{URL: baseURLThumb + img.Filename}
+		}
+	}
+
+	return originals, thumbs
+}
+
+// ParseGDBGame parses a gdb.Game and returns a Game.
+func ParseGDBGame(game gdb.ParsedGame) *Game {
+	ret := NewGame()
+
+	ret.ID = strconv.Itoa(game.ID)
+	ret.GameTitle = game.Name
+	ret.Overview = game.Overview
+	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
+	ret.Players = int64(game.Players)
+
+	if len(game.Developers) > 0 {
+		ret.Developer = game.Developers[0].Name
+	}
+	if len(game.Publishers) > 0 {
+		ret.Publisher = game.Publishers[0].Name
+	}
+	if len(game.Genres) > 0 {
+		ret.Genre = game.Genres[0].Name
+	}
+
+	parsedImages, parsedThumbs := parseImages(game)
+	ret.Images = parsedImages
+	ret.Thumbs = parsedThumbs
+
+	ret.Source = "theGamesDB.net"
+	return ret
+}
+
 // GetName implements DS
 func (g *GDB) GetName(p string) string {
 	h, err := g.Hasher.Hash(p)
@@ -75,60 +163,14 @@ func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
 	if err != nil {
 		return nil, err
 	}
-	req := gdb.GGReq{ID: id}
-	resp, err := gdb.GetGame(ctx, req)
+	resp, err := gdb.GetGame(ctx, g.APIKey, id)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Game) == 0 {
+	if resp == nil {
 		return nil, fmt.Errorf("game with id (%s) not found", id)
 	}
-	game := resp.Game[0]
-	ret := ParseGDBGame(game, resp.ImageURL)
-	ret.ID = id
-	return ret, nil
-}
 
-// ParseGDBGame parses a gdb.Game and returns a Game.
-func ParseGDBGame(game gdb.Game, imgURL string) *Game {
-	ret := NewGame()
-	if len(game.Screenshot) != 0 {
-		ret.Images[ImgScreen] = HTTPImage{URL: imgURL + game.Screenshot[0].Original.URL}
-		ret.Thumbs[ImgScreen] = HTTPImage{URL: imgURL + game.Screenshot[0].Thumb}
-	}
-	front := getFront(game)
-	if front != nil {
-		ret.Images[ImgBoxart] = HTTPImage{URL: imgURL + front.URL}
-		ret.Thumbs[ImgBoxart] = HTTPImage{URL: imgURL + front.Thumb}
-	}
-	if len(game.FanArt) != 0 {
-		ret.Images[ImgFanart] = HTTPImage{URL: imgURL + game.FanArt[0].Original.URL}
-		ret.Thumbs[ImgFanart] = HTTPImage{URL: imgURL + game.FanArt[0].Thumb}
-	}
-	if len(game.Banner) != 0 {
-		ret.Images[ImgBanner] = HTTPImage{URL: imgURL + game.Banner[0].URL}
-		ret.Thumbs[ImgBanner] = HTTPImage{URL: imgURL + game.Banner[0].URL}
-	}
-	if len(game.ClearLogo) != 0 {
-		ret.Images[ImgLogo] = HTTPImage{URL: imgURL + game.ClearLogo[0].URL}
-		ret.Thumbs[ImgLogo] = HTTPImage{URL: imgURL + game.ClearLogo[0].URL}
-	}
-
-	var genre string
-	if len(game.Genres) >= 1 {
-		genre = game.Genres[0]
-	}
-	ret.GameTitle = game.GameTitle
-	ret.Overview = game.Overview
-	ret.Rating = game.Rating / 10.0
-	ret.ReleaseDate = toXMLDate(game.ReleaseDate)
-	ret.Developer = game.Developer
-	ret.Publisher = game.Publisher
-	ret.Genre = genre
-	ret.Source = "theGamesDB.net"
-	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
-	if err == nil {
-		ret.Players = p
-	}
-	return ret
+	result := ParseGDBGame(*resp)
+	return result, nil
 }
