@@ -63,10 +63,7 @@ func bucketImagesByType(images []gdb.ParsedGameImage) map[ImageTypeName][]gdb.Pa
 
 	for _, image := range images {
 		imageType := ImageTypeName(image.Type)
-		existing := res[imageType]
-
-		existing = append(existing, image)
-		res[imageType] = existing
+		res[imageType] = append(res[imageType], image)
 	}
 
 	return res

@@ -135,16 +135,37 @@ type ParsedDeveloper struct {
 	Name string
 }
 
+func toParsedDeveloper(apiDeveloper gamesdb.Developer) ParsedDeveloper {
+	return ParsedDeveloper{
+		ID:   int(apiDeveloper.Id),
+		Name: apiDeveloper.Name,
+	}
+}
+
 // ParsedGenre is a normalized GamesDB Genre
 type ParsedGenre struct {
 	ID   int
 	Name string
 }
 
+func toParsedGenre(apiGenre gamesdb.Genre) ParsedGenre {
+	return ParsedGenre{
+		ID:   int(apiGenre.Id),
+		Name: apiGenre.Name,
+	}
+}
+
 // ParsedPublisher is a normalized GamesDB Publisher
 type ParsedPublisher struct {
 	ID   int
 	Name string
+}
+
+func toParsedPublisher(apiPublisher gamesdb.Publisher) ParsedPublisher {
+	return ParsedPublisher{
+		ID:   int(apiPublisher.Id),
+		Name: apiPublisher.Name,
+	}
 }
 
 // ParsedGameImage is a normalized GamesDB GameImage
@@ -155,10 +176,26 @@ type ParsedGameImage struct {
 	Filename string
 }
 
+func toParsedGameImage(apiGameImage gamesdb.GameImage) ParsedGameImage {
+	return ParsedGameImage{
+		ID:       int(apiGameImage.Id),
+		Type:     apiGameImage.Type,
+		Side:     apiGameImage.Side,
+		Filename: apiGameImage.Filename,
+	}
+}
+
 // ParsedImageSizeBaseUrls is a normalized GamesDB ImageBaseUrlMeta
 type ParsedImageSizeBaseUrls struct {
 	Original string
 	Thumb    string
+}
+
+func toParsedImageSizeBaseUrls(apiBaseURLMeta gamesdb.ImageBaseUrlMeta) ParsedImageSizeBaseUrls {
+	return ParsedImageSizeBaseUrls{
+		Original: apiBaseURLMeta.Original,
+		Thumb:    apiBaseURLMeta.Thumb,
+	}
 }
 
 // ParsedGame is  a normalized GamesDB Game
@@ -187,11 +224,11 @@ func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, er
 	//fields := "players,publishers,genres,overview,last_updated,rating,platform,coop,youtube,os,processor,ram,hdd,video,sound,alternates"
 	fields := "players,publishers,genres,overview,platform"
 
-	if gameID != "" {
-		games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, gameID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
-	} else {
+	if gameID == "" {
 		return nil, fmt.Errorf("must provide an ID or Name")
 	}
+
+	games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, gameID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
 
 	if err != nil {
 		return nil, fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err)
@@ -214,10 +251,7 @@ func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, er
 	genres := []ParsedGenre{}
 	for _, genreID := range apiGame.Genres {
 		if apiGenre, ok := allGenres[strconv.Itoa(int(genreID))]; ok {
-			genres = append(genres, ParsedGenre{
-				ID:   int(apiGenre.Id),
-				Name: apiGenre.Name,
-			})
+			genres = append(genres, toParsedGenre(apiGenre))
 		}
 	}
 	res.Genres = genres
@@ -226,10 +260,7 @@ func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, er
 	developers := []ParsedDeveloper{}
 	for _, developerID := range apiGame.Developers {
 		if apiDeveloper, ok := allDevelopers[strconv.Itoa(int(developerID))]; ok {
-			developers = append(developers, ParsedDeveloper{
-				ID:   int(apiDeveloper.Id),
-				Name: apiDeveloper.Name,
-			})
+			developers = append(developers, toParsedDeveloper(apiDeveloper))
 		}
 	}
 	res.Developers = developers
@@ -238,35 +269,20 @@ func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, er
 	publishers := []ParsedPublisher{}
 	for _, publisherID := range apiGame.Publishers {
 		if apiPublisher, ok := allPublishers[strconv.Itoa(int(publisherID))]; ok {
-			publishers = append(publishers, ParsedPublisher{
-				ID:   int(apiPublisher.Id),
-				Name: apiPublisher.Name,
-			})
+			publishers = append(publishers, toParsedPublisher(apiPublisher))
 		}
 	}
 	res.Publishers = publishers
 
-	for range games.Data.Games {
-		getCachedGenres(ctx, apikey)
-	}
-
 	images, _, err := apiClient.GamesApi.GamesImages(ctx, apikey, strconv.Itoa(res.ID), nil)
 	if err == nil {
-		res.ImageBaseUrls = ParsedImageSizeBaseUrls{
-			Original: images.Data.BaseUrl.Original,
-			Thumb:    images.Data.BaseUrl.Thumb,
-		}
+		res.ImageBaseUrls = toParsedImageSizeBaseUrls(images.Data.BaseUrl)
 
 		parsedImages := make(map[string][]ParsedGameImage)
 		for key, val := range images.Data.Images {
 			result := parsedImages[key]
 			for _, image := range val {
-				result = append(result, ParsedGameImage{
-					ID:       int(image.Id),
-					Type:     image.Type,
-					Side:     image.Side,
-					Filename: image.Filename,
-				})
+				result = append(result, toParsedGameImage(image))
 			}
 			parsedImages[key] = result
 		}
