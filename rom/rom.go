@@ -109,8 +109,10 @@ type ROM struct {
 	Ext       string
 	Bins      []string
 	Cue       bool
-	Game      *ds.Game
-	NotFound  bool
+
+	Game       *ds.Game
+	NotFound   bool
+	NumRetries int
 }
 
 // populatePaths populates all the relative path information from the full path.
