@@ -150,17 +150,17 @@ WorkerLoop:
 		nextRom, hasMore := <-roms
 
 		if done(ctx) {
-			break
+			break WorkerLoop
 		}
 
 		// NOTE(jpr): make sure we run our 'waiting' batch if there are no more
 		// roms coming
 		if !hasMore && len(currentBatch) == 0 {
-			break
+			break WorkerLoop
 		} else if nextRom != nil {
 			currentBatch = append(currentBatch, nextRom)
 			if len(currentBatch) < maxWorkerBatchSize {
-				continue
+				continue WorkerLoop
 			}
 		}
 
@@ -185,6 +185,7 @@ WorkerLoop:
 			go rom.GetGames(ctx, currentBatch, sources, gameOpts, onResult, onDone)
 			currentBatch = make([]*rom.ROM, 0, maxWorkerBatchSize)
 
+		GroupLoop:
 			for {
 				select {
 				case romResult := <-onResult:
@@ -200,7 +201,7 @@ WorkerLoop:
 							romResult.Rom.NumRetries++
 							currentBatch = append(currentBatch, romResult.Rom)
 						}
-						continue
+						continue GroupLoop
 					}
 
 					if romResult.Rom.NotFound {
@@ -220,7 +221,7 @@ WorkerLoop:
 							romResult.Rom.NumRetries++
 							currentBatch = append(currentBatch, romResult.Rom)
 						}
-						continue
+						continue GroupLoop
 					}
 					res.XML = xml
 					results <- res
