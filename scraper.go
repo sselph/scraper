@@ -134,6 +134,15 @@ func done(ctx context.Context) bool {
 func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
 
+	// TODO(jpr): I think theres probably a way to dedicate a step in the pipeline
+	// to batching, but I'm not sure how to handle retries safely in the batcher
+	//
+	// something like this:
+	//
+	//	     FS walker => batcher => rom workers => results parser
+	//	                    ^             v
+	//	                    ^   retry     v
+	//                      ^<<<<<<<<<<<<<<
 	currentBatch := make([]*rom.ROM, 0, maxWorkerBatchSize)
 
 WorkerLoop:
@@ -144,6 +153,8 @@ WorkerLoop:
 			break
 		}
 
+		// NOTE(jpr): make sure we run our 'waiting' batch if there are no more
+		// roms coming
 		if !hasMore && len(currentBatch) == 0 {
 			break
 		} else if nextRom != nil {
@@ -171,10 +182,8 @@ WorkerLoop:
 
 			onResult, onDone := make(chan rom.ROMResult), make(chan struct{})
 
-			grp := rom.NewGroup(currentBatch)
+			go rom.GetGames(ctx, currentBatch, sources, gameOpts, onResult, onDone)
 			currentBatch = make([]*rom.ROM, 0, maxWorkerBatchSize)
-
-			go grp.GetGames(ctx, sources, gameOpts, onResult, onDone)
 
 			for {
 				select {
