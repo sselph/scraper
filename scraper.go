@@ -139,10 +139,10 @@ func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts
 	//
 	// something like this:
 	//
-	//	     FS walker => batcher => rom workers => results parser
-	//	                    ^             v
-	//	                    ^   retry     v
-	//                      ^<<<<<<<<<<<<<<
+	//      FS walker => batcher => rom workers => results parser
+	//                    ^             v
+	//                    ^   retry     v
+	//                    ^<<<<<<<<<<<<<<
 	currentBatch := make([]*rom.ROM, 0, maxWorkerBatchSize)
 
 WorkerLoop:
