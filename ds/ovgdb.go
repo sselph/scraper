@@ -223,3 +223,27 @@ func NewOVGDB(ctx context.Context, h *Hasher, u bool) (*OVGDB, error) {
 	}
 	return &OVGDB{Hasher: h, db: db}, nil
 }
+
+func (source OVGDB) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source OVGDB) GetGames(ctx context.Context, ps []string) []GameResult {
+	results := make([]GameResult, 0, len(ps))
+
+	for _, p := range ps {
+		game, err := source.GetGame(ctx, p)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}

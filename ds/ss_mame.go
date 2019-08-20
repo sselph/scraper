@@ -111,3 +111,27 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	return ret, nil
 }
+
+func (source SSMAME) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source SSMAME) GetGames(ctx context.Context, ps []string) []GameResult {
+	results := make([]GameResult, 0, len(ps))
+
+	for _, p := range ps {
+		game, err := source.GetGame(ctx, p)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}

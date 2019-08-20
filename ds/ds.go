@@ -93,12 +93,17 @@ func NewGame() *Game {
 	return g
 }
 
+type GameResult struct {
+	Game  *Game
+	Error error
+}
+
 // DS is the interface all DataSoures should implement.
 type DS interface {
 	// GetName takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
-	GetName(string) string
+	GetNames([]string) []string
 	// GetGame takes an id and returns the Game.
-	GetGame(context.Context, string) (*Game, error)
+	GetGames(context.Context, []string) []GameResult
 }
 
 type Video interface {

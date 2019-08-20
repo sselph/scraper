@@ -316,3 +316,27 @@ func ssImgURL(img string, width int, height int) string {
 	u.RawQuery = v.Encode()
 	return u.String()
 }
+
+func (source SS) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source SS) GetGames(ctx context.Context, ps []string) []GameResult {
+	results := make([]GameResult, 0, len(ps))
+
+	for _, p := range ps {
+		game, err := source.GetGame(ctx, p)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}

@@ -63,3 +63,27 @@ func (d *Daphne) GetGame(ctx context.Context, p string) (*Game, error) {
 	result := ParseGDBGame(*resp)
 	return result, nil
 }
+
+func (source Daphne) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source Daphne) GetGames(ctx context.Context, ps []string) []GameResult {
+	results := make([]GameResult, 0, len(ps))
+
+	for _, p := range ps {
+		game, err := source.GetGame(ctx, p)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
