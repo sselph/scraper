@@ -281,7 +281,7 @@ Loop:
 	return nil
 }
 
-// GetGames takes a batch of roms and attempts to populates the Game from data sources in order
+// GetGames takes a batch of roms and attempts to populate the Game from data sources in order
 func GetGames(ctx context.Context, roms []*ROM, data []ds.DS, opts *GameOpts, onResult chan ROMResult, done chan struct{}) {
 	if opts == nil {
 		opts = &GameOpts{}
