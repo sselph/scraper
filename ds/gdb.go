@@ -175,7 +175,7 @@ func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
 	return result, nil
 }
 
-func (source GDB) GetNames(ps []string) []string {
+func (source *GDB) GetNames(ps []string) []string {
 	results := make([]string, 0, len(ps))
 
 	for _, p := range ps {
@@ -185,13 +185,27 @@ func (source GDB) GetNames(ps []string) []string {
 	return results
 }
 
-func (source GDB) GetGames(ctx context.Context, ps []string) []GameResult {
+func (source *GDB) GetGames(ctx context.Context, ps []string) []GameResult {
 	results := make([]GameResult, 0, len(ps))
 
 	for _, p := range ps {
 		game, err := source.GetGame(ctx, p)
 		results = append(results, GameResult{
 			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
+
+func (source *GDB) GetIds(ps []string) []IDResult {
+	results := make([]IDResult, 0, len(ps))
+
+	for _, p := range ps {
+		id, err := source.getID(p)
+		results = append(results, IDResult{
+			ID:    id,
 			Error: err,
 		})
 	}

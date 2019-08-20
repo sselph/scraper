@@ -98,8 +98,16 @@ type GameResult struct {
 	Error error
 }
 
+type SourceID = string
+
+type IDResult struct {
+	ID    SourceID
+	Error error
+}
+
 // DS is the interface all DataSoures should implement.
 type DS interface {
+	GetIds([]string) []IDResult
 	// GetName takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
 	GetNames([]string) []string
 	// GetGame takes an id and returns the Game.

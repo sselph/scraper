@@ -21,6 +21,10 @@ type SSMAME struct {
 	Limit  chan struct{}
 }
 
+func (s *SSMAME) getID(p string) (SourceID, error) {
+	return p, nil
+}
+
 // GetName implements DS
 func (s *SSMAME) GetName(p string) string {
 	return ""
@@ -112,7 +116,7 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	return ret, nil
 }
 
-func (source SSMAME) GetNames(ps []string) []string {
+func (source *SSMAME) GetNames(ps []string) []string {
 	results := make([]string, 0, len(ps))
 
 	for _, p := range ps {
@@ -122,13 +126,27 @@ func (source SSMAME) GetNames(ps []string) []string {
 	return results
 }
 
-func (source SSMAME) GetGames(ctx context.Context, ps []string) []GameResult {
+func (source *SSMAME) GetGames(ctx context.Context, ps []string) []GameResult {
 	results := make([]GameResult, 0, len(ps))
 
 	for _, p := range ps {
 		game, err := source.GetGame(ctx, p)
 		results = append(results, GameResult{
 			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
+
+func (source *SSMAME) GetIds(ps []string) []IDResult {
+	results := make([]IDResult, 0, len(ps))
+
+	for _, p := range ps {
+		id, err := source.getID(p)
+		results = append(results, IDResult{
+			ID:    id,
 			Error: err,
 		})
 	}

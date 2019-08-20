@@ -317,7 +317,7 @@ func ssImgURL(img string, width int, height int) string {
 	return u.String()
 }
 
-func (source SS) GetNames(ps []string) []string {
+func (source *SS) GetNames(ps []string) []string {
 	results := make([]string, 0, len(ps))
 
 	for _, p := range ps {
@@ -327,13 +327,27 @@ func (source SS) GetNames(ps []string) []string {
 	return results
 }
 
-func (source SS) GetGames(ctx context.Context, ps []string) []GameResult {
+func (source *SS) GetGames(ctx context.Context, ps []string) []GameResult {
 	results := make([]GameResult, 0, len(ps))
 
 	for _, p := range ps {
 		game, err := source.GetGame(ctx, p)
 		results = append(results, GameResult{
 			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
+
+func (source *SS) GetIds(ps []string) []IDResult {
+	results := make([]IDResult, 0, len(ps))
+
+	for _, p := range ps {
+		id, err := source.getID(p)
+		results = append(results, IDResult{
+			ID:    id,
 			Error: err,
 		})
 	}
