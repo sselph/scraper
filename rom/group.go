@@ -61,41 +61,33 @@ type XMLOpts struct {
 }
 
 type ROMResult struct {
-	rom *ROM
-	err error
+	Rom   *ROM
+	Error error
 }
 
 type group struct {
-	roms []ROM
-
-	foundRoms   []*ROM
-	unfoundRoms []ROMResult
+	roms []*ROM
 }
 
-func NewGroup(roms []ROM) group {
+func NewGroup(roms []*ROM) group {
 	return group{
 		roms: roms,
-
-		foundRoms:   []*ROM{},
-		unfoundRoms: []ROMResult{},
 	}
 }
 
-func (rg *group) GetGames(ctx context.Context, data []ds.DS, opts *GameOpts) {
+func (grp *group) GetGames(ctx context.Context, data []ds.DS, opts *GameOpts, onResult chan ROMResult, done chan struct{}) {
 	if opts == nil {
 		opts = &GameOpts{}
 	}
 
-	for _, rom := range rg.roms {
+	for _, rom := range grp.roms {
 		err := rom.GetGame(ctx, data, opts)
 
-		if !rom.NotFound {
-			rg.foundRoms = append(rg.foundRoms, &rom)
-		} else {
-			rg.unfoundRoms = append(rg.unfoundRoms, ROMResult{
-				rom: &rom,
-				err: err,
-			})
+		onResult <- ROMResult{
+			Rom:   rom,
+			Error: err,
 		}
 	}
+
+	close(done)
 }

@@ -100,6 +100,7 @@ func isHidden(f string) bool {
 
 const (
 	defaultGamesDbAPIKey = "fdb3e318c535c5f9fb5380d15cd6dbb5363cb197c1da897c7a268695658ceceb"
+	maxWorkerBatchSize   = 2
 )
 
 func getGamesDbAPIKey() string {
@@ -132,38 +133,93 @@ func done(ctx context.Context) bool {
 // worker is a function to process roms from a channel.
 func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
-	for r := range roms {
+
+	currentBatch := make([]*rom.ROM, 0, maxWorkerBatchSize)
+
+WorkerLoop:
+	for {
+		nextRom, hasMore := <-roms
+
 		if done(ctx) {
 			break
 		}
-		res := result{ROM: r}
-		for try := 0; try <= *retries; try++ {
-			if done(ctx) {
-				break
-			}
-			log.Printf("INFO: Starting: %s", r.Path)
-			if err := r.GetGame(ctx, sources, gameOpts); err != nil {
-				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				res.Err = err
-				if err == ds.ErrNotFound {
-					break
-				} else {
-					continue
-				}
-			}
-			if r.NotFound {
-				log.Printf("INFO: %s, %s", r.Path, ds.ErrNotFound)
-			}
-			xml, err := r.XML(ctx, xmlOpts)
-			if err != nil {
-				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				res.Err = err
+
+		if !hasMore && len(currentBatch) == 0 {
+			break
+		} else if nextRom != nil {
+			currentBatch = append(currentBatch, nextRom)
+			if len(currentBatch) < maxWorkerBatchSize {
 				continue
 			}
-			res.XML = xml
-			break
 		}
-		results <- res
+
+	FetchLoop:
+		for {
+			if done(ctx) {
+				break WorkerLoop
+			}
+
+			// NOTE(jpr): optimization to re-fill current batch with new roms in
+			// case we have individual items failing within an overall batch
+			if hasMore && len(currentBatch) < maxWorkerBatchSize {
+				break FetchLoop
+			}
+
+			for _, r := range currentBatch {
+				log.Printf("INFO: Starting: %s", r.Path)
+			}
+
+			onResult, onDone := make(chan rom.ROMResult), make(chan struct{})
+
+			grp := rom.NewGroup(currentBatch)
+			currentBatch = make([]*rom.ROM, 0, maxWorkerBatchSize)
+
+			go grp.GetGames(ctx, sources, gameOpts, onResult, onDone)
+
+			for {
+				select {
+				case romResult := <-onResult:
+					if romResult.Error != nil {
+						log.Printf("ERR: error processing %s: %s", romResult.Rom.Path, romResult.Error)
+						res := result{
+							ROM: romResult.Rom,
+							Err: romResult.Error,
+						}
+						if romResult.Error == ds.ErrNotFound || romResult.Rom.NumRetries > *retries {
+							results <- res
+						} else {
+							romResult.Rom.NumRetries++
+							currentBatch = append(currentBatch, romResult.Rom)
+						}
+						continue
+					}
+
+					if romResult.Rom.NotFound {
+						log.Printf("INFO: %s, %s", romResult.Rom.Path, ds.ErrNotFound)
+					}
+					xml, err := romResult.Rom.XML(ctx, xmlOpts)
+					res := result{
+						ROM: romResult.Rom,
+					}
+					if err != nil {
+						log.Printf("ERR: error processing %s: %s", romResult.Rom.Path, err)
+						res.Err = err
+
+						if romResult.Rom.NumRetries > *retries {
+							results <- res
+						} else {
+							romResult.Rom.NumRetries++
+							currentBatch = append(currentBatch, romResult.Rom)
+						}
+						continue
+					}
+					res.XML = xml
+					results <- res
+				case <-onDone:
+					break FetchLoop
+				}
+			}
+		}
 	}
 }
 
