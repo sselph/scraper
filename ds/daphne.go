@@ -47,11 +47,7 @@ func (d *Daphne) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (d *Daphne) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := d.getID(p)
-	if err != nil {
-		return nil, err
-	}
+func (d *Daphne) GetGame(ctx context.Context, id string) (*Game, error) {
 	resp, err := gdb.GetGame(ctx, d.APIKey, id)
 	if err != nil {
 		return nil, err
@@ -74,11 +70,11 @@ func (source *Daphne) GetNames(ps []string) []string {
 	return results
 }
 
-func (source *Daphne) GetGames(ctx context.Context, ps []string) []GameResult {
-	results := make([]GameResult, 0, len(ps))
+func (source *Daphne) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
 
-	for _, p := range ps {
-		game, err := source.GetGame(ctx, p)
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
 		results = append(results, GameResult{
 			Game:  game,
 			Error: err,

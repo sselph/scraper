@@ -158,11 +158,7 @@ func (g *GDB) GetName(p string) string {
 }
 
 // GetGame implements DS
-func (g *GDB) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := g.getID(p)
-	if err != nil {
-		return nil, err
-	}
+func (g *GDB) GetGame(ctx context.Context, id string) (*Game, error) {
 	resp, err := gdb.GetGame(ctx, g.APIKey, id)
 	if err != nil {
 		return nil, err
@@ -185,11 +181,11 @@ func (source *GDB) GetNames(ps []string) []string {
 	return results
 }
 
-func (source *GDB) GetGames(ctx context.Context, ps []string) []GameResult {
-	results := make([]GameResult, 0, len(ps))
+func (source *GDB) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
 
-	for _, p := range ps {
-		game, err := source.GetGame(ctx, p)
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
 		results = append(results, GameResult{
 			Game:  game,
 			Error: err,

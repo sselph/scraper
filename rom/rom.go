@@ -246,9 +246,15 @@ func (r *ROM) getGame(ctx context.Context, data []ds.DS, opts *GameOpts) error {
 Loop:
 	for _, file := range files {
 		for _, source := range data {
-			wrapped := []string{file}
-			prettyName = source.GetNames(wrapped)[0]
-			result := source.GetGames(ctx, wrapped)[0]
+			idResult := source.GetIds([]string{file})[0]
+			gameID := idResult.ID
+			err = idResult.Error
+			if err != nil {
+				continue
+			}
+
+			prettyName = source.GetNames([]string{file})[0]
+			result := source.GetGames(ctx, []string{gameID})[0]
 			game = result.Game
 			err = result.Error
 			if err != nil {

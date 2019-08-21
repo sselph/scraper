@@ -89,11 +89,7 @@ func (o *OVGDB) getID(p string) (string, error) {
 }
 
 // GetGame implements DS.
-func (o *OVGDB) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := o.getID(p)
-	if err != nil {
-		return nil, err
-	}
+func (o *OVGDB) GetGame(ctx context.Context, id string) (*Game, error) {
 	g, err := o.db.Get([]byte(id), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -234,11 +230,11 @@ func (source *OVGDB) GetNames(ps []string) []string {
 	return results
 }
 
-func (source *OVGDB) GetGames(ctx context.Context, ps []string) []GameResult {
-	results := make([]GameResult, 0, len(ps))
+func (source *OVGDB) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
 
-	for _, p := range ps {
-		game, err := source.GetGame(ctx, p)
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
 		results = append(results, GameResult{
 			Game:  game,
 			Error: err,

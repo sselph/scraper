@@ -45,11 +45,7 @@ func (m *MAME) Close() error {
 }
 
 // GetGame implements DS.
-func (m *MAME) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := m.getID(p)
-	if err != nil {
-		return nil, err
-	}
+func (m *MAME) GetGame(ctx context.Context, id string) (*Game, error) {
 	g, err := mamedb.GetGame(ctx, id)
 	if err != nil {
 		if err == mamedb.ErrNotFound {
@@ -218,11 +214,11 @@ func (source *MAME) GetNames(ps []string) []string {
 	return results
 }
 
-func (source *MAME) GetGames(ctx context.Context, ps []string) []GameResult {
-	results := make([]GameResult, 0, len(ps))
+func (source *MAME) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
 
-	for _, p := range ps {
-		game, err := source.GetGame(ctx, p)
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
 		results = append(results, GameResult{
 			Game:  game,
 			Error: err,
