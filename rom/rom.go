@@ -232,10 +232,29 @@ func (r *ROM) populateBins() error {
 	return nil
 }
 
+func populateMetadata(r *ROM, game *ds.Game, opts *GameOpts, prettyName string) {
+	r.CleanName = strings.Map(stripCharsForFilename, game.GameTitle)
+	if !opts.NoPrettyName && prettyName != "" {
+		game.GameTitle = prettyName
+	}
+	if opts.UseFilename {
+		game.GameTitle = r.BaseName
+	}
+	if !opts.NoStripUnicode {
+		game.Overview = strings.Map(stripChars, game.Overview)
+		game.GameTitle = strings.Map(stripChars, game.GameTitle)
+	}
+	if opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen+3 {
+		game.Overview = game.Overview[:opts.OverviewLen] + "..."
+	}
+	r.Game = game
+}
+
 func (r *ROM) getGame(ctx context.Context, data []ds.DS, opts *GameOpts) error {
 	if opts == nil {
 		opts = &GameOpts{}
 	}
+
 	var err error
 	var prettyName string
 	var game *ds.Game
@@ -243,6 +262,7 @@ func (r *ROM) getGame(ctx context.Context, data []ds.DS, opts *GameOpts) error {
 	if r.Cue {
 		files = append(files, r.Bins...)
 	}
+
 Loop:
 	for _, file := range files {
 		for _, source := range data {
@@ -263,6 +283,7 @@ Loop:
 			break Loop
 		}
 	}
+
 	if game == nil {
 		if err == ds.ErrNotFound {
 			r.NotFound = true
@@ -272,26 +293,16 @@ Loop:
 		}
 		game = &ds.Game{GameTitle: r.BaseName}
 	}
-	r.CleanName = strings.Map(stripCharsForFilename, game.GameTitle)
-	if !opts.NoPrettyName && prettyName != "" {
-		game.GameTitle = prettyName
-	}
-	if opts.UseFilename {
-		game.GameTitle = r.BaseName
-	}
-	if !opts.NoStripUnicode {
-		game.Overview = strings.Map(stripChars, game.Overview)
-		game.GameTitle = strings.Map(stripChars, game.GameTitle)
-	}
-	if opts.OverviewLen > 0 && len(game.Overview) > opts.OverviewLen+3 {
-		game.Overview = game.Overview[:opts.OverviewLen] + "..."
-	}
-	r.Game = game
+
+	populateMetadata(r, game, opts, prettyName)
+
 	return nil
 }
 
 // GetGames takes a batch of roms and attempts to populate the Game from data sources in order
 func GetGames(ctx context.Context, roms []*ROM, data []ds.DS, opts *GameOpts, onResult chan ROMResult, done chan struct{}) {
+	defer close(done)
+
 	if opts == nil {
 		opts = &GameOpts{}
 	}
@@ -306,7 +317,6 @@ func GetGames(ctx context.Context, roms []*ROM, data []ds.DS, opts *GameOpts, on
 		}
 	}
 
-	close(done)
 }
 
 // NewROM creates a new ROM and populates path and bin information.
