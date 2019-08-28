@@ -44,7 +44,9 @@ func (s *ScummVM) GetName(p string) string {
 
 // GetGame implements DS.
 func (s *ScummVM) GetGame(ctx context.Context, id string) (*Game, error) {
-	resp, err := gdb.GetGame(ctx, s.APIKey, id)
+	gameResult := gdb.GetGames(ctx, s.APIKey, []string{id})[0]
+	resp := gameResult.Game
+	err := gameResult.Error
 	if err != nil {
 		return nil, err
 	}

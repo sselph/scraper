@@ -76,7 +76,7 @@ func parseImages(game gdb.ParsedGame) (map[ImgType]Image, map[ImgType]Image) {
 	baseURLOriginal := game.ImageBaseUrls.Original
 	baseURLThumb := game.ImageBaseUrls.Thumb
 
-	gameImages := game.Images[strconv.Itoa(game.ID)]
+	gameImages := game.Images
 
 	if len(gameImages) != 0 {
 		bucketedImages := bucketImagesByType(gameImages)
@@ -145,7 +145,7 @@ func ParseGDBGame(game gdb.ParsedGame) *Game {
 }
 
 // GetName implements DS
-func (g *GDB) GetName(p string) string {
+func (g *GDB) getName(p string) string {
 	h, err := g.Hasher.Hash(p)
 	if err != nil {
 		return ""
@@ -157,44 +157,37 @@ func (g *GDB) GetName(p string) string {
 	return name
 }
 
-// GetGame implements DS
-func (g *GDB) GetGame(ctx context.Context, id string) (*Game, error) {
-	resp, err := gdb.GetGame(ctx, g.APIKey, id)
-	if err != nil {
-		return nil, err
-	}
-	if resp == nil {
-		return nil, fmt.Errorf("game with id (%s) not found", id)
-	}
-
-	result := ParseGDBGame(*resp)
-	return result, nil
-}
-
+// GetNames implements DS
 func (source *GDB) GetNames(ps []string) []string {
 	results := make([]string, 0, len(ps))
 
 	for _, p := range ps {
-		results = append(results, source.GetName(p))
+		results = append(results, source.getName(p))
 	}
 
 	return results
 }
 
+// GetGames implements DS
 func (source *GDB) GetGames(ctx context.Context, ids []string) []GameResult {
 	results := make([]GameResult, 0, len(ids))
 
-	for _, id := range ids {
-		game, err := source.GetGame(ctx, id)
-		results = append(results, GameResult{
-			Game:  game,
-			Error: err,
-		})
+	for _, gameResult := range gdb.GetGames(ctx, source.APIKey, ids) {
+		if gameResult.Error != nil {
+			results = append(results, GameResult{
+				Error: gameResult.Error,
+			})
+		} else {
+			results = append(results, GameResult{
+				Game: ParseGDBGame(*gameResult.Game),
+			})
+		}
 	}
 
 	return results
 }
 
+// GetIds implements DS
 func (source *GDB) GetIds(ps []string) []IDResult {
 	results := make([]IDResult, 0, len(ps))
 

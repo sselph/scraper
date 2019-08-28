@@ -48,7 +48,9 @@ func (d *Daphne) GetName(p string) string {
 
 // GetGame implements DS.
 func (d *Daphne) GetGame(ctx context.Context, id string) (*Game, error) {
-	resp, err := gdb.GetGame(ctx, d.APIKey, id)
+	gameResult := gdb.GetGames(ctx, d.APIKey, []string{id})[0]
+	resp := gameResult.Game
+	err := gameResult.Error
 	if err != nil {
 		return nil, err
 	}

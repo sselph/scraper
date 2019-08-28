@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/antihax/optional"
@@ -53,6 +54,18 @@ func getCachedPublishers(ctx context.Context, apikey string) map[string]gamesdb.
 	return *publishers
 }
 
+func parsePublishers(ctx context.Context, apikey string, apiGame gamesdb.Game) []ParsedPublisher {
+	allPublishers := getCachedPublishers(ctx, apikey)
+
+	publishers := []ParsedPublisher{}
+	for _, publisherID := range apiGame.Publishers {
+		if apiPublisher, ok := allPublishers[strconv.Itoa(int(publisherID))]; ok {
+			publishers = append(publishers, toParsedPublisher(apiPublisher))
+		}
+	}
+	return publishers
+}
+
 // Developers
 
 type developers struct {
@@ -91,6 +104,18 @@ func getCachedDevelopers(ctx context.Context, apikey string) map[string]gamesdb.
 	return *developers
 }
 
+func parseDevelopers(ctx context.Context, apikey string, apiGame gamesdb.Game) []ParsedDeveloper {
+	allDevelopers := getCachedDevelopers(ctx, apikey)
+
+	developers := []ParsedDeveloper{}
+	for _, developerID := range apiGame.Developers {
+		if apiDeveloper, ok := allDevelopers[strconv.Itoa(int(developerID))]; ok {
+			developers = append(developers, toParsedDeveloper(apiDeveloper))
+		}
+	}
+	return developers
+}
+
 // Genres
 
 type genres struct {
@@ -127,6 +152,18 @@ func getCachedGenres(ctx context.Context, apikey string) map[string]gamesdb.Genr
 	}
 
 	return *genres
+}
+
+func parseGenres(ctx context.Context, apikey string, apiGame gamesdb.Game) []ParsedGenre {
+	allGenres := getCachedGenres(ctx, apikey)
+
+	genres := []ParsedGenre{}
+	for _, genreID := range apiGame.Genres {
+		if apiGenre, ok := allGenres[strconv.Itoa(int(genreID))]; ok {
+			genres = append(genres, toParsedGenre(apiGenre))
+		}
+	}
+	return genres
 }
 
 // ParsedDeveloper is a normalized GamesDB Developer
@@ -210,86 +247,134 @@ type ParsedGame struct {
 	Genres     []ParsedGenre
 	Publishers []ParsedPublisher
 
-	Images        map[string][]ParsedGameImage
+	Images        []ParsedGameImage
 	ImageBaseUrls ParsedImageSizeBaseUrls
 }
 
-// GetGame gets the game information from the DB.
-func GetGame(ctx context.Context, apikey string, gameID string) (*ParsedGame, error) {
+func parseImages(apiImages []gamesdb.GameImage) []ParsedGameImage {
+	parsedImages := make([]ParsedGameImage, len(apiImages))
+
+	for idx, apiImage := range apiImages {
+		parsedImages[idx] = toParsedGameImage(apiImage)
+	}
+
+	return parsedImages
+}
+
+type GetGameResult struct {
+	Game  *ParsedGame
+	Error error
+}
+
+func replicatedError(err error, times int) []GetGameResult {
+	results := make([]GetGameResult, times)
+
+	for i := 0; i < times; i++ {
+		results[i] = GetGameResult{
+			Error: err,
+		}
+	}
+
+	return results
+}
+
+// GetGames gets the game information from the DB.
+func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameResult {
 	var games gamesdb.GamesByGameId
 	var resp *http.Response
 	var err error
+
+	results := []GetGameResult{}
 
 	// TODO(jpr): remove unneeded fields
 	//fields := "players,publishers,genres,overview,last_updated,rating,platform,coop,youtube,os,processor,ram,hdd,video,sound,alternates"
 	fields := "players,publishers,genres,overview,platform"
 
-	if gameID == "" {
-		return nil, fmt.Errorf("must provide an ID or Name")
+	if len(gameIDs) == 0 {
+		return results
 	}
 
-	games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, gameID, &gamesdb.GamesByGameIDOpts{Fields: optional.NewString(fields)})
+	joinedIds := strings.Join(gameIDs, ",")
+
+	games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gamesdb.GamesByGameIDOpts{Page: optional.NewInt32(1), Fields: optional.NewString(fields)})
 
 	if err != nil {
-		return nil, fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err)
+		return replicatedError(fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err), len(gameIDs))
 	}
-
 	if len(games.Data.Games) == 0 {
-		return nil, fmt.Errorf("game not found")
+		return replicatedError(fmt.Errorf("game not found"), len(gameIDs))
 	}
 
-	apiGame := games.Data.Games[0]
-	res := &ParsedGame{
-		ID:          int(apiGame.Id),
-		Name:        apiGame.GameTitle,
-		ReleaseDate: apiGame.ReleaseDate,
-		Players:     int(apiGame.Players),
-		Overview:    apiGame.Overview,
+	mappedGames := make(map[string]gamesdb.Game)
+	for _, game := range games.Data.Games {
+		mappedGames[strconv.Itoa(int(game.Id))] = game
 	}
 
-	allGenres := getCachedGenres(ctx, apikey)
-	genres := []ParsedGenre{}
-	for _, genreID := range apiGame.Genres {
-		if apiGenre, ok := allGenres[strconv.Itoa(int(genreID))]; ok {
-			genres = append(genres, toParsedGenre(apiGenre))
+	var currentPage int32 = 1
+	for {
+		if games.Pages.Next == "" || err != nil {
+			break
 		}
-	}
-	res.Genres = genres
-
-	allDevelopers := getCachedDevelopers(ctx, apikey)
-	developers := []ParsedDeveloper{}
-	for _, developerID := range apiGame.Developers {
-		if apiDeveloper, ok := allDevelopers[strconv.Itoa(int(developerID))]; ok {
-			developers = append(developers, toParsedDeveloper(apiDeveloper))
+		for _, game := range games.Data.Games {
+			mappedGames[strconv.Itoa(int(game.Id))] = game
 		}
-	}
-	res.Developers = developers
 
-	allPublishers := getCachedPublishers(ctx, apikey)
-	publishers := []ParsedPublisher{}
-	for _, publisherID := range apiGame.Publishers {
-		if apiPublisher, ok := allPublishers[strconv.Itoa(int(publisherID))]; ok {
-			publishers = append(publishers, toParsedPublisher(apiPublisher))
+		currentPage++
+		games, _, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gamesdb.GamesByGameIDOpts{Page: optional.NewInt32(currentPage), Fields: optional.NewString(fields)})
+	}
+
+	images, _, imageErr := apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &gamesdb.GamesImagesOpts{Page: optional.NewInt32(1)})
+
+	mappedImages := make(map[string][]gamesdb.GameImage)
+	for key, imageInfo := range images.Data.Images {
+		mappedImages[key] = imageInfo
+	}
+
+	currentPage = 1
+	for {
+		if images.Pages.Next == "" || imageErr != nil {
+			break
 		}
-	}
-	res.Publishers = publishers
-
-	images, _, err := apiClient.GamesApi.GamesImages(ctx, apikey, strconv.Itoa(res.ID), nil)
-	if err == nil {
-		res.ImageBaseUrls = toParsedImageSizeBaseUrls(images.Data.BaseUrl)
-
-		parsedImages := make(map[string][]ParsedGameImage)
-		for key, val := range images.Data.Images {
-			result := parsedImages[key]
-			for _, image := range val {
-				result = append(result, toParsedGameImage(image))
-			}
-			parsedImages[key] = result
+		for key, imageInfo := range images.Data.Images {
+			mappedImages[key] = imageInfo
 		}
-		res.Images = parsedImages
+
+		currentPage++
+		images, _, imageErr = apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &gamesdb.GamesImagesOpts{Page: optional.NewInt32(currentPage)})
 	}
 
-	return res, nil
+	for _, requestedID := range gameIDs {
+		apiGame, found := mappedGames[requestedID]
+		if !found {
+			results = append(results, GetGameResult{
+				Error: fmt.Errorf("game not found"),
+			})
+			continue
+		}
+
+		res := &ParsedGame{
+			ID:          int(apiGame.Id),
+			Name:        apiGame.GameTitle,
+			ReleaseDate: apiGame.ReleaseDate,
+			Players:     int(apiGame.Players),
+			Overview:    apiGame.Overview,
+		}
+
+		res.Genres = parseGenres(ctx, apikey, apiGame)
+		res.Developers = parseDevelopers(ctx, apikey, apiGame)
+		res.Publishers = parsePublishers(ctx, apikey, apiGame)
+
+		if apiImages, found := mappedImages[requestedID]; found {
+			res.ImageBaseUrls = toParsedImageSizeBaseUrls(images.Data.BaseUrl)
+			res.Images = parseImages(apiImages)
+		}
+
+		results = append(results, GetGameResult{
+			Game: res,
+		})
+	}
+
+	return results
 }
 
 // IsUp returns if thegamedb.net is up.

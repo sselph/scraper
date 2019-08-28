@@ -42,7 +42,9 @@ func (n *NeoGeo) GetName(p string) string {
 
 // GetGame implements DS.
 func (n *NeoGeo) GetGame(ctx context.Context, id string) (*Game, error) {
-	resp, err := gdb.GetGame(ctx, n.APIKey, id)
+	gameResult := gdb.GetGames(ctx, n.APIKey, []string{id})[0]
+	resp := gameResult.Game
+	err := gameResult.Error
 	if err != nil {
 		return nil, err
 	}

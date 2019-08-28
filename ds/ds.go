@@ -110,7 +110,7 @@ type DS interface {
 	GetIds([]string) []IDResult
 	// GetName takes the path of a ROM and returns the Pretty name if it differs from the Sources normal name.
 	GetNames([]string) []string
-	// GetGame takes an id and returns the Game.
+	// GetGames takes an id and returns the Game.
 	GetGames(context.Context, []string) []GameResult
 }
 
