@@ -250,53 +250,70 @@ func populateMetadata(r *ROM, game *ds.Game, opts *GameOpts, prettyName string) 
 	r.Game = game
 }
 
-func (r *ROM) getGame(ctx context.Context, data []ds.DS, opts *GameOpts) error {
-	if opts == nil {
-		opts = &GameOpts{}
+type gameResultMeta struct {
+	rom        *ROM
+	err        error
+	gameID     string
+	prettyName string
+}
+
+type gameResult struct {
+	gameResultMeta
+	game *ds.Game
+}
+
+func getGameMeta(ctx context.Context, source ds.DS, rom *ROM, opts *GameOpts) gameResultMeta {
+	result := gameResultMeta{rom: rom}
+
+	files := []string{rom.Path}
+	if rom.Cue {
+		files = append(files, rom.Bins...)
 	}
 
-	var err error
-	var prettyName string
-	var game *ds.Game
-	files := []string{r.Path}
-	if r.Cue {
-		files = append(files, r.Bins...)
-	}
-
-Loop:
-	for _, file := range files {
-		for _, source := range data {
-			idResult := source.GetIds([]string{file})[0]
-			gameID := idResult.ID
-			err = idResult.Error
-			if err != nil {
-				continue
-			}
-
-			prettyName = source.GetNames([]string{file})[0]
-			result := source.GetGames(ctx, []string{gameID})[0]
-			game = result.Game
-			err = result.Error
-			if err != nil {
-				continue
-			}
-			break Loop
+	for idx, idResult := range source.GetIds(files) {
+		result.gameID = idResult.ID
+		result.err = idResult.Error
+		if result.gameID != "" {
+			result.prettyName = source.GetNames(files)[idx]
+			break
 		}
 	}
 
-	if game == nil {
-		if err == ds.ErrNotFound {
-			r.NotFound = true
+	return result
+}
+
+func getGames(ctx context.Context, source ds.DS, roms []*ROM, opts *GameOpts) []gameResult {
+	results := make([]gameResult, 0, len(roms))
+
+	romsToFetch := []gameResultMeta{}
+	for _, rom := range roms {
+		resultMeta := getGameMeta(ctx, source, rom, opts)
+
+		if resultMeta.err != nil {
+			results = append(results, gameResult{
+				gameResultMeta: resultMeta,
+			})
+			continue
 		}
-		if err != ds.ErrNotFound || !opts.AddNotFound {
-			return err
-		}
-		game = &ds.Game{GameTitle: r.BaseName}
+
+		romsToFetch = append(romsToFetch, resultMeta)
 	}
 
-	populateMetadata(r, game, opts, prettyName)
+	if len(romsToFetch) > 0 {
+		ids := make([]string, len(romsToFetch))
+		for idx, meta := range romsToFetch {
+			ids[idx] = meta.gameID
+		}
+		for idx, gameRes := range source.GetGames(ctx, ids) {
+			romsToFetch[idx].err = gameRes.Error
+			results = append(results, gameResult{
+				gameResultMeta: romsToFetch[idx],
+				game:           gameRes.Game,
+			})
+		}
+	}
 
-	return nil
+	return results
 }
 
 // GetGames takes a batch of roms and attempts to populate the Game from data sources in order
@@ -307,16 +324,55 @@ func GetGames(ctx context.Context, roms []*ROM, data []ds.DS, opts *GameOpts, on
 		opts = &GameOpts{}
 	}
 
-	fmt.Printf("Running batch of size [%d]\n", len(roms))
-	for _, rom := range roms {
-		err := rom.getGame(ctx, data, opts)
+	remainingRoms := append(roms[:0:0], roms...)
+	var failedResults []gameResult
 
-		onResult <- ROMResult{
-			Rom:   rom,
-			Error: err,
+SourceLoop:
+	for _, source := range data {
+		results := getGames(ctx, source, remainingRoms, opts)
+
+		failedResults = []gameResult{}
+		remainingRoms = []*ROM{}
+
+	ResultLoop:
+		for _, result := range results {
+			if result.game == nil {
+				failedResults = append(failedResults, result)
+				remainingRoms = append(remainingRoms, result.rom)
+				continue ResultLoop
+			}
+
+			populateMetadata(result.rom, result.game, opts, result.prettyName)
+			onResult <- ROMResult{
+				Rom: result.rom,
+			}
+		}
+		if len(remainingRoms) == 0 {
+			break SourceLoop
 		}
 	}
 
+	for _, failedResult := range failedResults {
+		if failedResult.game == nil {
+			if failedResult.err == ds.ErrNotFound {
+				failedResult.rom.NotFound = true
+			}
+			if failedResult.err != ds.ErrNotFound || !opts.AddNotFound {
+				onResult <- ROMResult{
+					Rom:   failedResult.rom,
+					Error: failedResult.err,
+				}
+				continue
+			}
+			failedResult.game = &ds.Game{GameTitle: failedResult.rom.BaseName}
+		}
+
+		populateMetadata(failedResult.rom, failedResult.game, opts, failedResult.prettyName)
+
+		onResult <- ROMResult{
+			Rom: failedResult.rom,
+		}
+	}
 }
 
 // NewROM creates a new ROM and populates path and bin information.
