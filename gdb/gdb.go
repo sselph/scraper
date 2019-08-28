@@ -4,7 +4,6 @@ package gdb
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -278,36 +277,26 @@ func replicatedError(err error, times int) []GetGameResult {
 	return results
 }
 
-// GetGames gets the game information from the DB.
-func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameResult {
-	var games gamesdb.GamesByGameId
-	var resp *http.Response
-	var err error
-
-	results := []GetGameResult{}
+func fetchGamesUntilDone(ctx context.Context, apikey string, joinedIds string) (map[string]gamesdb.Game, error) {
+	results := make(map[string]gamesdb.Game)
 
 	// TODO(jpr): remove unneeded fields
 	//fields := "players,publishers,genres,overview,last_updated,rating,platform,coop,youtube,os,processor,ram,hdd,video,sound,alternates"
 	fields := "players,publishers,genres,overview,platform"
+	gameOpts := gamesdb.GamesByGameIDOpts{Page: optional.NewInt32(1), Fields: optional.NewString(fields)}
 
-	if len(gameIDs) == 0 {
-		return results
-	}
-
-	joinedIds := strings.Join(gameIDs, ",")
-
-	games, resp, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gamesdb.GamesByGameIDOpts{Page: optional.NewInt32(1), Fields: optional.NewString(fields)})
+	games, resp, err := apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gameOpts)
 
 	if err != nil {
-		return replicatedError(fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err), len(gameIDs))
-	}
-	if len(games.Data.Games) == 0 {
-		return replicatedError(fmt.Errorf("game not found"), len(gameIDs))
+		return results, fmt.Errorf("getting game url:%s, error:%s", resp.Request.URL, err)
 	}
 
-	mappedGames := make(map[string]gamesdb.Game)
+	if len(games.Data.Games) == 0 {
+		return results, fmt.Errorf("game not found")
+	}
+
 	for _, game := range games.Data.Games {
-		mappedGames[strconv.Itoa(int(game.Id))] = game
+		results[strconv.Itoa(int(game.Id))] = game
 	}
 
 	var currentPage int32 = 1
@@ -316,32 +305,51 @@ func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameRes
 			break
 		}
 		for _, game := range games.Data.Games {
-			mappedGames[strconv.Itoa(int(game.Id))] = game
+			results[strconv.Itoa(int(game.Id))] = game
 		}
 
 		currentPage++
-		games, _, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gamesdb.GamesByGameIDOpts{Page: optional.NewInt32(currentPage), Fields: optional.NewString(fields)})
+		gameOpts.Page = optional.NewInt32(currentPage)
+		games, _, err = apiClient.GamesApi.GamesByGameID(ctx, apikey, joinedIds, &gameOpts)
 	}
 
-	images, _, imageErr := apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &gamesdb.GamesImagesOpts{Page: optional.NewInt32(1)})
+	return results, nil
+}
 
-	mappedImages := make(map[string][]gamesdb.GameImage)
+func fetchImagesUntilDone(ctx context.Context, apikey string, joinedIds string) (map[string][]gamesdb.GameImage, *gamesdb.ImageBaseUrlMeta, error) {
+	results := make(map[string][]gamesdb.GameImage)
+
+	imageOpts := gamesdb.GamesImagesOpts{Page: optional.NewInt32(1)}
+
+	images, _, err := apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &imageOpts)
+
+	if err != nil {
+		return results, nil, err
+	}
+
 	for key, imageInfo := range images.Data.Images {
-		mappedImages[key] = imageInfo
+		results[key] = imageInfo
 	}
 
-	currentPage = 1
+	var currentPage int32 = 1
 	for {
-		if images.Pages.Next == "" || imageErr != nil {
+		if images.Pages.Next == "" || err != nil {
 			break
 		}
 		for key, imageInfo := range images.Data.Images {
-			mappedImages[key] = imageInfo
+			results[key] = imageInfo
 		}
 
 		currentPage++
-		images, _, imageErr = apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &gamesdb.GamesImagesOpts{Page: optional.NewInt32(currentPage)})
+		imageOpts.Page = optional.NewInt32(currentPage)
+		images, _, err = apiClient.GamesApi.GamesImages(ctx, apikey, joinedIds, &imageOpts)
 	}
+
+	return results, &images.Data.BaseUrl, nil
+}
+
+func buildResults(ctx context.Context, apikey string, gameIDs []string, mappedGames map[string]gamesdb.Game, mappedImages map[string][]gamesdb.GameImage, baseURLMeta *gamesdb.ImageBaseUrlMeta) []GetGameResult {
+	results := []GetGameResult{}
 
 	for _, requestedID := range gameIDs {
 		apiGame, found := mappedGames[requestedID]
@@ -364,8 +372,8 @@ func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameRes
 		res.Developers = parseDevelopers(ctx, apikey, apiGame)
 		res.Publishers = parsePublishers(ctx, apikey, apiGame)
 
-		if apiImages, found := mappedImages[requestedID]; found {
-			res.ImageBaseUrls = toParsedImageSizeBaseUrls(images.Data.BaseUrl)
+		if apiImages, found := mappedImages[requestedID]; found && baseURLMeta != nil {
+			res.ImageBaseUrls = toParsedImageSizeBaseUrls(*baseURLMeta)
 			res.Images = parseImages(apiImages)
 		}
 
@@ -375,6 +383,24 @@ func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameRes
 	}
 
 	return results
+}
+
+// GetGames gets the game information from the DB.
+func GetGames(ctx context.Context, apikey string, gameIDs []string) []GetGameResult {
+	if len(gameIDs) == 0 {
+		return []GetGameResult{}
+	}
+
+	joinedIds := strings.Join(gameIDs, ",")
+
+	mappedGames, err := fetchGamesUntilDone(ctx, apikey, joinedIds)
+	if err != nil {
+		return replicatedError(err, len(gameIDs))
+	}
+
+	mappedImages, baseURLMeta, _ := fetchImagesUntilDone(ctx, apikey, joinedIds)
+
+	return buildResults(ctx, apikey, gameIDs, mappedGames, mappedImages, baseURLMeta)
 }
 
 // IsUp returns if thegamedb.net is up.

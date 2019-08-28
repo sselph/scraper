@@ -324,7 +324,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 						if err != nil {
 							log.Printf("ERR: Can't hash file %s", file)
 						}
-						name := gdbDS.GetName(file)
+						name := gdbDS.GetNames([]string{file})[0]
 						if name != "" && r.Err == ds.ErrNotFound {
 							extra = "hash found but no GDB ID"
 						}
