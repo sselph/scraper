@@ -100,7 +100,7 @@ func isHidden(f string) bool {
 
 const (
 	defaultGamesDbAPIKey = "fdb3e318c535c5f9fb5380d15cd6dbb5363cb197c1da897c7a268695658ceceb"
-	maxWorkerBatchSize   = 2
+	maxWorkerBatchSize   = 100
 )
 
 func getGamesDbAPIKey() string {
