@@ -43,12 +43,10 @@ func (s *ScummVM) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (s *ScummVM) GetGame(ctx context.Context, p string) (*Game, error) {
-	id, err := s.getID(p)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := gdb.GetGame(ctx, s.APIKey, id)
+func (s *ScummVM) GetGame(ctx context.Context, id string) (*Game, error) {
+	gameResult := gdb.GetGames(ctx, s.APIKey, []string{id})[0]
+	resp := gameResult.Game
+	err := gameResult.Error
 	if err != nil {
 		return nil, err
 	}
@@ -58,4 +56,42 @@ func (s *ScummVM) GetGame(ctx context.Context, p string) (*Game, error) {
 
 	result := ParseGDBGame(*resp)
 	return result, nil
+}
+
+func (source *ScummVM) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source *ScummVM) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
+
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
+
+func (source *ScummVM) GetIds(ps []string) []IDResult {
+	results := make([]IDResult, 0, len(ps))
+
+	for _, p := range ps {
+		id, err := source.getID(p)
+		results = append(results, IDResult{
+			ID:    id,
+			Error: err,
+		})
+	}
+
+	return results
 }

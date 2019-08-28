@@ -100,6 +100,7 @@ func isHidden(f string) bool {
 
 const (
 	defaultGamesDbAPIKey = "fdb3e318c535c5f9fb5380d15cd6dbb5363cb197c1da897c7a268695658ceceb"
+	maxWorkerBatchSize   = 100
 )
 
 func getGamesDbAPIKey() string {
@@ -132,38 +133,103 @@ func done(ctx context.Context) bool {
 // worker is a function to process roms from a channel.
 func worker(ctx context.Context, sources []ds.DS, xmlOpts *rom.XMLOpts, gameOpts *rom.GameOpts, results chan result, roms chan *rom.ROM, wg *sync.WaitGroup) {
 	defer wg.Done()
-	for r := range roms {
+
+	// TODO(jpr): I think theres probably a way to dedicate a step in the pipeline
+	// to batching, but I'm not sure how to handle retries safely in the batcher
+	//
+	// something like this:
+	//
+	//      FS walker => batcher => rom workers => results parser
+	//                    ^             v
+	//                    ^   retry     v
+	//                    ^<<<<<<<<<<<<<<
+	currentBatch := make([]*rom.ROM, 0, maxWorkerBatchSize)
+
+WorkerLoop:
+	for {
+		nextRom, hasMore := <-roms
+
 		if done(ctx) {
-			break
+			break WorkerLoop
 		}
-		res := result{ROM: r}
-		for try := 0; try <= *retries; try++ {
-			if done(ctx) {
-				break
+
+		// NOTE(jpr): make sure we run our 'waiting' batch if there are no more
+		// roms coming
+		if !hasMore && len(currentBatch) == 0 {
+			break WorkerLoop
+		} else if nextRom != nil {
+			currentBatch = append(currentBatch, nextRom)
+			if len(currentBatch) < maxWorkerBatchSize {
+				continue WorkerLoop
 			}
-			log.Printf("INFO: Starting: %s", r.Path)
-			if err := r.GetGame(ctx, sources, gameOpts); err != nil {
-				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				res.Err = err
-				if err == ds.ErrNotFound {
-					break
-				} else {
-					continue
+		}
+
+	FetchLoop:
+		for {
+			if done(ctx) {
+				break WorkerLoop
+			}
+
+			// NOTE(jpr): optimization to re-fill current batch with new roms in
+			// case we have individual items failing within an overall batch
+			if hasMore && len(currentBatch) < maxWorkerBatchSize {
+				break FetchLoop
+			}
+
+			for _, r := range currentBatch {
+				log.Printf("INFO: Starting: %s", r.Path)
+			}
+
+			onResult, onDone := make(chan rom.ROMResult), make(chan struct{})
+
+			go rom.GetGames(ctx, currentBatch, sources, gameOpts, onResult, onDone)
+			currentBatch = make([]*rom.ROM, 0, maxWorkerBatchSize)
+
+		GroupLoop:
+			for {
+				select {
+				case romResult := <-onResult:
+					if romResult.Error != nil {
+						log.Printf("ERR: error processing %s: %s", romResult.Rom.Path, romResult.Error)
+						res := result{
+							ROM: romResult.Rom,
+							Err: romResult.Error,
+						}
+						if romResult.Error == ds.ErrNotFound || romResult.Rom.NumRetries > *retries {
+							results <- res
+						} else {
+							romResult.Rom.NumRetries++
+							currentBatch = append(currentBatch, romResult.Rom)
+						}
+						continue GroupLoop
+					}
+
+					if romResult.Rom.NotFound {
+						log.Printf("INFO: %s, %s", romResult.Rom.Path, ds.ErrNotFound)
+					}
+					xml, err := romResult.Rom.XML(ctx, xmlOpts)
+					res := result{
+						ROM: romResult.Rom,
+					}
+					if err != nil {
+						log.Printf("ERR: error processing %s: %s", romResult.Rom.Path, err)
+						res.Err = err
+
+						if romResult.Rom.NumRetries > *retries {
+							results <- res
+						} else {
+							romResult.Rom.NumRetries++
+							currentBatch = append(currentBatch, romResult.Rom)
+						}
+						continue GroupLoop
+					}
+					res.XML = xml
+					results <- res
+				case <-onDone:
+					break FetchLoop
 				}
 			}
-			if r.NotFound {
-				log.Printf("INFO: %s, %s", r.Path, ds.ErrNotFound)
-			}
-			xml, err := r.XML(ctx, xmlOpts)
-			if err != nil {
-				log.Printf("ERR: error processing %s: %s", r.Path, err)
-				res.Err = err
-				continue
-			}
-			res.XML = xml
-			break
 		}
-		results <- res
 	}
 }
 
@@ -258,7 +324,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 						if err != nil {
 							log.Printf("ERR: Can't hash file %s", file)
 						}
-						name := gdbDS.GetName(file)
+						name := gdbDS.GetNames([]string{file})[0]
 						if name != "" && r.Err == ds.ErrNotFound {
 							extra = "hash found but no GDB ID"
 						}
@@ -316,6 +382,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 			if fi.IsDir() {
 				return nil
 			}
+
 			r, err := rom.NewROM(f)
 			if err != nil {
 				log.Printf("ERR: Processing: %s, %s", f, err)
@@ -335,6 +402,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 			roms <- r
 			return nil
 		})
+
 		if err != nil && err != context.Canceled {
 			return err
 		}
@@ -363,6 +431,7 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 			log.Printf("INFO: Skipping %s, already in gamelist.", f)
 			return nil
 		}
+
 		r, err := rom.NewROM(f)
 		if err != nil {
 			log.Printf("ERR: Processing: %s, %s", f, err)
@@ -379,9 +448,11 @@ func crawlROMs(ctx context.Context, gl *rom.GameListXML, sources []ds.DS, xmlOpt
 		}
 		return nil
 	})
+
 	if err != nil && err != context.Canceled {
 		return err
 	}
+
 	close(roms)
 	wg.Wait()
 	wg.Add(1)

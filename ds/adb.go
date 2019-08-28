@@ -29,16 +29,12 @@ func (a *ADB) GetName(p string) string {
 }
 
 // GetGame implements DS.
-func (a *ADB) GetGame(ctx context.Context, p string) (*Game, error) {
+func (a *ADB) GetGame(ctx context.Context, id string) (*Game, error) {
 	if a.Limit != nil {
 		a.Limit <- struct{}{}
 		defer func() {
 			<-a.Limit
 		}()
-	}
-	id, err := a.getID(p)
-	if err != nil {
-		return nil, err
 	}
 	r, err := adb.GetGame(ctx, id)
 	if err != nil {
@@ -86,4 +82,42 @@ func (a *ADB) GetGame(ctx context.Context, p string) (*Game, error) {
 		game.Videos[VidStandard] = HTTPVideo{URL: g.Video, E: ".mp4", Limit: a.Limit}
 	}
 	return game, nil
+}
+
+func (source *ADB) GetNames(ps []string) []string {
+	results := make([]string, 0, len(ps))
+
+	for _, p := range ps {
+		results = append(results, source.GetName(p))
+	}
+
+	return results
+}
+
+func (source *ADB) GetGames(ctx context.Context, ids []string) []GameResult {
+	results := make([]GameResult, 0, len(ids))
+
+	for _, id := range ids {
+		game, err := source.GetGame(ctx, id)
+		results = append(results, GameResult{
+			Game:  game,
+			Error: err,
+		})
+	}
+
+	return results
+}
+
+func (source *ADB) GetIds(ps []string) []IDResult {
+	results := make([]IDResult, 0, len(ps))
+
+	for _, p := range ps {
+		id, err := source.getID(p)
+		results = append(results, IDResult{
+			ID:    id,
+			Error: err,
+		})
+	}
+
+	return results
 }
