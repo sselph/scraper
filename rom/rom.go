@@ -415,7 +415,7 @@ func convertVideo(p string) error {
 		"-c:v", "libx264",
         "-preset", "fast",
         "-crf", "23",
-        "-vf", "scale=w=320:h=-2",
+        "-vf", "scale=w=320:h=-2,format=yuv420p",
         "-c:a", "aac",
         "-b:a", "80k",
         outputFile)
