@@ -358,6 +358,9 @@ func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) 
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ss: HTTP status: %d, URL: %s", resp.StatusCode, u.String())
+	}
 	r := &GameInfoResp{}
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -376,7 +379,7 @@ func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) 
 		if err.Error() == "invalid character 'A' looking for beginning of value" {
 			return nil, fmt.Errorf("ss: %s", string(b))
 		}
-		return nil, fmt.Errorf("ss: cannot parse response: %q", err)
+		return nil, fmt.Errorf("ss: cannot parse response: %q", string(b))
 	}
 	return r, nil
 }
