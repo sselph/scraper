@@ -29,8 +29,8 @@ const (
 
 const (
 	baseURL      = "https://www.screenscraper.fr/"
-	gameInfoPath = "api/jeuInfos.php"
-	userInfoPath = "api/ssuserInfos.php"
+	gameInfoPath = "api2/jeuInfos.php"
+	userInfoPath = "api2/ssuserInfos.php"
 )
 
 // ErrNotFound is the error returned when a ROM isn't found.
@@ -340,6 +340,7 @@ func GameInfo(ctx context.Context, dev DevInfo, user UserInfo, req GameInfoReq) 
 	} else {
 		q.Set("romtype", req.RomType)
 	}
+	q.Set("romnom", "0")
 	if req.Name != "" {
 		q.Set("romnom", req.Name)
 	}
