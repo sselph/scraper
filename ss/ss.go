@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-// JSON field prefixes.
+// Image types
 const (
 	screenshot    = "ss"
 	screenMarquee = "screenmarquee"
@@ -26,8 +26,6 @@ const (
 	wheel         = "wheel"
 	support2D     = "support-2D"
 	supportLabel  = "support-texture"
-	preDate       = "date_"
-	preSynopsis   = "synopsis_"
 )
 
 const (
@@ -207,6 +205,11 @@ type IDAndText struct {
 	Text string `json:"text"`
 }
 
+type RegionAndText struct {
+	Region string `json:"region"`
+	Text   string `json:"text"`
+}
+
 type TextField struct {
 	Text string `json:"text"`
 }
@@ -229,25 +232,21 @@ func (r ROM) Regions() []string {
 }
 
 type Game struct {
-	//Synopsis  SafeStringMap `json:"synopsis"`
-	ID   string `json:"id"`
-	Name string `json:"nom"` //todo
-	//Names SafeStringMap `json:"noms"`
-	//Regions   []string `json:"regionshortnames"`
-	Publisher IDAndText `json:"editeur"`
-	Developer IDAndText `json:"developpeur"`
-	Players   TextField `json:"joueurs"`
-	Rating    TextField `json:"note"`
-	//Dates     SafeStringMap `json:"dates"`
-	Genres []Genre  `json:"genres"`
-	Media  []Medium `json:"medias"`
-	ROMs   []ROM    `json:"roms"`
-	genres map[string]string
-}
-
-func (g Game) Date(r []string) (string, bool) {
-	return "", false
-	//return getSuffix(g.Dates.Map, preDate, r)
+	ID           string            `json:"id"`
+	Names        []RegionAndText   `json:"noms"`
+	Descriptions []LanguageAndText `json:"synopsis"`
+	Publisher    IDAndText         `json:"editeur"`
+	Developer    IDAndText         `json:"developpeur"`
+	Players      TextField         `json:"joueurs"`
+	Rating       TextField         `json:"note"`
+	Dates        []RegionAndText   `json:"dates"`
+	Genres       []Genre           `json:"genres"`
+	Media        []Medium          `json:"medias"`
+	ROMs         []ROM             `json:"roms"`
+	names        map[string]string
+	descriptions map[string]string
+	genres       map[string]string
+	dates        map[string]string
 }
 
 func (g *Game) decodeGenre() {
@@ -263,6 +262,27 @@ func (g *Game) decodeGenre() {
 	}
 }
 
+func (g *Game) decodeNames() {
+	g.names = make(map[string]string)
+	for _, name := range g.Names {
+		g.names[name.Region] = name.Text
+	}
+}
+
+func (g *Game) decodeDescriptions() {
+	g.descriptions = make(map[string]string)
+	for _, description := range g.Descriptions {
+		g.descriptions[description.Language] = description.Text
+	}
+}
+
+func (g *Game) decodeDates() {
+	g.dates = make(map[string]string)
+	for _, date := range g.Dates {
+		g.dates[date.Region] = date.Text
+	}
+}
+
 func getFirstMatch(mapping map[string]string, keys []string) (string, bool) {
 	for _, key := range keys {
 		if mapping[key] != "" {
@@ -270,7 +290,6 @@ func getFirstMatch(mapping map[string]string, keys []string) (string, bool) {
 		}
 	}
 	return "", false
-
 }
 
 func (g Game) Genre(l []string) (string, bool) {
@@ -280,9 +299,25 @@ func (g Game) Genre(l []string) (string, bool) {
 	return getFirstMatch(g.genres, l)
 }
 
+func (g Game) Name(r []string) (string, bool) {
+	if g.names == nil {
+		g.decodeNames()
+	}
+	return getFirstMatch(g.names, r)
+}
+
 func (g Game) Desc(l []string) (string, bool) {
-	return "", false
-	//return getSuffix(g.Synopsis.Map, preSynopsis, l)
+	if g.descriptions == nil {
+		g.decodeDescriptions()
+	}
+	return getFirstMatch(g.descriptions, l)
+}
+
+func (g Game) Date(r []string) (string, bool) {
+	if g.dates == nil {
+		g.decodeDates()
+	}
+	return getFirstMatch(g.dates, r)
 }
 
 func (g Game) ROM(req GameInfoReq) (ROM, bool) {

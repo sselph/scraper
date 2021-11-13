@@ -82,7 +82,7 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
-	ret.GameTitle = game.Name
+	ret.GameTitle, _ = game.Name(s.Region)
 	ret.Overview, _ = game.Desc(s.Lang)
 	game.Rating.Text = strings.TrimSuffix(game.Rating.Text, "/20")
 	if r, err := strconv.ParseFloat(game.Rating.Text, 64); err == nil {
