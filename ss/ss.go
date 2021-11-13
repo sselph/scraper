@@ -27,7 +27,6 @@ const (
 	support2D     = "support-2D"
 	supportLabel  = "support-texture"
 	preDate       = "date_"
-	preGenre      = "genres_"
 	preSynopsis   = "synopsis_"
 )
 
@@ -94,20 +93,11 @@ func (s *SafeStringMap) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type BoxArt struct {
-	Box2D SafeStringMap `json:"media_boxs2d"`
-	Box3D SafeStringMap `json:"media_boxs3d"`
-}
-
-type Support struct {
-	Support2Ds    SafeStringMap `json:"media_supports2d"`
-	SupportLabels SafeStringMap `json:"media_supportstexture"`
-}
-
 type Medium struct {
 	Type   string `json:"type"`
 	Parent string `json:"parent"`
 	URL    string `json:"url"`
+	Format string `json:"format"`
 	Region string `json:"region"`
 }
 
@@ -137,18 +127,23 @@ func getSuffix(m map[string]string, pre string, suf []string) (string, bool) {
 	return "", false
 }
 
-func getMedia(m []Medium, mediaType string, regions []string) (string, bool) {
+func getMediaWithFormat(m []Medium, mediaType string, regions []string) (string, string, bool) {
 	if m == nil {
-		return "", false
+		return "", "", false
 	}
 	for _, region := range regions {
 		for _, medium := range m {
 			if medium.Parent == "jeu" && medium.Type == mediaType && (medium.Region == region || medium.Region == "" && region == "xx") {
-				return medium.URL, true
+				return medium.URL, medium.Format, true
 			}
 		}
 	}
-	return "", false
+	return "", "", false
+}
+
+func getMedia(m []Medium, mediaType string, regions []string) (string, bool) {
+	url, _, ok := getMediaWithFormat(m, mediaType, regions)
+	return url, ok
 }
 
 func getMediaURL(m []Medium, mediaType string, regions []string) string {
@@ -168,8 +163,8 @@ func (game Game) Marquee(r []string) (string, bool) {
 	return getMedia(game.Media, marquee, r)
 }
 
-func (game Game) Video(r []string) (string, bool) {
-	return getMedia(game.Media, video, r)
+func (game Game) Video(r []string) (string, string, bool) {
+	return getMediaWithFormat(game.Media, video, r)
 }
 
 func (game Game) Box2D(r []string) (string, bool) {
@@ -212,6 +207,10 @@ type IDAndText struct {
 	Text string `json:"text"`
 }
 
+type TextField struct {
+	Text string `json:"text"`
+}
+
 type Genre struct {
 	ID    string            `json:"id"`
 	Names []LanguageAndText `json:"noms"`
@@ -237,8 +236,8 @@ type Game struct {
 	//Regions   []string `json:"regionshortnames"`
 	Publisher IDAndText `json:"editeur"`
 	Developer IDAndText `json:"developpeur"`
-	Players   string    `json:"joueurs"` //todo
-	Rating    string    `json:"note"`    //todo
+	Players   TextField `json:"joueurs"`
+	Rating    TextField `json:"note"`
 	//Dates     SafeStringMap `json:"dates"`
 	Genres []Genre  `json:"genres"`
 	Media  []Medium `json:"medias"`

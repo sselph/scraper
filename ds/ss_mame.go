@@ -2,7 +2,6 @@ package ds
 
 import (
 	"context"
-	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -78,18 +77,15 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 		ret.Images[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if vidURL, ok := game.Video(regions); ok {
-		if u, err := url.Parse(vidURL); err == nil {
-			ext := u.Query().Get("mediaformat")
-			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
-		}
+	if vidURL, format, ok := game.Video(regions); ok {
+		ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + format, s.Limit}
 	}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
 	ret.GameTitle = game.Name
 	ret.Overview, _ = game.Desc(s.Lang)
-	game.Rating = strings.TrimSuffix(game.Rating, "/20")
-	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
+	game.Rating.Text = strings.TrimSuffix(game.Rating.Text, "/20")
+	if r, err := strconv.ParseFloat(game.Rating.Text, 64); err == nil {
 		ret.Rating = r / 20.0
 	}
 	ret.Developer = game.Developer.Text
@@ -98,11 +94,11 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	if r, ok := game.Date(s.Region); ok {
 		ret.ReleaseDate = ssXMLDate(r)
 	}
-	if strings.ContainsRune(game.Players, '-') {
-		x := strings.Split(game.Players, "-")
-		game.Players = x[len(x)-1]
+	if strings.ContainsRune(game.Players.Text, '-') {
+		x := strings.Split(game.Players.Text, "-")
+		game.Players.Text = x[len(x)-1]
 	}
-	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
+	p, err := strconv.ParseInt(strings.TrimRight(game.Players.Text, "+"), 10, 32)
 	if err == nil {
 		ret.Players = p
 	}
