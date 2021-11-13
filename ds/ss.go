@@ -230,36 +230,13 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 
 	ret := NewGame()
 	var screen, box, cart, wheel Image
-	if imgURL, ok := game.Screenshot(regions); ok {
-		screen = HTTPImageSS{imgURL, s.Limit}
-		ret.Images[ImgScreen] = screen
-		ret.Thumbs[ImgScreen] = screen
-	}
-	if imgURL, ok := game.Box2D(regions); ok {
-		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Box3D(regions); ok {
-		box = HTTPImageSS{imgURL, s.Limit}
-		ret.Images[ImgBoxart3D] = box
-		ret.Thumbs[ImgBoxart3D] = box
-	}
-	if imgURL, ok := game.Wheel(regions); ok {
-		wheel = HTTPImageSS{imgURL, s.Limit}
-		ret.Images[ImgMarquee] = wheel
-		ret.Thumbs[ImgMarquee] = wheel
-	}
-	if imgURL, ok := game.Support2D(regions); ok {
-		cart = HTTPImageSS{imgURL, s.Limit}
-		ret.Images[ImgCart] = cart
-		ret.Thumbs[ImgCart] = cart
-	}
-	if imgURL, ok := game.SupportLabel(regions); ok {
-		label := HTTPImageSS{imgURL, s.Limit}
-		ret.Images[ImgCartLabel] = label
-		ret.Thumbs[ImgCartLabel] = label
-	}
-	if vidURL, format, ok := game.Video(regions); ok {
+	screen = addImageToGame(ret, game, ss.Screenshot, ImgScreen, regions, s)
+	addImageToGame(ret, game, ss.Box2D, ImgBoxart, regions, s)
+	box = addImageToGame(ret, game, ss.Box3D, ImgBoxart3D, regions, s)
+	wheel = addImageToGame(ret, game, ss.Wheel, ImgMarquee, regions, s)
+	cart = addImageToGame(ret, game, ss.Support2D, ImgCart, regions, s)
+	addImageToGame(ret, game, ss.SupportLabel, ImgCartLabel, regions, s)
+	if vidURL, format, ok := game.MediaWithFormat(ss.Video, regions); ok {
 		ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + format, s.Limit}
 	}
 	ret.Images[ImgMix3] = MixImage{StandardThree(screen, box, wheel)}
@@ -292,6 +269,16 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 		return nil, ErrNotFound
 	}
 	return ret, nil
+}
+
+func addImageToGame(ret *Game, game ss.Game, mediaType ss.MediaType, imgType ImgType, regions []string, s *SS) HTTPImageSS {
+	var gameImage HTTPImageSS
+	if imgURL, ok := game.Media(mediaType, regions); ok {
+		gameImage = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[imgType] = gameImage
+		ret.Thumbs[imgType] = gameImage
+	}
+	return gameImage
 }
 
 // ssImgURL parses the URL and adds the maxwidth.

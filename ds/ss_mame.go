@@ -53,31 +53,13 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	regions = append(regions, s.Region...)
 
 	ret := NewGame()
-	if imgURL, ok := game.Screenshot(regions); ok {
-		ret.Images[ImgScreen] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgScreen] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.ScreenMarquee(regions); ok {
-		ret.Images[ImgTitle] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgTitle] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Marquee(regions); ok {
-		ret.Images[ImgMarquee] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgMarquee] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Box2D(regions); ok {
-		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Box3D(regions); ok {
-		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Flyer(regions); ok {
-		ret.Images[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if vidURL, format, ok := game.Video(regions); ok {
+	addImageToMameGame(ret, game, ss.Screenshot, ImgScreen, regions, s)
+	addImageToMameGame(ret, game, ss.ScreenMarquee, ImgTitle, regions, s)
+	addImageToMameGame(ret, game, ss.Marquee, ImgMarquee, regions, s)
+	addImageToMameGame(ret, game, ss.Box2D, ImgBoxart, regions, s)
+	addImageToMameGame(ret, game, ss.Box3D, ImgBoxart3D, regions, s)
+	addImageToMameGame(ret, game, ss.Flyer, ImgFlyer, regions, s)
+	if vidURL, format, ok := game.MediaWithFormat(ss.Video, regions); ok {
 		ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + format, s.Limit}
 	}
 	ret.ID = game.ID
@@ -106,4 +88,14 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 		return nil, ErrNotFound
 	}
 	return ret, nil
+}
+
+func addImageToMameGame(ret *Game, game ss.Game, mediaType ss.MediaType, imgType ImgType, regions []string, s *SSMAME) HTTPImageSS {
+	var gameImage HTTPImageSS
+	if imgURL, ok := game.Media(mediaType, regions); ok {
+		gameImage = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[imgType] = gameImage
+		ret.Thumbs[imgType] = gameImage
+	}
+	return gameImage
 }

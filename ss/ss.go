@@ -14,18 +14,19 @@ import (
 	"strings"
 )
 
-// Image types
+type MediaType string
+
 const (
-	screenshot    = "ss"
-	screenMarquee = "screenmarquee"
-	marquee       = "marquee"
-	video         = "video"
-	box2D         = "box-2D"
-	box3D         = "box-3D"
-	flyer         = "flyer"
-	wheel         = "wheel"
-	support2D     = "support-2D"
-	supportLabel  = "support-texture"
+	Screenshot    MediaType = "ss"
+	ScreenMarquee MediaType = "screenmarquee"
+	Marquee       MediaType = "marquee"
+	Video         MediaType = "video"
+	Box2D         MediaType = "box-2D"
+	Box3D         MediaType = "box-3D"
+	Flyer         MediaType = "flyer"
+	Wheel         MediaType = "wheel"
+	Support2D     MediaType = "support-2D"
+	SupportLabel  MediaType = "support-texture"
 )
 
 const (
@@ -69,68 +70,20 @@ type GameInfoReq struct {
 	RomType string
 }
 
-type SafeStringMap struct {
-	Map map[string]string
-}
-
-func (s *SafeStringMap) UnmarshalJSON(b []byte) error {
-	if s.Map == nil {
-		s.Map = make(map[string]string)
-	}
-	x := make(map[string]json.RawMessage)
-	if err := json.Unmarshal(b, &x); err != nil {
-		log.Print("json: %v", err)
-		return nil
-	}
-	for k, v := range x {
-		var y string
-		if err := json.Unmarshal(v, &y); err == nil {
-			s.Map[k] = y
-		}
-	}
-	return nil
-}
-
 type Medium struct {
-	Type   string `json:"type"`
-	Parent string `json:"parent"`
-	URL    string `json:"url"`
-	Format string `json:"format"`
-	Region string `json:"region"`
+	Type   MediaType `json:"type"`
+	Parent string    `json:"parent"`
+	URL    string    `json:"url"`
+	Format string    `json:"format"`
+	Region string    `json:"region"`
 }
 
-func getPrefix(m map[string]string, pre string) (string, bool) {
-	for k, v := range m {
-		if strings.HasPrefix(k, pre) && !strings.Contains(strings.TrimPrefix(k, pre), "_") {
-			return v, true
-		}
-	}
-	return "", false
-}
-
-func getSuffix(m map[string]string, pre string, suf []string) (string, bool) {
-	if m == nil {
-		return "", false
-	}
-	for _, x := range suf {
-		if i, ok := m[pre+x]; ok {
-			return i, true
-		}
-		if x == "xx" {
-			if i, ok := getPrefix(m, pre); ok {
-				return i, true
-			}
-		}
-	}
-	return "", false
-}
-
-func getMediaWithFormat(m []Medium, mediaType string, regions []string) (string, string, bool) {
-	if m == nil {
+func (game Game) MediaWithFormat(mediaType MediaType, regions []string) (string, string, bool) {
+	if game.Medias == nil {
 		return "", "", false
 	}
 	for _, region := range regions {
-		for _, medium := range m {
+		for _, medium := range game.Medias {
 			if medium.Parent == "jeu" && medium.Type == mediaType && (medium.Region == region || medium.Region == "" && region == "xx") {
 				return medium.URL, medium.Format, true
 			}
@@ -139,54 +92,9 @@ func getMediaWithFormat(m []Medium, mediaType string, regions []string) (string,
 	return "", "", false
 }
 
-func getMedia(m []Medium, mediaType string, regions []string) (string, bool) {
-	url, _, ok := getMediaWithFormat(m, mediaType, regions)
+func (game Game) Media(mediaType MediaType, regions []string) (string, bool) {
+	url, _, ok := game.MediaWithFormat(mediaType, regions)
 	return url, ok
-}
-
-func getMediaURL(m []Medium, mediaType string, regions []string) string {
-	url, _ := getMedia(m, mediaType, regions)
-	return url
-}
-
-func (game Game) Screenshot(r []string) (string, bool) {
-	return getMedia(game.Media, screenshot, r)
-}
-
-func (game Game) ScreenMarquee(r []string) (string, bool) {
-	return getMedia(game.Media, screenMarquee, r)
-}
-
-func (game Game) Marquee(r []string) (string, bool) {
-	return getMedia(game.Media, marquee, r)
-}
-
-func (game Game) Video(r []string) (string, string, bool) {
-	return getMediaWithFormat(game.Media, video, r)
-}
-
-func (game Game) Box2D(r []string) (string, bool) {
-	return getMedia(game.Media, box2D, r)
-}
-
-func (game Game) Box3D(r []string) (string, bool) {
-	return getMedia(game.Media, box3D, r)
-}
-
-func (game Game) Flyer(r []string) (string, bool) {
-	return getMedia(game.Media, flyer, r)
-}
-
-func (game Game) Wheel(r []string) (string, bool) {
-	return getMedia(game.Media, wheel, r)
-}
-
-func (game Game) Support2D(r []string) (string, bool) {
-	return getMedia(game.Media, support2D, r)
-}
-
-func (game Game) SupportLabel(r []string) (string, bool) {
-	return getMedia(game.Media, supportLabel, r)
 }
 
 type ROM struct {
@@ -241,7 +149,7 @@ type Game struct {
 	Rating       TextField         `json:"note"`
 	Dates        []RegionAndText   `json:"dates"`
 	Genres       []Genre           `json:"genres"`
-	Media        []Medium          `json:"medias"`
+	Medias       []Medium          `json:"medias"`
 	ROMs         []ROM             `json:"roms"`
 	names        map[string]string
 	descriptions map[string]string
