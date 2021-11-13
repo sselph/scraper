@@ -230,36 +230,36 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 
 	ret := NewGame()
 	var screen, box, cart, wheel Image
-	if game.Media.Screenshot != "" {
-		screen = HTTPImageSS{game.Media.Screenshot, s.Limit}
+	if imgURL, ok := game.Screenshot(regions); ok {
+		screen = HTTPImageSS{imgURL, s.Limit}
 		ret.Images[ImgScreen] = screen
 		ret.Thumbs[ImgScreen] = screen
 	}
-	if imgURL, ok := game.Media.Box2D(regions); ok {
+	if imgURL, ok := game.Box2D(regions); ok {
 		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if imgURL, ok := game.Media.Box3D(regions); ok {
+	if imgURL, ok := game.Box3D(regions); ok {
 		box = HTTPImageSS{imgURL, s.Limit}
 		ret.Images[ImgBoxart3D] = box
 		ret.Thumbs[ImgBoxart3D] = box
 	}
-	if imgURL, ok := game.Media.Wheel(regions); ok {
+	if imgURL, ok := game.Wheel(regions); ok {
 		wheel = HTTPImageSS{imgURL, s.Limit}
 		ret.Images[ImgMarquee] = wheel
 		ret.Thumbs[ImgMarquee] = wheel
 	}
-	if imgURL, ok := game.Media.Support2D(regions); ok {
+	if imgURL, ok := game.Support2D(regions); ok {
 		cart = HTTPImageSS{imgURL, s.Limit}
 		ret.Images[ImgCart] = cart
 		ret.Thumbs[ImgCart] = cart
 	}
-	if imgURL, ok := game.Media.SupportLabel(regions); ok {
+	if imgURL, ok := game.SupportLabel(regions); ok {
 		label := HTTPImageSS{imgURL, s.Limit}
 		ret.Images[ImgCartLabel] = label
 		ret.Thumbs[ImgCartLabel] = label
 	}
-	if vidURL := game.Media.Video; vidURL != "" {
+	if vidURL, ok := game.Video(regions); ok {
 		if u, err := url.Parse(vidURL); err == nil {
 			ext := u.Query().Get("mediaformat")
 			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
@@ -277,8 +277,8 @@ func (s *SS) GetGame(ctx context.Context, path string) (*Game, error) {
 	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
 		ret.Rating = r / 20.0
 	}
-	ret.Developer = game.Developer
-	ret.Publisher = game.Publisher
+	ret.Developer = game.Developer.Text
+	ret.Publisher = game.Publisher.Text
 	ret.Genre, _ = game.Genre(s.Lang)
 	if r, ok := game.Date(s.Region); ok {
 		ret.ReleaseDate = ssXMLDate(r)

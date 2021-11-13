@@ -54,31 +54,31 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	regions = append(regions, s.Region...)
 
 	ret := NewGame()
-	if game.Media.Screenshot != "" {
-		ret.Images[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
-		ret.Thumbs[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
+	if imgURL, ok := game.Screenshot(regions); ok {
+		ret.Images[ImgScreen] = HTTPImageSS{imgURL, s.Limit}
+		ret.Thumbs[ImgScreen] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if game.Media.ScreenMarquee != "" {
-		ret.Images[ImgTitle] = HTTPImageSS{game.Media.ScreenMarquee, s.Limit}
-		ret.Thumbs[ImgTitle] = HTTPImageSS{game.Media.ScreenMarquee, s.Limit}
+	if imgURL, ok := game.ScreenMarquee(regions); ok {
+		ret.Images[ImgTitle] = HTTPImageSS{imgURL, s.Limit}
+		ret.Thumbs[ImgTitle] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if game.Media.Marquee != "" {
-		ret.Images[ImgMarquee] = HTTPImageSS{game.Media.Marquee, s.Limit}
-		ret.Thumbs[ImgMarquee] = HTTPImageSS{game.Media.Marquee, s.Limit}
+	if imgURL, ok := game.Marquee(regions); ok {
+		ret.Images[ImgMarquee] = HTTPImageSS{imgURL, s.Limit}
+		ret.Thumbs[ImgMarquee] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if imgURL, ok := game.Media.Box2D(regions); ok {
+	if imgURL, ok := game.Box2D(regions); ok {
 		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if imgURL, ok := game.Media.Box3D(regions); ok {
+	if imgURL, ok := game.Box3D(regions); ok {
 		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if imgURL, ok := game.Media.Flyer(regions); ok {
+	if imgURL, ok := game.Flyer(regions); ok {
 		ret.Images[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
 		ret.Thumbs[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
 	}
-	if vidURL := game.Media.Video; vidURL != "" {
+	if vidURL, ok := game.Video(regions); ok {
 		if u, err := url.Parse(vidURL); err == nil {
 			ext := u.Query().Get("mediaformat")
 			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
@@ -92,8 +92,8 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
 		ret.Rating = r / 20.0
 	}
-	ret.Developer = game.Developer
-	ret.Publisher = game.Publisher
+	ret.Developer = game.Developer.Text
+	ret.Publisher = game.Publisher.Text
 	ret.Genre, _ = game.Genre(s.Lang)
 	if r, ok := game.Date(s.Region); ok {
 		ret.ReleaseDate = ssXMLDate(r)

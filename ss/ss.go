@@ -16,15 +16,19 @@ import (
 
 // JSON field prefixes.
 const (
-	pre2D           = "media_box2d_"
-	pre3D           = "media_box3d_"
-	preFlyer        = "media_flyer_"
-	preWheel        = "media_wheel_"
-	preSupport2D    = "media_support2d_"
-	preSupportLabel = "media_supporttexture_"
-	preDate         = "date_"
-	preGenre        = "genres_"
-	preSynopsis     = "synopsis_"
+	screenshot    = "ss"
+	screenMarquee = "screenmarquee"
+	marquee       = "marquee"
+	video         = "video"
+	box2D         = "box-2D"
+	box3D         = "box-3D"
+	flyer         = "flyer"
+	wheel         = "wheel"
+	support2D     = "support-2D"
+	supportLabel  = "support-texture"
+	preDate       = "date_"
+	preGenre      = "genres_"
+	preSynopsis   = "synopsis_"
 )
 
 const (
@@ -100,15 +104,11 @@ type Support struct {
 	SupportLabels SafeStringMap `json:"media_supportstexture"`
 }
 
-type Media struct {
-	Screenshot    string        `json:"media_screenshot"`
-	ScreenMarquee string        `json:"media_screenmarquee"`
-	Marquee       string        `json:"media_marquee"`
-	Video         string        `json:"media_video"`
-	Flyers        SafeStringMap `json:"media_flyers"`
-	BoxArt        BoxArt        `json:"media_boxs"`
-	Wheels        SafeStringMap `json:"media_wheels"`
-	Supports      Support       `json:"media_supports"`
+type Medium struct {
+	Type   string `json:"type"`
+	Parent string `json:"parent"`
+	URL    string `json:"url"`
+	Region string `json:"region"`
 }
 
 func getPrefix(m map[string]string, pre string) (string, bool) {
@@ -137,34 +137,84 @@ func getSuffix(m map[string]string, pre string, suf []string) (string, bool) {
 	return "", false
 }
 
-func (m Media) Box2D(r []string) (string, bool) {
-	return getSuffix(m.BoxArt.Box2D.Map, pre2D, r)
+func getMedia(m []Medium, mediaType string, regions []string) (string, bool) {
+	if m == nil {
+		return "", false
+	}
+	for _, region := range regions {
+		for _, medium := range m {
+			if medium.Parent == "jeu" && medium.Type == mediaType && (medium.Region == region || medium.Region == "" && region == "xx") {
+				return medium.URL, true
+			}
+		}
+	}
+	return "", false
 }
 
-func (m Media) Box3D(r []string) (string, bool) {
-	return getSuffix(m.BoxArt.Box3D.Map, pre3D, r)
+func getMediaURL(m []Medium, mediaType string, regions []string) string {
+	url, _ := getMedia(m, mediaType, regions)
+	return url
 }
 
-func (m Media) Flyer(r []string) (string, bool) {
-	return getSuffix(m.Flyers.Map, preFlyer, r)
+func (game Game) Screenshot(r []string) (string, bool) {
+	return getMedia(game.Media, screenshot, r)
 }
 
-func (m Media) Wheel(r []string) (string, bool) {
-	return getSuffix(m.Wheels.Map, preWheel, r)
+func (game Game) ScreenMarquee(r []string) (string, bool) {
+	return getMedia(game.Media, screenMarquee, r)
 }
 
-func (m Media) Support2D(r []string) (string, bool) {
-	return getSuffix(m.Supports.Support2Ds.Map, preSupport2D, r)
+func (game Game) Marquee(r []string) (string, bool) {
+	return getMedia(game.Media, marquee, r)
 }
 
-func (m Media) SupportLabel(r []string) (string, bool) {
-	return getSuffix(m.Supports.SupportLabels.Map, preSupportLabel, r)
+func (game Game) Video(r []string) (string, bool) {
+	return getMedia(game.Media, video, r)
+}
+
+func (game Game) Box2D(r []string) (string, bool) {
+	return getMedia(game.Media, box2D, r)
+}
+
+func (game Game) Box3D(r []string) (string, bool) {
+	return getMedia(game.Media, box3D, r)
+}
+
+func (game Game) Flyer(r []string) (string, bool) {
+	return getMedia(game.Media, flyer, r)
+}
+
+func (game Game) Wheel(r []string) (string, bool) {
+	return getMedia(game.Media, wheel, r)
+}
+
+func (game Game) Support2D(r []string) (string, bool) {
+	return getMedia(game.Media, support2D, r)
+}
+
+func (game Game) SupportLabel(r []string) (string, bool) {
+	return getMedia(game.Media, supportLabel, r)
 }
 
 type ROM struct {
 	FileName   string `json:"romfilename"`
 	SHA1       string `json:"romsha1"`
 	RegionsRaw string `json:"romregions"`
+}
+
+type LanguageAndText struct {
+	Language string `json:"langue"`
+	Text     string `json:"text"`
+}
+
+type IDAndText struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
+}
+
+type Genre struct {
+	ID    string            `json:"id"`
+	Names []LanguageAndText `json:"noms"`
 }
 
 func (r ROM) Regions() []string {
@@ -180,48 +230,60 @@ func (r ROM) Regions() []string {
 }
 
 type Game struct {
-	Synopsis  SafeStringMap              `json:"synopsis"`
-	ID        string                     `json:"id"`
-	Name      string                     `json:"nom"`
-	Names     SafeStringMap              `json:"noms"`
-	Regions   []string                   `json:"regionshortnames"`
-	Publisher string                     `json:"editeur"`
-	Developer string                     `json:"developpeur"`
-	Players   string                     `json:"joueurs"`
-	Rating    string                     `json:"note"`
-	Dates     SafeStringMap              `json:"dates"`
-	Genres    map[string]json.RawMessage `json:"genres:`
-	Media     Media                      `json:"medias"`
-	ROMs      []ROM                      `json:"roms"`
-	genres    map[string]string
+	//Synopsis  SafeStringMap `json:"synopsis"`
+	ID   string `json:"id"`
+	Name string `json:"nom"` //todo
+	//Names SafeStringMap `json:"noms"`
+	//Regions   []string `json:"regionshortnames"`
+	Publisher IDAndText `json:"editeur"`
+	Developer IDAndText `json:"developpeur"`
+	Players   string    `json:"joueurs"` //todo
+	Rating    string    `json:"note"`    //todo
+	//Dates     SafeStringMap `json:"dates"`
+	Genres []Genre  `json:"genres"`
+	Media  []Medium `json:"medias"`
+	ROMs   []ROM    `json:"roms"`
+	genres map[string]string
 }
 
 func (g Game) Date(r []string) (string, bool) {
-	return getSuffix(g.Dates.Map, preDate, r)
+	return "", false
+	//return getSuffix(g.Dates.Map, preDate, r)
 }
 
 func (g *Game) decodeGenre() {
 	g.genres = make(map[string]string)
-	for k, v := range g.Genres {
-		if strings.HasSuffix(k, "_medias") || strings.HasSuffix(k, "_id") {
-			continue
-		}
-		s := []string{}
-		if err := json.Unmarshal(v, &s); err == nil {
-			g.genres[k] = strings.Join(s, " / ")
+	for _, genre := range g.Genres {
+		for _, name := range genre.Names {
+			if g.genres[name.Language] != "" {
+				g.genres[name.Language] = g.genres[name.Language] + " / " + name.Text
+			} else {
+				g.genres[name.Language] = name.Text
+			}
 		}
 	}
+}
+
+func getFirstMatch(mapping map[string]string, keys []string) (string, bool) {
+	for _, key := range keys {
+		if mapping[key] != "" {
+			return mapping[key], true
+		}
+	}
+	return "", false
+
 }
 
 func (g Game) Genre(l []string) (string, bool) {
 	if g.genres == nil {
 		g.decodeGenre()
 	}
-	return getSuffix(g.genres, preGenre, l)
+	return getFirstMatch(g.genres, l)
 }
 
 func (g Game) Desc(l []string) (string, bool) {
-	return getSuffix(g.Synopsis.Map, preSynopsis, l)
+	return "", false
+	//return getSuffix(g.Synopsis.Map, preSynopsis, l)
 }
 
 func (g Game) ROM(req GameInfoReq) (ROM, bool) {
