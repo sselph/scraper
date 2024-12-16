@@ -2,7 +2,6 @@ package ds
 
 import (
 	"context"
-	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -54,55 +53,34 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 	regions = append(regions, s.Region...)
 
 	ret := NewGame()
-	if game.Media.Screenshot != "" {
-		ret.Images[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
-		ret.Thumbs[ImgScreen] = HTTPImageSS{game.Media.Screenshot, s.Limit}
-	}
-	if game.Media.ScreenMarquee != "" {
-		ret.Images[ImgTitle] = HTTPImageSS{game.Media.ScreenMarquee, s.Limit}
-		ret.Thumbs[ImgTitle] = HTTPImageSS{game.Media.ScreenMarquee, s.Limit}
-	}
-	if game.Media.Marquee != "" {
-		ret.Images[ImgMarquee] = HTTPImageSS{game.Media.Marquee, s.Limit}
-		ret.Thumbs[ImgMarquee] = HTTPImageSS{game.Media.Marquee, s.Limit}
-	}
-	if imgURL, ok := game.Media.Box2D(regions); ok {
-		ret.Images[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Media.Box3D(regions); ok {
-		ret.Images[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgBoxart3D] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if imgURL, ok := game.Media.Flyer(regions); ok {
-		ret.Images[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
-		ret.Thumbs[ImgFlyer] = HTTPImageSS{imgURL, s.Limit}
-	}
-	if vidURL := game.Media.Video; vidURL != "" {
-		if u, err := url.Parse(vidURL); err == nil {
-			ext := u.Query().Get("mediaformat")
-			ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + ext, s.Limit}
-		}
+	addImageToMameGame(ret, game, ss.Screenshot, ImgScreen, regions, s)
+	addImageToMameGame(ret, game, ss.ScreenMarquee, ImgTitle, regions, s)
+	addImageToMameGame(ret, game, ss.Marquee, ImgMarquee, regions, s)
+	addImageToMameGame(ret, game, ss.Box2D, ImgBoxart, regions, s)
+	addImageToMameGame(ret, game, ss.Box3D, ImgBoxart3D, regions, s)
+	addImageToMameGame(ret, game, ss.Flyer, ImgFlyer, regions, s)
+	if vidURL, format, ok := game.MediaWithFormat(ss.Video, regions); ok {
+		ret.Videos[VidStandard] = HTTPVideoSS{vidURL, "." + format, s.Limit}
 	}
 	ret.ID = game.ID
 	ret.Source = "screenscraper.fr"
-	ret.GameTitle = game.Name
+	ret.GameTitle, _ = game.Name(s.Region)
 	ret.Overview, _ = game.Desc(s.Lang)
-	game.Rating = strings.TrimSuffix(game.Rating, "/20")
-	if r, err := strconv.ParseFloat(game.Rating, 64); err == nil {
+	game.Rating.Text = strings.TrimSuffix(game.Rating.Text, "/20")
+	if r, err := strconv.ParseFloat(game.Rating.Text, 64); err == nil {
 		ret.Rating = r / 20.0
 	}
-	ret.Developer = game.Developer
-	ret.Publisher = game.Publisher
+	ret.Developer = game.Developer.Text
+	ret.Publisher = game.Publisher.Text
 	ret.Genre, _ = game.Genre(s.Lang)
 	if r, ok := game.Date(s.Region); ok {
 		ret.ReleaseDate = ssXMLDate(r)
 	}
-	if strings.ContainsRune(game.Players, '-') {
-		x := strings.Split(game.Players, "-")
-		game.Players = x[len(x)-1]
+	if strings.ContainsRune(game.Players.Text, '-') {
+		x := strings.Split(game.Players.Text, "-")
+		game.Players.Text = x[len(x)-1]
 	}
-	p, err := strconv.ParseInt(strings.TrimRight(game.Players, "+"), 10, 32)
+	p, err := strconv.ParseInt(strings.TrimRight(game.Players.Text, "+"), 10, 32)
 	if err == nil {
 		ret.Players = p
 	}
@@ -110,4 +88,14 @@ func (s *SSMAME) GetGame(ctx context.Context, path string) (*Game, error) {
 		return nil, ErrNotFound
 	}
 	return ret, nil
+}
+
+func addImageToMameGame(ret *Game, game ss.Game, mediaType ss.MediaType, imgType ImgType, regions []string, s *SSMAME) HTTPImageSS {
+	var gameImage HTTPImageSS
+	if imgURL, ok := game.Media(mediaType, regions); ok {
+		gameImage = HTTPImageSS{imgURL, s.Limit}
+		ret.Images[imgType] = gameImage
+		ret.Thumbs[imgType] = gameImage
+	}
+	return gameImage
 }
